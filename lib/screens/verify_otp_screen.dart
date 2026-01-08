@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
-import 'placeholder_screen.dart';
 import 'home_screen.dart';
 
 class VerifyOtpScreen extends StatefulWidget {

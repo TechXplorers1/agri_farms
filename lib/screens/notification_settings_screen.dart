@@ -128,14 +128,14 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             // Flutter's default Material switch might look slightly different depending on theme.
             // For a "black toggle" look:
             activeThumbImage: null,
-            trackColor: MaterialStateProperty.resolveWith((states) {
-               if (states.contains(MaterialState.selected)) {
+            trackColor: WidgetStateProperty.resolveWith((states) {
+               if (states.contains(WidgetState.selected)) {
                  return Colors.black;
                }
                return Colors.grey[300];
             }),
-             thumbColor: MaterialStateProperty.all(Colors.white),
-             trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
+             thumbColor: WidgetStateProperty.all(Colors.white),
+             trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
           ),
         ),
       ],
