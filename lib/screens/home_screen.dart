@@ -170,43 +170,58 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Services Grid Card
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: GridView.count(
-                      crossAxisCount: 3,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: 0.95,
+                  // 1. Book Services Section
+                  _buildSectionHeader('Book Services', () {
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
+                  }),
+                  const SizedBox(height: 12),
+                  _buildSectionContainer(
+                    Row(
                       children: [
-                        _buildServiceItem(Icons.shopping_bag_outlined, 'Book\nServices', const Color(0xFFE1BEE7), Colors.purple, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
-                        }),
-                        _buildServiceItem(Icons.local_shipping_outlined, 'Book\nTransport', const Color(0xFFFFCDD2), Colors.red, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const BookTransportScreen()));
-                        }),
-                        _buildServiceItem(Icons.build_outlined, 'Rent\nEquipment', const Color(0xFFFFE0B2), Colors.orange, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const EquipmentRentalsScreen()));
-                        }),
-                        _buildServiceItem(Icons.shopping_cart_outlined, 'Buy\nProducts', const Color(0xFFBBDEFB), Colors.blue),
-                        _buildServiceItem(Icons.inventory_2_outlined, 'Sell\nProducts', const Color(0xFFC8E6C9), Colors.green),
-                        _buildServiceItem(Icons.request_quote_outlined, 'Request\nProduct', const Color(0xFFF8BBD0), Colors.pink),
+                        Expanded(child: _buildServiceItem(Icons.agriculture, 'Ploughing', const Color(0xFFE3F2FD), Colors.blue)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildServiceItem(Icons.grass, 'Harvesting', const Color(0xFFFFF9C4), Colors.orange)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildServiceItem(Icons.airplanemode_active, 'Drone\nSpraying', const Color(0xFFE8F5E9), Colors.green)),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 24),
+
+                  // 2. Book Transport Section
+                  _buildSectionHeader('Book Transport', () {
+                     Navigator.push(context, MaterialPageRoute(builder: (context) => const BookTransportScreen()));
+                  }),
+                  const SizedBox(height: 12),
+                   _buildSectionContainer(
+                     Row(
+                      children: [
+                        Expanded(child: _buildServiceItem(Icons.local_shipping, 'Mini Truck', const Color(0xFFE3F2FD), Colors.blue)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildServiceItem(Icons.agriculture, 'Tractor\nTrolley', const Color(0xFFE8F5E9), Colors.green)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildServiceItem(Icons.local_shipping_outlined, 'Full Truck', const Color(0xFFFFF3E0), Colors.orange)),
+                      ],
+                    ),
+                   ),
+                  const SizedBox(height: 24),
+
+                   // 3. Rent Equipment Section
+                  _buildSectionHeader('Rent Equipment', () {
+                     Navigator.push(context, MaterialPageRoute(builder: (context) => const EquipmentRentalsScreen()));
+                  }),
+                  const SizedBox(height: 12),
+                   _buildSectionContainer(
+                     Row(
+                      children: [
+                        Expanded(child: _buildServiceItem(Icons.agriculture, 'Tractors', Colors.green[50]!, Colors.green)),
+                         const SizedBox(width: 12),
+                        Expanded(child: _buildServiceItem(Icons.grass, 'Harvesters', Colors.yellow[50]!, Colors.orange)),
+                         const SizedBox(width: 12),
+                        Expanded(child: _buildServiceItem(Icons.water_drop, 'Sprayers', Colors.blue[50]!, Colors.blue)),
+                      ],
+                    ),
+                   ),
 
                   const SizedBox(height: 24),
                   const Text(
@@ -235,9 +250,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 24),
                   
                   // Banners
-                  // Banners
-                  _buildBanner('50% off on Seeds', 'Limited time offer', const Color(0xFFE8F5E9)), // Light Green
-                  const SizedBox(height: 12),
                   _buildBanner('Free Soil Testing', 'Book now', const Color(0xFFE3F2FD)), // Light Blue
                   const SizedBox(height: 12),
                   _buildBanner('New Tractors Available', 'Low rental rates', const Color(0xFFFFF3E0)), // Light Orange
@@ -328,32 +340,62 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildServiceItem(IconData icon, String title, Color bgColor, Color iconColor, {VoidCallback? onTap}) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start, // Align to top to avoid center bias if needed, but center is usually fine
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: iconColor),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, height: 1.2),
-            ),
-          ],
+  Widget _buildSectionContainer(Widget child) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildSectionHeader(String title, VoidCallback onViewMore) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
+        TextButton(
+          onPressed: onViewMore,
+          child: const Text('View More'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildServiceItem(IconData icon, String title, Color bgColor, Color iconColor, {VoidCallback? onTap}) {
+    return Container(
+      // width: 100, // Removed fixed width
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: iconColor, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, height: 1.2),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
