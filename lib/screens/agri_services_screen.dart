@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:agriculture/screens/service_providers_screen.dart';
 
 class AgriServicesScreen extends StatelessWidget {
   const AgriServicesScreen({super.key});
@@ -54,12 +55,13 @@ class AgriServicesScreen extends StatelessWidget {
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
                 children: [
-                   _buildServiceCard('Ploughing', Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue),
-                   _buildServiceCard('Harvesting', Icons.grass, const Color(0xFFFFF9C4), Colors.orange), // Yellowish bg
-                   _buildServiceCard('Drone Spraying', Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green),
-                   _buildServiceCard('Irrigation', Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan),
-                   _buildServiceCard('Soil Testing', Icons.science, const Color(0xFFF3E5F5), Colors.purple),
-                   _buildServiceCard('Vet Care', Icons.pets, const Color(0xFFFCE4EC), Colors.pink),
+                   _buildServiceCard(context, 'Ploughing', Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue),
+                   _buildServiceCard(context, 'Harvesting', Icons.grass, const Color(0xFFFFF9C4), Colors.orange), // Yellowish bg
+                   _buildServiceCard(context, 'Farm Workers', Icons.groups, const Color(0xFFF3E5F5), Colors.purple),
+                   _buildServiceCard(context, 'Drone Spraying', Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green),
+                   _buildServiceCard(context, 'Irrigation', Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan),
+                   _buildServiceCard(context, 'Soil Testing', Icons.science, const Color(0xFFF3E5F5), Colors.purple),
+                   _buildServiceCard(context, 'Vet Care', Icons.pets, const Color(0xFFFCE4EC), Colors.pink),
                 ],
               ),
             ),
@@ -69,7 +71,7 @@ class AgriServicesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildServiceCard(String title, IconData icon, Color bgColor, Color iconColor) {
+  Widget _buildServiceCard(BuildContext context, String title, IconData icon, Color bgColor, Color iconColor) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -86,7 +88,9 @@ class AgriServicesScreen extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {},
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: title)));
+          },
           borderRadius: BorderRadius.circular(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

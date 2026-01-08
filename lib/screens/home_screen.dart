@@ -4,6 +4,7 @@ import 'profile_screen.dart';
 import 'agri_services_screen.dart';
 import 'book_transport_screen.dart';
 import 'equipment_rentals_screen.dart';
+import 'service_providers_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,12 +38,13 @@ class _HomeScreenState extends State<HomeScreen> {
   // Master list of all items
   final List<HomeServiceItem> _allItems = [
     // Services
-    HomeServiceItem('Ploughing', Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services', const AgriServicesScreen()),
-    HomeServiceItem('Harvesting', Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services', const AgriServicesScreen()),
-    HomeServiceItem('Drone\nSpraying', Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services', const AgriServicesScreen()),
-    HomeServiceItem('Irrigation', Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, 'Services', const AgriServicesScreen()),
-    HomeServiceItem('Soil Testing', Icons.science, const Color(0xFFF3E5F5), Colors.purple, 'Services', const AgriServicesScreen()),
-    HomeServiceItem('Vet Care', Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services', const AgriServicesScreen()),
+    HomeServiceItem('Ploughing', Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services', const ServiceProvidersScreen(serviceName: 'Ploughing')),
+    HomeServiceItem('Harvesting', Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services', const ServiceProvidersScreen(serviceName: 'Harvesting')),
+    HomeServiceItem('Farm\nWorkers', Icons.groups, const Color(0xFFF3E5F5), Colors.purple, 'Services', const ServiceProvidersScreen(serviceName: 'Farm Workers')),
+    HomeServiceItem('Drone\nSpraying', Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services', const ServiceProvidersScreen(serviceName: 'Drone Spraying')),
+    HomeServiceItem('Irrigation', Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, 'Services', const ServiceProvidersScreen(serviceName: 'Irrigation')),
+    HomeServiceItem('Soil Testing', Icons.science, const Color(0xFFF3E5F5), Colors.purple, 'Services', const ServiceProvidersScreen(serviceName: 'Soil Testing')),
+    HomeServiceItem('Vet Care', Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services', const ServiceProvidersScreen(serviceName: 'Vet Care')),
     
     // Transport
     HomeServiceItem('Mini Truck', Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue, 'Transport', const BookTransportScreen()),
@@ -318,11 +320,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildSectionContainer(
                     Row(
                       children: [
-                        Expanded(child: _buildServiceItem(Icons.agriculture, 'Ploughing', const Color(0xFFE3F2FD), Colors.blue)),
+                        Expanded(child: _buildServiceItem(Icons.agriculture, 'Ploughing', const Color(0xFFE3F2FD), Colors.blue, onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const ServiceProvidersScreen(serviceName: 'Ploughing')));
+                        })),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.grass, 'Harvesting', const Color(0xFFFFF9C4), Colors.orange)),
+                        Expanded(child: _buildServiceItem(Icons.grass, 'Harvesting', const Color(0xFFFFF9C4), Colors.orange, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const ServiceProvidersScreen(serviceName: 'Harvesting')));
+                        })),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.airplanemode_active, 'Drone\nSpraying', const Color(0xFFE8F5E9), Colors.green)),
+                        Expanded(child: _buildServiceItem(Icons.groups, 'Farm\nWorkers', const Color(0xFFF3E5F5), Colors.purple, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const ServiceProvidersScreen(serviceName: 'Farm Workers')));
+                        })),
                       ],
                     ),
                   ),
@@ -524,27 +532,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildServiceItem(IconData icon, String title, Color bgColor, Color iconColor, {VoidCallback? onTap}) {
-    return Container(
-      // width: 100, // Removed fixed width
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(8),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque, // Ensure tap is detected
+      child: Container(
+        // width: 100, // Removed fixed width
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: iconColor, size: 28),
             ),
-            child: Icon(icon, color: iconColor, size: 28),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, height: 1.2),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, height: 1.2),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }
