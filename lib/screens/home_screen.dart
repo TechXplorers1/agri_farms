@@ -7,6 +7,18 @@ import 'equipment_rentals_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+class HomeServiceItem {
+  final String title;
+  final IconData icon;
+  final Color bgColor;
+  final Color iconColor;
+  final String category; // 'Services', 'Transport', 'Rentals'
+  final Widget navigationTarget;
+
+  HomeServiceItem(this.title, this.icon, this.bgColor, this.iconColor, this.category, this.navigationTarget);
+}
+
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -19,10 +31,49 @@ class _HomeScreenState extends State<HomeScreen> {
   String _userName = 'User';
   String _userLocation = 'Your Village, Your District';
 
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  
+  // Master list of all items
+  final List<HomeServiceItem> _allItems = [
+    // Services
+    HomeServiceItem('Ploughing', Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services', const AgriServicesScreen()),
+    HomeServiceItem('Harvesting', Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services', const AgriServicesScreen()),
+    HomeServiceItem('Drone\nSpraying', Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services', const AgriServicesScreen()),
+    HomeServiceItem('Irrigation', Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, 'Services', const AgriServicesScreen()),
+    HomeServiceItem('Soil Testing', Icons.science, const Color(0xFFF3E5F5), Colors.purple, 'Services', const AgriServicesScreen()),
+    HomeServiceItem('Vet Care', Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services', const AgriServicesScreen()),
+    
+    // Transport
+    HomeServiceItem('Mini Truck', Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue, 'Transport', const BookTransportScreen()),
+    HomeServiceItem('Tractor\nTrolley', Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport', const BookTransportScreen()),
+    HomeServiceItem('Full Truck', Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport', const BookTransportScreen()),
+    HomeServiceItem('Tempo', Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport', const BookTransportScreen()),
+    HomeServiceItem('Pickup Van', Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport', const BookTransportScreen()),
+    HomeServiceItem('Container', Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport', const BookTransportScreen()),
+    
+    // Rentals
+    HomeServiceItem('Tractors', Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals', const EquipmentRentalsScreen()),
+    HomeServiceItem('Harvesters', Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals', const EquipmentRentalsScreen()),
+    HomeServiceItem('Sprayers', Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals', const EquipmentRentalsScreen()),
+    HomeServiceItem('Trolleys', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals', const EquipmentRentalsScreen()),
+  ];
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
@@ -147,6 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 20),
                   TextField(
+                    controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'Search seeds, tractor, spraying...',
                       hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
@@ -170,6 +222,94 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                   if (_searchQuery.isNotEmpty) ...[
+                      // SEARCH RESULTS VIEW
+                      if (_getFilteredItems('Services').isEmpty && 
+                          _getFilteredItems('Transport').isEmpty && 
+                          _getFilteredItems('Rentals').isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40.0),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No match found for your search',
+                                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      
+                      if (_getFilteredItems('Services').isNotEmpty) ...[
+                         _buildSectionHeader('Book Services', () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
+                         }),
+                         const SizedBox(height: 12),
+                          _buildSectionContainer(
+                           // Use Wrap or Grid for search results to show potentially more than 3
+                           Wrap(
+                             spacing: 12,
+                             runSpacing: 12,
+                             children: _getFilteredItems('Services').map((item) => 
+                               SizedBox(
+                                 width: (MediaQuery.of(context).size.width - 64) / 3, // Approx 3 items per row logic
+                                 child: _buildServiceItem(item.icon, item.title, item.bgColor, item.iconColor, onTap: () {
+                                    Navigator.push(context, MaterialPageRoute(builder: (context) => item.navigationTarget));
+                                 }),
+                               )
+                             ).toList(),
+                           )
+                          ),
+                         const SizedBox(height: 24),
+                      ],
+                      if (_getFilteredItems('Transport').isNotEmpty) ...[
+                         _buildSectionHeader('Book Transport', () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const BookTransportScreen()));
+                         }),
+                         const SizedBox(height: 12),
+                          _buildSectionContainer(
+                           Wrap(
+                             spacing: 12,
+                             runSpacing: 12,
+                             children: _getFilteredItems('Transport').map((item) => 
+                               SizedBox(
+                                 width: (MediaQuery.of(context).size.width - 64) / 3,
+                                 child: _buildServiceItem(item.icon, item.title, item.bgColor, item.iconColor, onTap: () {
+                                    Navigator.push(context, MaterialPageRoute(builder: (context) => item.navigationTarget));
+                                 }),
+                               )
+                             ).toList(),
+                           )
+                          ),
+                         const SizedBox(height: 24),
+                      ],
+                       if (_getFilteredItems('Rentals').isNotEmpty) ...[
+                         _buildSectionHeader('Rent Equipment', () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const EquipmentRentalsScreen()));
+                         }),
+                         const SizedBox(height: 12),
+                          _buildSectionContainer(
+                           Wrap(
+                             spacing: 12,
+                             runSpacing: 12,
+                             children: _getFilteredItems('Rentals').map((item) => 
+                               SizedBox(
+                                 width: (MediaQuery.of(context).size.width - 64) / 3,
+                                 child: _buildServiceItem(item.icon, item.title, item.bgColor, item.iconColor, onTap: () {
+                                    Navigator.push(context, MaterialPageRoute(builder: (context) => item.navigationTarget));
+                                 }),
+                               )
+                             ).toList(),
+                           )
+                          ),
+                         const SizedBox(height: 24),
+                      ],
+                   ] else ...[
+                  // DEFAULT VIEW (No Search)
+                  
                   // 1. Book Services Section
                   _buildSectionHeader('Book Services', () {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
@@ -253,17 +393,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildBanner('Free Soil Testing', 'Book now', const Color(0xFFE3F2FD)), // Light Blue
                   const SizedBox(height: 12),
                   _buildBanner('New Tractors Available', 'Low rental rates', const Color(0xFFFFF3E0)), // Light Orange
-
-                  const SizedBox(height: 24),
                   
-                  // Info Cards (Mandi & Weather)
-                  Row(
-                    children: [
-                      Expanded(child: _buildInfoCard('Mandi\nPrices', 'Check today\'s\nrates', 'View Prices', Icons.show_chart, Colors.orange[100]!, Colors.orange)),
-                      const SizedBox(width: 16),
-                      Expanded(child: _buildInfoCard('Weather', '28°C, Sunny\n\n7-Day Forecast', '', Icons.cloud_outlined, Colors.blue[50]!, Colors.blue)),
-                    ],
-                  ),
+                  const SizedBox(height: 24),
+                   
+                   // Info Cards (Mandi & Weather)
+                   Row(
+                     children: [
+                       Expanded(child: _buildInfoCard('Mandi\nPrices', 'Check today\'s\nrates', 'View Prices', Icons.show_chart, Colors.orange[100]!, Colors.orange)),
+                       const SizedBox(width: 16),
+                       Expanded(child: _buildInfoCard('Weather', '28°C, Sunny\n\n7-Day Forecast', '', Icons.cloud_outlined, Colors.blue[50]!, Colors.blue)),
+                     ],
+                   ),
 
                   const SizedBox(height: 24),
                   
@@ -302,6 +442,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
+                   ], // End else (Default View)
                   const SizedBox(height: 20),
                 ],
               ),
@@ -338,6 +479,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+  
+  List<HomeServiceItem> _getFilteredItems(String category) {
+    if (_searchQuery.isEmpty) return [];
+    final query = _searchQuery.toLowerCase();
+    return _allItems.where((item) => 
+      item.category == category && item.title.replaceAll('\n', ' ').toLowerCase().contains(query)
+    ).toList();
   }
 
   Widget _buildSectionContainer(Widget child) {
