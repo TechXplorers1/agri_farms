@@ -21,7 +21,8 @@ class HomeServiceItem {
 
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String? userRole;
+  const HomeScreen({super.key, this.userRole});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -36,29 +37,29 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   
   // Master list of all items
-  final List<HomeServiceItem> _allItems = [
+  late final List<HomeServiceItem> _allItems = [
     // Services
-    HomeServiceItem('Ploughing', Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services', const ServiceProvidersScreen(serviceName: 'Ploughing')),
-    HomeServiceItem('Harvesting', Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services', const ServiceProvidersScreen(serviceName: 'Harvesting')),
-    HomeServiceItem('Farm\nWorkers', Icons.groups, const Color(0xFFF3E5F5), Colors.purple, 'Services', const ServiceProvidersScreen(serviceName: 'Farm Workers')),
-    HomeServiceItem('Drone\nSpraying', Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services', const ServiceProvidersScreen(serviceName: 'Drone Spraying')),
-    HomeServiceItem('Irrigation', Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, 'Services', const ServiceProvidersScreen(serviceName: 'Irrigation')),
-    HomeServiceItem('Soil Testing', Icons.science, const Color(0xFFF3E5F5), Colors.purple, 'Services', const ServiceProvidersScreen(serviceName: 'Soil Testing')),
-    HomeServiceItem('Vet Care', Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services', const ServiceProvidersScreen(serviceName: 'Vet Care')),
+    HomeServiceItem('Ploughing', Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services', ServiceProvidersScreen(serviceName: 'Ploughing', userRole: widget.userRole)),
+    HomeServiceItem('Harvesting', Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services', ServiceProvidersScreen(serviceName: 'Harvesting', userRole: widget.userRole)),
+    HomeServiceItem('Farm\nWorkers', Icons.groups, const Color(0xFFF3E5F5), Colors.purple, 'Services', ServiceProvidersScreen(serviceName: 'Farm Workers', userRole: widget.userRole)),
+    HomeServiceItem('Drone\nSpraying', Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services', ServiceProvidersScreen(serviceName: 'Drone Spraying', userRole: widget.userRole)),
+    HomeServiceItem('Irrigation', Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, 'Services', ServiceProvidersScreen(serviceName: 'Irrigation', userRole: widget.userRole)),
+    HomeServiceItem('Soil Testing', Icons.science, const Color(0xFFF3E5F5), Colors.purple, 'Services', ServiceProvidersScreen(serviceName: 'Soil Testing', userRole: widget.userRole)),
+    HomeServiceItem('Vet Care', Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services', ServiceProvidersScreen(serviceName: 'Vet Care', userRole: widget.userRole)),
     
     // Transport
-    HomeServiceItem('Mini Truck', Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue, 'Transport', const BookTransportScreen()),
-    HomeServiceItem('Tractor\nTrolley', Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport', const BookTransportScreen()),
-    HomeServiceItem('Full Truck', Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport', const BookTransportScreen()),
-    HomeServiceItem('Tempo', Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport', const BookTransportScreen()),
-    HomeServiceItem('Pickup Van', Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport', const BookTransportScreen()),
-    HomeServiceItem('Container', Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport', const BookTransportScreen()),
+    HomeServiceItem('Mini Truck', Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue, 'Transport', BookTransportScreen(userRole: widget.userRole)),
+    HomeServiceItem('Tractor\nTrolley', Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport', BookTransportScreen(userRole: widget.userRole)),
+    HomeServiceItem('Full Truck', Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport', BookTransportScreen(userRole: widget.userRole)),
+    HomeServiceItem('Tempo', Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport', BookTransportScreen(userRole: widget.userRole)),
+    HomeServiceItem('Pickup Van', Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport', BookTransportScreen(userRole: widget.userRole)),
+    HomeServiceItem('Container', Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport', BookTransportScreen(userRole: widget.userRole)),
     
     // Rentals
-    HomeServiceItem('Tractors', Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals', const EquipmentRentalsScreen()),
-    HomeServiceItem('Harvesters', Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals', const EquipmentRentalsScreen()),
-    HomeServiceItem('Sprayers', Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals', const EquipmentRentalsScreen()),
-    HomeServiceItem('Trolleys', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals', const EquipmentRentalsScreen()),
+    HomeServiceItem('Tractors', Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals', EquipmentRentalsScreen(userRole: widget.userRole)),
+    HomeServiceItem('Harvesters', Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals', EquipmentRentalsScreen(userRole: widget.userRole)),
+    HomeServiceItem('Sprayers', Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals', EquipmentRentalsScreen(userRole: widget.userRole)),
+    HomeServiceItem('Trolleys', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals', EquipmentRentalsScreen(userRole: widget.userRole)),
   ];
 
   @override
@@ -247,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       
                       if (_getFilteredItems('Services').isNotEmpty) ...[
                          _buildSectionHeader('Book Services', () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => AgriServicesScreen(userRole: widget.userRole)));
                          }),
                          const SizedBox(height: 12),
                           _buildSectionContainer(
@@ -269,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                       if (_getFilteredItems('Transport').isNotEmpty) ...[
                          _buildSectionHeader('Book Transport', () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const BookTransportScreen()));
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
                          }),
                          const SizedBox(height: 12),
                           _buildSectionContainer(
@@ -290,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                        if (_getFilteredItems('Rentals').isNotEmpty) ...[
                          _buildSectionHeader('Rent Equipment', () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const EquipmentRentalsScreen()));
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
                          }),
                          const SizedBox(height: 12),
                           _buildSectionContainer(
@@ -321,15 +322,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       children: [
                         Expanded(child: _buildServiceItem(Icons.agriculture, 'Ploughing', const Color(0xFFE3F2FD), Colors.blue, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const ServiceProvidersScreen(serviceName: 'Ploughing')));
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: 'Ploughing', userRole: widget.userRole)));
                         })),
                         const SizedBox(width: 12),
                         Expanded(child: _buildServiceItem(Icons.grass, 'Harvesting', const Color(0xFFFFF9C4), Colors.orange, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const ServiceProvidersScreen(serviceName: 'Harvesting')));
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: 'Harvesting', userRole: widget.userRole)));
                         })),
                         const SizedBox(width: 12),
                         Expanded(child: _buildServiceItem(Icons.groups, 'Farm\nWorkers', const Color(0xFFF3E5F5), Colors.purple, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const ServiceProvidersScreen(serviceName: 'Farm Workers')));
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: 'Farm Workers', userRole: widget.userRole)));
                         })),
                       ],
                     ),
@@ -338,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // 2. Book Transport Section
                   _buildSectionHeader('Book Transport', () {
-                     Navigator.push(context, MaterialPageRoute(builder: (context) => const BookTransportScreen()));
+                     Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
                   }),
                   const SizedBox(height: 12),
                    _buildSectionContainer(
@@ -356,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                    // 3. Rent Equipment Section
                   _buildSectionHeader('Rent Equipment', () {
-                     Navigator.push(context, MaterialPageRoute(builder: (context) => const EquipmentRentalsScreen()));
+                     Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
                   }),
                   const SizedBox(height: 12),
                    _buildSectionContainer(
@@ -461,7 +462,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // Market Placeholder (Index 1)
       const Center(child: Text('Market Screen Placeholder')), // You can replace this later
       // Rentals Placeholder (Index 2)
-      const EquipmentRentalsScreen(),
+      // Rentals Placeholder (Index 2)
+      EquipmentRentalsScreen(userRole: widget.userRole),
       // Community Placeholder (Index 3)
       const Center(child: Text('Community Screen Placeholder')), // You can replace this later
       // Profile Tab (Index 4)

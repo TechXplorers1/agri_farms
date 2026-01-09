@@ -8,6 +8,8 @@ import 'help_support_screen.dart';
 import 'terms_privacy_screen.dart';
 import 'my_rentals_screen.dart';
 import 'my_services_screen.dart';
+import 'generic_history_screen.dart';
+import '../utils/booking_manager.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -130,27 +132,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: _boxDecoration(),
               child: Column(
                 children: [
-                  _buildListTile(Icons.shopping_bag_outlined, 'My Orders'),
+                  _buildListTile(
+                    Icons.history, 
+                    'My Services',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                          title: 'My Services',
+                          categories: [BookingCategory.services, BookingCategory.farmWorkers],
+                        )),
+                      );
+                    },
+                  ),
+                  _buildDividerLine(),
+                  _buildListTile(
+                    Icons.local_shipping_outlined, 
+                    'My Transports',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                          title: 'My Transports',
+                          categories: [BookingCategory.transport],
+                        )),
+                      );
+                    },
+                  ),
                   _buildDividerLine(),
                   _buildListTile(
                     Icons.build_outlined, 
                     'My Rentals',
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const MyRentalsScreen()),
+                        MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                          title: 'My Rentals',
+                          categories: [BookingCategory.rentals],
+                        )),
                       );
                     },
                   ),
-                  _buildDividerLine(),
-                  _buildListTile(
-                    Icons.storefront_outlined, 
-                    'My Services',
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const MyServicesScreen()),
-                      );
-                    },
-                  ), 
+
+ 
                 ],
               ),
             ),
