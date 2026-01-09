@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:agriculture/screens/service_providers_screen.dart';
 
 class AgriServicesScreen extends StatelessWidget {
-  const AgriServicesScreen({super.key});
+  final String? userRole;
+  const AgriServicesScreen({super.key, this.userRole});
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +90,7 @@ class AgriServicesScreen extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: title)));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: title, userRole: userRole)));
           },
           borderRadius: BorderRadius.circular(16),
           child: Column(

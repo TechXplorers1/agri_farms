@@ -5,8 +5,15 @@ import 'home_screen.dart';
 
 class VerifyOtpScreen extends StatefulWidget {
   final String mobileNumber;
+  final String fullName;
+  final String role;
 
-  const VerifyOtpScreen({super.key, required this.mobileNumber});
+  const VerifyOtpScreen({
+    super.key,
+    required this.mobileNumber,
+    required this.fullName,
+    required this.role,
+  });
 
   @override
   State<VerifyOtpScreen> createState() => _VerifyOtpScreenState();
@@ -63,7 +70,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     if (_isButtonEnabled) {
       // Logic would go here to actually verify the OTP
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        MaterialPageRoute(builder: (context) => HomeScreen(userRole: widget.role)),
         (route) => false,
       );
     }

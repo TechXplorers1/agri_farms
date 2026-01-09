@@ -1,37 +1,31 @@
 import 'package:flutter/material.dart';
 import '../utils/booking_manager.dart';
 
-class MyServicesScreen extends StatefulWidget {
-  const MyServicesScreen({super.key});
+class GenericHistoryScreen extends StatefulWidget {
+  final String title;
+  final List<BookingCategory> categories;
+
+  const GenericHistoryScreen({
+    super.key,
+    required this.title,
+    required this.categories,
+  });
 
   @override
-  State<MyServicesScreen> createState() => _MyServicesScreenState();
+  State<GenericHistoryScreen> createState() => _GenericHistoryScreenState();
 }
 
-class _MyServicesScreenState extends State<MyServicesScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   final BookingManager _bookingManager = BookingManager();
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text(
-          'My Services',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Text(
+          widget.title,
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
@@ -40,63 +34,45 @@ class _MyServicesScreenState extends State<MyServicesScreen> with SingleTickerPr
           onPressed: () => Navigator.pop(context),
         ),
         elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF00AA55),
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFF00AA55),
-          isScrollable: true,
-          tabs: const [
-            Tab(text: 'All'),
-            Tab(text: 'Farm Workers'),
-            Tab(text: 'App Rentals'),
-            Tab(text: 'Services'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(
+            color: Colors.grey[200],
+            height: 1.0,
+          ),
         ),
       ),
       body: AnimatedBuilder(
         animation: _bookingManager,
         builder: (context, _) {
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildBookingList(BookingCategory.all),
-              _buildBookingList(BookingCategory.farmWorkers),
-              _buildBookingList(BookingCategory.rentals),
-              _buildBookingList(BookingCategory.services),
-            ],
+          final allBookings = widget.categories.expand((cat) => _bookingManager.getBookingsByCategory(cat)).toList();
+          // Sort by date or id if needed, for now just list them
+          
+          if (allBookings.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.history, size: 60, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No ${widget.title.toLowerCase()} yet',
+                    style: TextStyle(color: Colors.grey[500], fontSize: 16),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: allBookings.length,
+            itemBuilder: (context, index) {
+              return _buildServiceCard(allBookings[index]);
+            },
           );
         },
       ),
-    );
-  }
-
-  Widget _buildBookingList(BookingCategory category) {
-    final bookings = _bookingManager.getBookingsByCategory(category);
-
-    if (bookings.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.history, size: 60, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text(
-              'No bookings yet',
-              style: TextStyle(color: Colors.grey[500], fontSize: 16),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: bookings.length,
-      itemBuilder: (context, index) {
-        final booking = bookings[index];
-        return _buildServiceCard(booking);
-      },
     );
   }
 
@@ -217,4 +193,3 @@ class _MyServicesScreenState extends State<MyServicesScreen> with SingleTickerPr
     );
   }
 }
-

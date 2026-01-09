@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'upload_item_screen.dart';
+import 'generic_history_screen.dart';
+import '../utils/booking_manager.dart';
+
 class EquipmentRentalsScreen extends StatelessWidget {
-  const EquipmentRentalsScreen({super.key});
+  final String? userRole;
+  const EquipmentRentalsScreen({super.key, this.userRole});
 
   @override
   Widget build(BuildContext context) {
@@ -12,6 +17,24 @@ class EquipmentRentalsScreen extends StatelessWidget {
           'Equipment Rentals',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
+        actions: [
+          if (userRole != null && userRole != 'General User')
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
+                },
+                icon: const Icon(Icons.add, size: 18, color: Colors.white),
+                label: const Text('Upload', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00AA55),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(0, 32),
+                ),
+              ),
+            ),
+        ],
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
@@ -53,13 +76,21 @@ class EquipmentRentalsScreen extends StatelessWidget {
                       ),
                     ),
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Text(
-                          'My Rentals',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                            title: 'My Rentals',
+                            categories: [BookingCategory.rentals],
+                          )));
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            'My Rentals',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ),
                       ),

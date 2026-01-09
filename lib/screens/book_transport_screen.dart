@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'upload_item_screen.dart';
+import 'generic_history_screen.dart';
+import '../utils/booking_manager.dart';
+
 class BookTransportScreen extends StatelessWidget {
-  const BookTransportScreen({super.key});
+  final String? userRole;
+  const BookTransportScreen({super.key, this.userRole});
 
   @override
   Widget build(BuildContext context) {
@@ -15,10 +20,31 @@ class BookTransportScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         actions: [
+          if (userRole != null && userRole != 'General User')
+             Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
+                },
+                icon: const Icon(Icons.add, size: 18, color: Colors.white),
+                label: const Text('Upload', style: TextStyle(color: Colors.white)),
+                 style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00AA55),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(0, 32),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: OutlinedButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                  title: 'My Transports',
+                  categories: [BookingCategory.transport],
+                )));
+              },
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                 minimumSize: const Size(0, 36),

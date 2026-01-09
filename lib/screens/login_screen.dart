@@ -11,23 +11,30 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  String? _selectedRole;
+  final List<String> _roles = ['General User', 'Farmer', 'Farm Worker', 'Vehicle Provider'];
   bool _isButtonEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _phoneController.addListener(_validateInput);
+    _nameController.addListener(_validateInput);
   }
 
   @override
   void dispose() {
     _phoneController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
   void _validateInput() {
     setState(() {
-      _isButtonEnabled = _phoneController.text.length == 10;
+      _isButtonEnabled = _phoneController.text.length == 10 &&
+          _nameController.text.isNotEmpty &&
+          _selectedRole != null;
     });
   }
 
@@ -35,7 +42,11 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_isButtonEnabled) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => VerifyOtpScreen(mobileNumber: _phoneController.text),
+          builder: (context) => VerifyOtpScreen(
+            mobileNumber: _phoneController.text,
+            fullName: _nameController.text,
+            role: _selectedRole!,
+          ),
         ),
       );
     }
@@ -86,6 +97,78 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 40),
+              // Full Name Input
+              Align(
+                alignment: Alignment.centerLeft,
+                child: const Text(
+                  'Full Name',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: TextField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter your full name',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Role Selection
+              Align(
+                alignment: Alignment.centerLeft,
+                child: const Text(
+                  'Choose Role',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedRole,
+                    hint: const Text('Select your role'),
+                    isExpanded: true,
+                    icon: const Icon(Icons.arrow_drop_down),
+                    items: _roles.map((String role) {
+                      return DropdownMenuItem<String>(
+                        value: role,
+                        child: Text(role),
+                      );
+                    }).toList(),
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedRole = newValue;
+                        _validateInput();
+                      });
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               // Mobile Number Input
               Row(
                 children: [
