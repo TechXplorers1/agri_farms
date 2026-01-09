@@ -79,4 +79,9 @@ class ProviderManager extends ChangeNotifier {
     _providers.insert(0, provider);
     notifyListeners();
   }
+
+  void removeProvider(String id) {
+    _providers.removeWhere((p) => p.id == id);
+    notifyListeners();
+  }
 }

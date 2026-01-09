@@ -55,4 +55,21 @@ class BookingManager extends ChangeNotifier {
     _bookings.clear();
     notifyListeners();
   }
+
+  void updateBookingStatus(String id, String newStatus) {
+    final index = _bookings.indexWhere((b) => b.id == id);
+    if (index != -1) {
+      final old = _bookings[index];
+      _bookings[index] = BookingDetails(
+        id: old.id,
+        title: old.title,
+        date: old.date,
+        price: old.price,
+        status: newStatus,
+        category: old.category,
+        details: old.details,
+      );
+      notifyListeners();
+    }
+  }
 }

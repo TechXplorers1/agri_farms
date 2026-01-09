@@ -9,7 +9,9 @@ import 'terms_privacy_screen.dart';
 import 'my_rentals_screen.dart';
 import 'my_services_screen.dart';
 import 'generic_history_screen.dart';
+import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
+import 'admin/admin_dashboard_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -185,6 +187,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: _boxDecoration(),
               child: Column(
                 children: [
+                  _buildListTile(
+                    Icons.admin_panel_settings,
+                    'Admin Panel',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const AdminDashboard()),
+                      );
+                    }
+                  ),
+                  _buildDividerLine(),
                   _buildListTile(
                     Icons.person_outline, 
                     'Edit Profile',
