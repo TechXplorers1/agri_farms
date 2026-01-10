@@ -5,6 +5,10 @@ import 'agri_services_screen.dart';
 import 'book_transport_screen.dart';
 import 'equipment_rentals_screen.dart';
 import 'service_providers_screen.dart';
+import 'tools/fertilizer_calculator_screen.dart';
+import 'tools/pesticide_calculator_screen.dart';
+import 'tools/farming_calculator_screen.dart';
+import 'tools/crop_advisory_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -397,13 +401,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildToolCard('Crop\nAdvisory', Icons.grass, const Color(0xFFE3F2FD), Colors.blue),
+                        _buildToolCard(context, 'Crop\nAdvisory', Icons.grass, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const CropAdvisoryScreen()));
+                        }),
                         const SizedBox(width: 12),
-                        _buildToolCard('Fertilizer\ncalculator', Icons.calculate_outlined, const Color(0xFFE3F2FD), Colors.blue),
+                        _buildToolCard(context, 'Fertilizer\ncalculator', Icons.calculate_outlined, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const FertilizerCalculatorScreen()));
+                        }),
                         const SizedBox(width: 12),
-                        _buildToolCard('Pesticide\ncalculator', Icons.science_outlined, const Color(0xFFE3F2FD), Colors.blue, isNew: true),
+                        _buildToolCard(context, 'Pesticide\ncalculator', Icons.science_outlined, const Color(0xFFE3F2FD), Colors.blue, isNew: true, onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const PesticideCalculatorScreen()));
+                        }),
                         const SizedBox(width: 12),
-                         _buildToolCard('Farming\ncalculator', Icons.agriculture_outlined, const Color(0xFFE3F2FD), Colors.blue, isNew: true),
+                         _buildToolCard(context, 'Farming\ncalculator', Icons.agriculture_outlined, const Color(0xFFE3F2FD), Colors.blue, isNew: true, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const FarmingCalculatorScreen()));
+                         }),
                       ],
                     ),
                   ),
@@ -575,19 +587,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildToolCard(String title, IconData icon, Color bgColor, Color iconColor, {bool isNew = false}) {
-    return Stack(
-      children: [
-        Container(
-          width: 140, // Fixed width for horizontal scrolling
-          height: 140, // Fixed height for square shape
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey[200]!),
-          ),
-          child: Column(
+  Widget _buildToolCard(BuildContext context, String title, IconData icon, Color bgColor, Color iconColor, {bool isNew = false, VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          Container(
+            width: 140, // Fixed width for horizontal scrolling
+            height: 140, // Fixed height for square shape
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey[200]!),
+            ),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
             children: [
@@ -630,7 +644,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 
