@@ -20,6 +20,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showUserDialog(),
+        backgroundColor: Colors.green,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
       body: AnimatedBuilder(
         animation: _userManager,
         builder: (context, _) {
@@ -82,19 +87,42 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               ],
                             ),
                           ),
-                          // Status Switch / Toggle
-                          Switch(
-                            value: !user.isBlocked, 
-                            activeColor: Colors.green,
-                            onChanged: (val) {
-                               _userManager.toggleUserBlockStatus(user.id);
-                               ScaffoldMessenger.of(context).showSnackBar(
-                                 SnackBar(
-                                   content: Text(user.isBlocked ? 'User Unblocked' : 'User Blocked'),
-                                   duration: const Duration(seconds: 1),
-                                 )
-                               );
-                            }
+                          // Actions Menu
+                          PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                _showUserDialog(user: user);
+                              } else if (value == 'delete') {
+                                _confirmDelete(user.id);
+                              } else if (value == 'block') {
+                                _userManager.toggleUserBlockStatus(user.id);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(user.isBlocked ? 'User Unblocked' : 'User Blocked'),
+                                    duration: const Duration(seconds: 1),
+                                  )
+                                );
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: Row(children: const [Icon(Icons.edit, size: 20), SizedBox(width: 8), Text('Edit')]),
+                              ),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Row(children: const [Icon(Icons.delete, size: 20, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))]),
+                              ),
+                              PopupMenuItem(
+                                value: 'block',
+                                child: Row(children: [
+                                  Icon(user.isBlocked ? Icons.check_circle : Icons.block, size: 20), 
+                                  const SizedBox(width: 8), 
+                                  Text(user.isBlocked ? 'Unblock' : 'Block')
+                                ]),
+                              ),
+                            ],
+                            icon: const Icon(Icons.more_vert, color: Colors.grey),
                           ),
                         ],
                       ),
@@ -129,6 +157,90 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         const SizedBox(height: 2),
         Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
       ],
+    );
+  }
+
+  void _showUserDialog({AppUser? user}) {
+    final isEditing = user != null;
+    final nameController = TextEditingController(text: user?.name ?? '');
+    final phoneController = TextEditingController(text: user?.phone ?? '');
+    String selectedRole = user?.role ?? 'User';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text(isEditing ? 'Edit User' : 'Add User'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneController,
+                  decoration: const InputDecoration(labelText: 'Phone', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: selectedRole,
+                  decoration: const InputDecoration(labelText: 'Role', border: OutlineInputBorder()),
+                  items: ['User', 'Provider'].map((role) => DropdownMenuItem(
+                    value: role,
+                    child: Text(role),
+                  )).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => selectedRole = val);
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (nameController.text.isNotEmpty && phoneController.text.isNotEmpty) {
+                    if (isEditing) {
+                      _userManager.editUser(user.id, nameController.text, phoneController.text, selectedRole);
+                    } else {
+                      _userManager.addUser(nameController.text, phoneController.text, selectedRole);
+                    }
+                    Navigator.pop(context);
+                  }
+                },
+                child: Text(isEditing ? 'Save' : 'Add'),
+              ),
+            ],
+          );
+        }
+      ),
+    );
+  }
+
+  void _confirmDelete(String userId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete User'),
+        content: const Text('Are you sure you want to delete this user?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              _userManager.deleteUser(userId);
+              Navigator.pop(ctx);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 }

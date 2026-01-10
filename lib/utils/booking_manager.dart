@@ -16,6 +16,7 @@ class BookingDetails {
   final String status;
   final BookingCategory category;
   final Map<String, dynamic> details; // Extra details like worker counts, slots etc.
+  final String? providerId;
 
   BookingDetails({
     required this.id,
@@ -25,6 +26,7 @@ class BookingDetails {
     required this.status,
     required this.category,
     this.details = const {},
+    this.providerId,
   });
 }
 
@@ -32,7 +34,49 @@ class BookingManager extends ChangeNotifier {
   static final BookingManager _instance = BookingManager._internal();
   factory BookingManager() => _instance;
 
-  BookingManager._internal();
+  BookingManager._internal() {
+      // Add more dummy data mostly targeting provider '2' for testing
+      _bookings.addAll([
+          BookingDetails(
+            id: '101', 
+            title: 'Farm Workers Request', 
+            date: '2025-01-12', 
+            price: '₹2200',  // derived from (5*500ish) roughly
+            status: 'Pending', 
+            category: BookingCategory.farmWorkers,
+            providerId: '2', 
+            details: {
+              'male_count': 2,
+              'female_count': 3,
+              'duration': '8 hours',
+              'task_type': 'Weeding'
+            }
+          ),
+          BookingDetails(
+            id: '102', 
+            title: 'Tractor Rental', 
+            date: '2025-01-15', 
+            price: '₹1200', 
+            status: 'Confirmed', 
+            category: BookingCategory.rentals,
+            providerId: '2'
+          ),
+           BookingDetails(
+            id: '103', 
+            title: 'Harvest Labour', 
+            date: '2025-01-20', 
+            price: '₹5000', 
+            status: 'Pending', 
+            category: BookingCategory.farmWorkers,
+            providerId: '2',
+            details: {
+              'male_count': 5, 
+              'female_count': 5,
+              'duration': 'Full Day'
+            }
+          ),
+      ]);
+  }
 
   final List<BookingDetails> _bookings = [];
 
@@ -43,6 +87,10 @@ class BookingManager extends ChangeNotifier {
       return _bookings;
     }
     return _bookings.where((b) => b.category == category).toList();
+  }
+  
+  List<BookingDetails> getBookingsForProvider(String providerId) {
+    return _bookings.where((b) => b.providerId == providerId).toList();
   }
 
   void addBooking(BookingDetails booking) {
@@ -68,6 +116,7 @@ class BookingManager extends ChangeNotifier {
         status: newStatus,
         category: old.category,
         details: old.details,
+        providerId: old.providerId,
       );
       notifyListeners();
     }

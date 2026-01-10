@@ -48,18 +48,18 @@ class _HomeScreenState extends State<HomeScreen> {
     HomeServiceItem('Vet Care', Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services', ServiceProvidersScreen(serviceName: 'Vet Care', userRole: widget.userRole)),
     
     // Transport
-    HomeServiceItem('Mini Truck', Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue, 'Transport', BookTransportScreen(userRole: widget.userRole)),
-    HomeServiceItem('Tractor\nTrolley', Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport', BookTransportScreen(userRole: widget.userRole)),
-    HomeServiceItem('Full Truck', Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport', BookTransportScreen(userRole: widget.userRole)),
-    HomeServiceItem('Tempo', Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport', BookTransportScreen(userRole: widget.userRole)),
-    HomeServiceItem('Pickup Van', Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport', BookTransportScreen(userRole: widget.userRole)),
-    HomeServiceItem('Container', Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport', BookTransportScreen(userRole: widget.userRole)),
+    HomeServiceItem('Mini Truck', Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue, 'Transport', ServiceProvidersScreen(serviceName: 'Mini Truck', userRole: widget.userRole)),
+    HomeServiceItem('Tractor\nTrolley', Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport', ServiceProvidersScreen(serviceName: 'Tractor Trolley', userRole: widget.userRole)),
+    HomeServiceItem('Full Truck', Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport', ServiceProvidersScreen(serviceName: 'Full Truck', userRole: widget.userRole)),
+    HomeServiceItem('Tempo', Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport', ServiceProvidersScreen(serviceName: 'Tempo', userRole: widget.userRole)),
+    HomeServiceItem('Pickup Van', Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport', ServiceProvidersScreen(serviceName: 'Pickup Van', userRole: widget.userRole)),
+    HomeServiceItem('Container', Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport', ServiceProvidersScreen(serviceName: 'Container', userRole: widget.userRole)),
     
     // Rentals
-    HomeServiceItem('Tractors', Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals', EquipmentRentalsScreen(userRole: widget.userRole)),
-    HomeServiceItem('Harvesters', Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals', EquipmentRentalsScreen(userRole: widget.userRole)),
-    HomeServiceItem('Sprayers', Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals', EquipmentRentalsScreen(userRole: widget.userRole)),
-    HomeServiceItem('Trolleys', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals', EquipmentRentalsScreen(userRole: widget.userRole)),
+    HomeServiceItem('Tractors', Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals', ServiceProvidersScreen(serviceName: 'Tractors', userRole: widget.userRole)),
+    HomeServiceItem('Harvesters', Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals', ServiceProvidersScreen(serviceName: 'Harvesters', userRole: widget.userRole)),
+    HomeServiceItem('Sprayers', Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals', ServiceProvidersScreen(serviceName: 'Sprayers', userRole: widget.userRole)),
+    HomeServiceItem('Trolleys', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals', ServiceProvidersScreen(serviceName: 'Trolleys', userRole: widget.userRole)),
   ];
 
   @override
@@ -345,11 +345,17 @@ class _HomeScreenState extends State<HomeScreen> {
                    _buildSectionContainer(
                      Row(
                       children: [
-                        Expanded(child: _buildServiceItem(Icons.local_shipping, 'Mini Truck', const Color(0xFFE3F2FD), Colors.blue)),
+                        Expanded(child: _buildServiceItem(Icons.local_shipping, 'Mini Truck', const Color(0xFFE3F2FD), Colors.blue, onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: 'Mini Truck', userRole: widget.userRole)));
+                        })),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.agriculture, 'Tractor\nTrolley', const Color(0xFFE8F5E9), Colors.green)),
+                        Expanded(child: _buildServiceItem(Icons.agriculture, 'Tractor\nTrolley', const Color(0xFFE8F5E9), Colors.green, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: 'Tractor Trolley', userRole: widget.userRole)));
+                        })),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.local_shipping_outlined, 'Full Truck', const Color(0xFFFFF3E0), Colors.orange)),
+                        Expanded(child: _buildServiceItem(Icons.local_shipping_outlined, 'Full Truck', const Color(0xFFFFF3E0), Colors.orange, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: 'Full Truck', userRole: widget.userRole)));
+                        })),
                       ],
                     ),
                    ),
@@ -363,11 +369,17 @@ class _HomeScreenState extends State<HomeScreen> {
                    _buildSectionContainer(
                      Row(
                       children: [
-                        Expanded(child: _buildServiceItem(Icons.agriculture, 'Tractors', Colors.green[50]!, Colors.green)),
+                        Expanded(child: _buildServiceItem(Icons.agriculture, 'Tractors', Colors.green[50]!, Colors.green, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: 'Tractors', userRole: widget.userRole)));
+                        })),
                          const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.grass, 'Harvesters', Colors.yellow[50]!, Colors.orange)),
+                        Expanded(child: _buildServiceItem(Icons.grass, 'Harvesters', Colors.yellow[50]!, Colors.orange, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: 'Harvesters', userRole: widget.userRole)));
+                        })),
                          const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.water_drop, 'Sprayers', Colors.blue[50]!, Colors.blue)),
+                        Expanded(child: _buildServiceItem(Icons.water_drop, 'Sprayers', Colors.blue[50]!, Colors.blue, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: 'Sprayers', userRole: widget.userRole)));
+                        })),
                       ],
                     ),
                    ),

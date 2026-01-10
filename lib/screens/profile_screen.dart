@@ -12,6 +12,7 @@ import 'generic_history_screen.dart';
 import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
 import 'admin/admin_dashboard_screen.dart';
+import 'provider/provider_requests_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -207,6 +208,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (result == true) {
                         _loadProfileData();
                       }
+                    },
+                  ),
+                  _buildDividerLine(),
+                  _buildListTile(
+                    Icons.work_outline,
+                    'Worker Requests', // New option for providers
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()),
+                      );
                     },
                   ),
                   _buildDividerLine(),

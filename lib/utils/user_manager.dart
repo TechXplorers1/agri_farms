@@ -47,4 +47,35 @@ class UserManager extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  void addUser(String name, String phone, String role) {
+    final newId = (_users.length + 1).toString(); // Simple ID generation
+    _users.add(AppUser(
+      id: newId,
+      name: name,
+      phone: phone,
+      role: role,
+    ));
+    notifyListeners();
+  }
+
+  void editUser(String id, String name, String phone, String role) {
+    final index = _users.indexWhere((u) => u.id == id);
+    if (index != -1) {
+      final old = _users[index];
+      _users[index] = AppUser(
+        id: old.id,
+        name: name,
+        phone: phone,
+        role: role,
+        isBlocked: old.isBlocked, // Preserve blocked status
+      );
+      notifyListeners();
+    }
+  }
+
+  void deleteUser(String id) {
+    _users.removeWhere((u) => u.id == id);
+    notifyListeners();
+  }
 }

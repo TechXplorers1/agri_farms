@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'upload_item_screen.dart';
 import 'generic_history_screen.dart';
+import 'service_providers_screen.dart';
 import '../utils/booking_manager.dart';
 
 class EquipmentRentalsScreen extends StatelessWidget {
@@ -119,10 +120,10 @@ class EquipmentRentalsScreen extends StatelessWidget {
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
                 children: [
-                   _buildEquipmentCard('Tractors', '24 available', Icons.agriculture, Colors.green[50]!, Colors.green),
-                   _buildEquipmentCard('Harvesters', '12 available', Icons.grass, Colors.yellow[50]!, Colors.orange),
-                   _buildEquipmentCard('Sprayers', '18 available', Icons.water_drop, Colors.blue[50]!, Colors.blue),
-                   _buildEquipmentCard('Trolleys', '15 available', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey), // Placeholder
+                   _buildEquipmentCard(context, 'Tractors', '24 available', Icons.agriculture, Colors.green[50]!, Colors.green),
+                   _buildEquipmentCard(context, 'Harvesters', '12 available', Icons.grass, Colors.yellow[50]!, Colors.orange),
+                   _buildEquipmentCard(context, 'Sprayers', '18 available', Icons.water_drop, Colors.blue[50]!, Colors.blue),
+                   _buildEquipmentCard(context, 'Trolleys', '15 available', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey), // Placeholder
                 ],
               ),
 
@@ -148,68 +149,71 @@ class EquipmentRentalsScreen extends StatelessWidget {
               
               const SizedBox(height: 8),
 
-              // Nearby Item Card
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Mahindra Tractor 575 DI',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+              // Nearby Item Card - Make clickable too?
+              GestureDetector(
+                onTap: () => _showBookingDialog(context, 'Mahindra Tractor 575 DI'),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Mahindra Tractor 575 DI',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.green[50], // Light green bg for available
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.green),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green[50], // Light green bg for available
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.green),
+                            ),
+                            child: const Text(
+                              'Available',
+                              style: TextStyle(color: Colors.green, fontSize: 12),
+                            ),
                           ),
-                          child: const Text(
-                            'Available',
-                            style: TextStyle(color: Colors.green, fontSize: 12),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                       Row(
+                        children: const [
+                           Text(
+                            '₹500 per hour',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: Colors.black54,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                     Row(
-                      children: const [
-                         Text(
-                          '₹500 per hour',
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.black54,
+                          SizedBox(width: 8),
+                           Icon(Icons.star, size: 16, color: Colors.amber),
+                           Text('4.7', style: TextStyle(color: Colors.black54)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                           Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
+                           const SizedBox(width: 4),
+                           Text(
+                            'Suresh Patel • 4 km',
+                            style: TextStyle(color: Colors.grey[600]),
                           ),
-                        ),
-                        SizedBox(width: 8),
-                         Icon(Icons.star, size: 16, color: Colors.amber),
-                         Text('4.7', style: TextStyle(color: Colors.black54)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                         Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
-                         const SizedBox(width: 4),
-                         Text(
-                          'Suresh Patel • 4 km',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -220,7 +224,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEquipmentCard(String title, String subtitle, IconData icon, Color bgColor, Color iconColor) {
+  Widget _buildEquipmentCard(BuildContext context, String title, String subtitle, IconData icon, Color bgColor, Color iconColor) {
      return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -237,7 +241,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {},
+          onTap: () => _showBookingDialog(context, title),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -279,5 +283,9 @@ class EquipmentRentalsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _showBookingDialog(BuildContext context, String equipmentName) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: equipmentName)));
   }
 }

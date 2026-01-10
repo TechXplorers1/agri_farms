@@ -4,6 +4,7 @@ import 'upload_item_screen.dart';
 import 'upload_item_screen.dart';
 import 'book_workers_screen.dart';
 import '../utils/provider_manager.dart';
+import '../utils/booking_manager.dart';
 
 class ServiceProvidersScreen extends StatelessWidget {
   final String serviceName;
@@ -49,13 +50,28 @@ class ServiceProvidersScreen extends StatelessWidget {
       body: AnimatedBuilder(
         animation: ProviderManager(),
         builder: (context, _) {
-          if (serviceName == 'Farm Workers') {
-            final providers = ProviderManager().getProvidersByService('Farm Workers');
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: providers.length,
-              itemBuilder: (context, index) {
-                final provider = providers[index];
+          final providers = ProviderManager().getProvidersByService(serviceName);
+
+          if (providers.isEmpty) {
+             return Center(
+               child: Column(
+                 mainAxisAlignment: MainAxisAlignment.center,
+                 children: [
+                   Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
+                   const SizedBox(height: 16),
+                   Text('No providers found for $serviceName', style: TextStyle(color: Colors.grey[600])),
+                 ],
+               ),
+             );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: providers.length,
+            itemBuilder: (context, index) {
+              final provider = providers[index];
+              
+              if (serviceName == 'Farm Workers') {
                 return Column(
                   children: [
                     _buildWorkerProviderCard(
@@ -71,52 +87,34 @@ class ServiceProvidersScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                   ],
                 );
-              },
-            );
-          }
-          
-          return ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-            // Default Service Providers
-            _buildProviderCard(
-            name: 'Ramesh Services',
-            service: 'Ploughing',
-            rating: 4.8,
-            distance: '3 km',
-            jobs: 156,
-            price: '₹800 per acre',
-            isAvailable: true,
-          ),
-          const SizedBox(height: 16),
-          _buildProviderCard(
-            name: 'Green Agri Solutions',
-            service: 'Drone Spraying',
-            rating: 4.9,
-            distance: '5 km',
-            jobs: 89,
-            price: '₹600 per acre',
-            isAvailable: true,
-          ),
-          // Additional static items for variety
-           const SizedBox(height: 16),
-           _buildProviderCard(
-            name: 'Kisan Help Group',
-            service: 'Harvesting',
-            rating: 4.5,
-            distance: '2 km',
-            jobs: 210,
-            price: '₹1200 per hour',
-            isAvailable: true,
-          ),
-          ],
-        ); // End of non-worker ListView
+              } else {
+                 return Column(
+                   children: [
+                     _buildProviderCard(
+                      context, // Pass context for dialog
+                      providerId: provider.id,
+                      name: provider.name,
+                      service: provider.serviceName,
+                      rating: provider.rating ?? 0.0,
+                      distance: provider.distance ?? 'N/A',
+                      jobs: provider.jobs ?? 0,
+                      price: provider.price ?? 'N/A',
+                      isAvailable: provider.isAvailable ?? true,
+                    ),
+                    const SizedBox(height: 16),
+                   ],
+                 );
+              }
+            },
+          );
         },
       ),
     );
   }
 
-  Widget _buildProviderCard({
+  Widget _buildProviderCard(
+    BuildContext context, {
+    required String providerId,
     required String name,
     required String service,
     required double rating,
@@ -210,7 +208,7 @@ class ServiceProvidersScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          const Divider(height: 1, color: Colors.grey), // Optional divider or just spacing, design has none, but spacing exists
+          const Divider(height: 1, color: Colors.grey), 
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -224,9 +222,9 @@ class ServiceProvidersScreen extends StatelessWidget {
                 ),
               ),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () => _showBookingDialog(context, service, name, providerId),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0A0E21), // Dark Navy/Black like image
+                  backgroundColor: const Color(0xFF0A0E21), 
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -237,6 +235,93 @@ class ServiceProvidersScreen extends StatelessWidget {
                 child: const Text('Book Service', style: TextStyle(fontWeight: FontWeight.w600)),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBookingDialog(BuildContext context, String service, String providerName, String providerId) {
+     // reuse booking manager import from somewhere? Need to import it if not present
+     // Actually this file imports 'book_workers_screen.dart' and 'provider_manager.dart'
+     // We need to import 'booking_manager.dart' to add bookings.
+     // But wait, I can just show the dialog here.
+
+     final field1Controller = TextEditingController();
+     final field2Controller = TextEditingController();
+     String selectedDate = DateTime.now().add(const Duration(days: 1)).toString().split(' ')[0];
+     
+     // Determine fields based on service type broad categories
+     String label1 = 'Details';
+     String label2 = 'Additional Info';
+     
+     // Simple heuristic
+     bool isTransport = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'].contains(service);
+     if (isTransport) {
+       label1 = 'Pickup Location';
+       label2 = 'Drop Location';
+     } else {
+       label1 = 'Duration (Hours/Days)';
+       label2 = 'Task Type';
+     }
+
+     showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Book $service'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Provider: $providerName', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: field1Controller,
+                decoration: InputDecoration(labelText: label1, border: const OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: field2Controller,
+                decoration: InputDecoration(labelText: label2, border: const OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                   const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                   const SizedBox(width: 8),
+                   Text('Date: $selectedDate', style: const TextStyle(color: Colors.black87)),
+                ],
+              )
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+               if (field1Controller.text.isNotEmpty) {
+                 BookingManager().addBooking(BookingDetails(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    title: '$service Booking',
+                    date: selectedDate,
+                    price: 'On Request',
+                    status: 'Pending',
+                    category: BookingCategory.services, // Or mapped correctly
+                    details: {
+                      'provider': providerName,
+                      label1: field1Controller.text,
+                      label2: field2Controller.text,
+                    },
+                    providerId: providerId
+                 ));
+                 Navigator.pop(ctx);
+                 ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Booking Request Sent to Provider!'), backgroundColor: Colors.green)
+                 );
+               }
+            },
+            child: const Text('Confirm'),
           ),
         ],
       ),
