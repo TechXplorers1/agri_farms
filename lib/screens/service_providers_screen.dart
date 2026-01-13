@@ -395,7 +395,7 @@ class ServiceProvidersScreen extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    const Icon(Icons.male, color: Colors.blue, size: 28),
+                    const Text('Male', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
                     Text('$maleCount Available', style: const TextStyle(fontWeight: FontWeight.bold)),
                     Text('₹$malePrice / day', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
@@ -406,7 +406,7 @@ class ServiceProvidersScreen extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    const Icon(Icons.female, color: Colors.pink, size: 28),
+                    const Text('Female', style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
                     Text('$femaleCount Available', style: const TextStyle(fontWeight: FontWeight.bold)),
                     Text('₹$femalePrice / day', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
