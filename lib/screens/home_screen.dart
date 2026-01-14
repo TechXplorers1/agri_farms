@@ -11,6 +11,7 @@ import 'tools/farming_calculator_screen.dart';
 import 'tools/farming_calculator_screen.dart';
 import 'tools/crop_advisory_screen.dart';
 import 'provider/provider_requests_screen.dart'; // Import for header action
+import 'community_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -502,7 +503,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // Rentals Placeholder (Index 2)
       EquipmentRentalsScreen(userRole: widget.userRole),
       // Community Placeholder (Index 3)
-      const Center(child: Text('Community Screen Placeholder')), // You can replace this later
+      // Community Placeholder (Index 3)
+      const CommunityScreen(),
       // Profile Tab (Index 4)
       const ProfileScreen(),
     ];
