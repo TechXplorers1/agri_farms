@@ -13,7 +13,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   String? _selectedRole;
-  final List<String> _roles = ['General User', 'Farmer', 'Farm Worker', 'Vehicle Provider'];
+  final List<String> _roles = ['General User', 'Farmer'];
   bool _isButtonEnabled = false;
 
   @override

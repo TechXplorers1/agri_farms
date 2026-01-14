@@ -29,7 +29,7 @@ class ServiceProvidersScreen extends StatelessWidget {
         elevation: 0,
         surfaceTintColor: Colors.white,
         actions: [
-          if (serviceName == 'Farm Workers' && userRole == 'Farm Worker')
+          if (serviceName == 'Farm Workers' && userRole == 'Farmer')
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: ElevatedButton.icon(

@@ -29,7 +29,7 @@ This document outlines the complete product user stories and UI specifications f
 • Login Screen:
   - Mobile Number input (+91 prefix)
   - Full Name input
-  - Role Selection Dropdown: General User, Farmer, Farm Worker, Vehicle Provider
+  - Role Selection Dropdown: General User, Farmer
   - "Get OTP" Trigger
 • OTP Verification:
   - 4-Digit OTP entry
@@ -59,7 +59,7 @@ This document outlines the complete product user stories and UI specifications f
   - "Book Now" / "Call" actions
 
 7. Upload & Provider Onboarding
-• Access: Available to "Vehicle Provider", "Farmer", "Farm Worker" roles via specific screens (e.g., Equipment Rentals top bar).
+• Access: Available to "Farmer" role via specific screens (e.g., Equipment Rentals top bar, Farm Workers).
 • Category Context: Upload Transport vs. Upload Equipment vs. Farm Worker Profile.
 • Input Fields (General):
   - Upload Picture
