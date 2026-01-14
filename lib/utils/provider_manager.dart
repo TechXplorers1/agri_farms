@@ -17,6 +17,7 @@ class ServiceProvider {
   final String? price; // Generic price string for other services
   final int? jobs;
   final bool? isAvailable;
+  final String approvalStatus; // 'Pending', 'Approved', 'Rejected'
 
   ServiceProvider({
     required this.id,
@@ -31,6 +32,7 @@ class ServiceProvider {
     this.price,
     this.jobs,
     this.isAvailable,
+    this.approvalStatus = 'Approved', // Default to Approved for mock data
   });
 }
 
@@ -51,6 +53,7 @@ class ProviderManager extends ChangeNotifier {
         femalePrice: 700,
         distance: '3 km',
         rating: 4.8,
+        approvalStatus: 'Approved',
       ),
       ServiceProvider(
         id: '2',
@@ -62,6 +65,7 @@ class ProviderManager extends ChangeNotifier {
         femalePrice: 750,
         distance: '5 km',
         rating: 4.5,
+        approvalStatus: 'Approved',
       ),
       // Transport Providers
        ServiceProvider(
@@ -72,7 +76,8 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.6,
         price: '₹1200 / trip',
         isAvailable: true,
-        jobs: 50
+        jobs: 50,
+        approvalStatus: 'Approved',
       ),
        ServiceProvider(
         id: '4',
@@ -82,7 +87,8 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.2,
         price: '₹1100 / trip',
         isAvailable: true,
-         jobs: 42
+        jobs: 42,
+        approvalStatus: 'Approved',
       ),
       ServiceProvider(
         id: '5',
@@ -92,7 +98,8 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.8,
         price: '₹800 / trip',
         isAvailable: true,
-         jobs: 120
+        jobs: 120,
+        approvalStatus: 'Approved',
       ),
       // Equipment Providers
        ServiceProvider(
@@ -103,7 +110,8 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.7,
         price: '₹500 / hour',
         isAvailable: true,
-         jobs: 200
+        jobs: 200,
+        approvalStatus: 'Approved',
       ),
        ServiceProvider(
         id: '7',
@@ -113,9 +121,20 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.0,
         price: '₹450 / hour',
         isAvailable: true,
-         jobs: 80
+        jobs: 80,
+        approvalStatus: 'Approved',
       ),
-      // Generic services can be added here too if needed to be dynamic
+      // New Pending Request Mock
+      ServiceProvider(
+        id: '8',
+        name: 'New Village Tractor',
+        serviceName: 'Tractors',
+        distance: '2 km',
+        rating: 0.0,
+        price: '₹400 / hour',
+        isAvailable: true,
+        approvalStatus: 'Pending',
+      ),
     ]);
   }
 
@@ -124,12 +143,50 @@ class ProviderManager extends ChangeNotifier {
   List<ServiceProvider> get providers => List.unmodifiable(_providers);
 
   List<ServiceProvider> getProvidersByService(String serviceName) {
-    return _providers.where((p) => p.serviceName == serviceName).toList();
+    // Only show Approved providers in the main list
+    return _providers.where((p) => p.serviceName == serviceName && p.approvalStatus == 'Approved').toList();
+  }
+  
+  List<ServiceProvider> getPendingProviders() {
+    return _providers.where((p) => p.approvalStatus == 'Pending').toList();
   }
 
   void addProvider(ServiceProvider provider) {
+    // New providers are Pending by default (overriding whatever is passed if we strictly enforce it, 
+    // but the constructor defaults to Approved, so we should set it to Pending here for uploads)
+    
+    // We can't modify the final field, so we must assume the caller passes 'Pending' 
+    // OR we recreate it. For simplicity, since the caller is UploadItemScreen, we should ensure it passes Pending there.
+    // However, to be safe:
     _providers.insert(0, provider);
     notifyListeners();
+  }
+
+  void updateProviderStatus(String id, String status) {
+    // Since fields are final, we find, remove, and re-add (or we would use copyWith if available)
+    final index = _providers.indexWhere((p) => p.id == id);
+    if (index != -1) {
+      final old = _providers[index];
+      // Create new instance with updated status
+      final updated = ServiceProvider(
+        id: old.id,
+        name: old.name,
+        serviceName: old.serviceName,
+        maleCount: old.maleCount,
+        femaleCount: old.femaleCount,
+        malePrice: old.malePrice,
+        femalePrice: old.femalePrice,
+        distance: old.distance,
+        rating: old.rating,
+        price: old.price,
+        jobs: old.jobs,
+        isAvailable: old.isAvailable,
+        approvalStatus: status,
+      );
+      
+      _providers[index] = updated;
+      notifyListeners();
+    }
   }
 
   void removeProvider(String id) {

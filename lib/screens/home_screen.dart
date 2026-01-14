@@ -8,7 +8,9 @@ import 'service_providers_screen.dart';
 import 'tools/fertilizer_calculator_screen.dart';
 import 'tools/pesticide_calculator_screen.dart';
 import 'tools/farming_calculator_screen.dart';
+import 'tools/farming_calculator_screen.dart';
 import 'tools/crop_advisory_screen.dart';
+import 'provider/provider_requests_screen.dart'; // Import for header action
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _userName = 'User';
   String _userLocation = 'Your Village, Your District';
+  String _userRole = 'User';
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -90,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
       String village = prefs.getString('user_village') ?? 'Your Village';
       String district = prefs.getString('user_district') ?? 'Your District';
       _userLocation = '$village, $district';
+      _userRole = prefs.getString('user_role') ?? 'User';
     });
   }
 
@@ -153,6 +157,15 @@ class _HomeScreenState extends State<HomeScreen> {
                             icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
                             onPressed: () {},
                           ),
+                          if (['Farmer', 'Provider'].contains(_userRole)) // Visible for Farmers and Providers
+                            IconButton(
+                              icon: const Icon(Icons.assignment_outlined, color: Colors.white),
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()),
+                                );
+                              },
+                            ),
                           Stack(
                             children: [
                               IconButton(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_providers_screen.dart';
 import 'admin_users_screen.dart';
+import 'admin_upload_requests_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -68,6 +69,15 @@ class AdminDashboard extends StatelessWidget {
               Icons.manage_accounts, 
               Colors.purple,
               const AdminUsersScreen()
+            ),
+            const SizedBox(height: 16),
+             _buildLinkCard(
+              context,
+              'Upload Requests', 
+              'Approve farmer listings', 
+              Icons.cloud_upload_outlined, 
+              Colors.orange,
+              const AdminUploadRequestsScreen()
             ),
           ],
         ),

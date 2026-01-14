@@ -18,7 +18,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50], // Consistent background
       appBar: AppBar(
-        title: const Text('Worker Requests'),
+        title: const Text('Service Requests'), // Generalized title
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
@@ -26,8 +26,9 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
         animation: _bookingManager,
         builder: (context, _) {
           // Filter for my bookings that are pending
-          // In a real app, you might show history too, providing a tab for 'Pending' and 'History'
-          final allMyBookings = _bookingManager.getBookingsForProvider(_currentProviderId);
+          // Removed category filter to show Transport/Rentals too
+          final allMyBookings = _bookingManager.getBookingsForProvider(_currentProviderId)
+              .toList(); 
           final pendingBookings = allMyBookings.where((b) => b.status == 'Pending').toList();
           final historyBookings = allMyBookings.where((b) => b.status != 'Pending').toList();
 
@@ -141,16 +142,16 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                      Row(
                        children: [
                          if (booking.details.containsKey('male_count'))
-                           _buildWorkerChip(Icons.male, 'Men: ${booking.details['male_count']}', Colors.blue),
+                           _buildWorkerChip('Men: ${booking.details['male_count']}', Colors.blue),
                          if (booking.details.containsKey('male_count') && booking.details.containsKey('female_count'))
                            const SizedBox(width: 12),
                          if (booking.details.containsKey('female_count'))
-                           _buildWorkerChip(Icons.female, 'Women: ${booking.details['female_count']}', Colors.pink),
+                           _buildWorkerChip('Women: ${booking.details['female_count']}', Colors.pink),
                        ],
                      ),
                      const SizedBox(height: 8),
                   ],
-                   ...booking.details.entries.where((e) => !['male_count', 'female_count'].contains(e.key)).map((e) => 
+                   ...booking.details.entries.where((e) => !['male_count', 'female_count', 'Provider'].contains(e.key)).map((e) => // Hide Provider name if redundant
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Row(
@@ -220,7 +221,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
     );
   }
 
-  Widget _buildWorkerChip(IconData icon, String label, Color color) {
+  Widget _buildWorkerChip(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -228,14 +229,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
-        ],
-      ),
+      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
     );
   }
 

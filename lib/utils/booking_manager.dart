@@ -61,7 +61,7 @@ class BookingManager extends ChangeNotifier {
             category: BookingCategory.rentals,
             providerId: '2'
           ),
-           BookingDetails(
+          BookingDetails(
             id: '103', 
             title: 'Harvest Labour', 
             date: '2025-01-20', 
@@ -73,6 +73,40 @@ class BookingManager extends ChangeNotifier {
               'male_count': 5, 
               'female_count': 5,
               'duration': 'Full Day'
+            }
+          ),
+          // New Sample Transport Request for Provider 2
+          BookingDetails(
+            id: '104',
+            title: 'Mini Truck Service',
+            date: '2025-01-22',
+            price: '₹2200',
+            status: 'Pending',
+            category: BookingCategory.transport,
+            providerId: '2',
+            details: {
+              'Provider': 'Suresh Workers', // Assuming Suresh is '2'
+              'Vehicle Type': 'Mini Truck',
+              'Vehicle Count': '1',
+              'Goods Type': 'Fertilizers',
+              'Slot': 'Morning (6:00 AM - 10:00 AM)'
+            }
+          ),
+          // New Sample Equipment Request for Provider 2
+          BookingDetails(
+            id: '105',
+            title: 'Tractor Rental',
+            date: '2025-01-25',
+            price: '₹4000',
+            status: 'Pending',
+            category: BookingCategory.rentals,
+            providerId: '2',
+            details: {
+              'Provider': 'Suresh Workers',
+              'Equipment': 'Tractor',
+              'Count': '1',
+              'Duration': '8 Hours (Full Day)',
+              'Operator Required': 'Yes'
             }
           ),
       ]);

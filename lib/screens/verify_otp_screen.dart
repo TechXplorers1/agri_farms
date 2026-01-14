@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
 
 class VerifyOtpScreen extends StatefulWidget {
@@ -66,13 +67,21 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     });
   }
 
-  void _verify() {
+  Future<void> _verify() async {
     if (_isButtonEnabled) {
-      // Logic would go here to actually verify the OTP
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => HomeScreen(userRole: widget.role)),
-        (route) => false,
-      );
+      // Logic would go here to actually verify the OTP - Mock success
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_name', widget.fullName);
+      await prefs.setString('user_mobile', widget.mobileNumber);
+      await prefs.setString('user_role', widget.role); // Important: Save Role
+      
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => HomeScreen(userRole: widget.role)),
+          (route) => false,
+        );
+      }
     }
   }
 

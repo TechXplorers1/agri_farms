@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/provider_manager.dart';
 
 class UploadItemScreen extends StatefulWidget {
@@ -60,19 +61,36 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           femalePrice: int.tryParse(_femalePriceController.text),
           distance: '0.5 km', // Mock distance
           rating: 5.0, // New listing
+          approvalStatus: 'Pending', // Needs approval
         ));
       }
       
-      // Mock submission
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Item uploaded successfully!')),
-      );
+      // Update User Role to 'Provider' to enable "Service Requests" in Profile
+      _upgradeUserToProvider();
+      
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields')),
       );
     }
+  }
+
+  Future<void> _upgradeUserToProvider() async {
+     // Import need to be added at top if not present, but using fully qualified for now if needed or add import
+     // Actually I will add import at top
+     final prefs = await SharedPreferences.getInstance();
+     await prefs.setString('user_role', 'Provider');
+     
+     if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Item uploaded! You can now manage requests in Profile.'),
+            backgroundColor: Color(0xFF00AA55),
+            duration: Duration(seconds: 3),
+          ),
+        );
+     }
   }
 
   @override

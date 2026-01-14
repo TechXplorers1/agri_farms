@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'upload_item_screen.dart';
-import 'upload_item_screen.dart';
 import 'book_workers_screen.dart';
+import 'book_transport_detail_screen.dart'; // Import Transport Detail
+import 'book_equipment_detail_screen.dart'; // Import Equipment Detail
 import '../utils/provider_manager.dart';
 import '../utils/booking_manager.dart';
 
@@ -222,7 +223,9 @@ class ServiceProvidersScreen extends StatelessWidget {
                 ),
               ),
               ElevatedButton(
-                onPressed: () => _showBookingDialog(context, service, name, providerId),
+                onPressed: () {
+                   _navigateToBooking(context, service, name, providerId, price);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0A0E21), 
                   foregroundColor: Colors.white,
@@ -239,6 +242,39 @@ class ServiceProvidersScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _navigateToBooking(BuildContext context, String service, String providerName, String providerId, String priceString) {
+      double rate = 0;
+      // Simple parse of price string "₹500" or "₹2000" etc.
+      try {
+        rate = double.parse(priceString.replaceAll(RegExp(r'[^0-9.]'), ''));
+      } catch (e) {
+        rate = 0;
+      }
+
+      // Identify categories based on known strings (should be improved with enums ideally)
+      final transportList = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
+      final equipmentList = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys'];
+
+      if (transportList.contains(service)) {
+         Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportDetailScreen(
+           providerName: providerName,
+           vehicleType: service,
+           providerId: providerId,
+           rate: rate > 0 ? rate : 1500, // Default fallback
+         )));
+      } else if (equipmentList.contains(service)) {
+         Navigator.push(context, MaterialPageRoute(builder: (context) => BookEquipmentDetailScreen(
+           providerName: providerName,
+           equipmentType: service,
+           providerId: providerId,
+           rate: rate > 0 ? rate : 500, // Default fallback
+         )));
+      } else {
+         // Fallback to legacy dialog for other future services
+         _showBookingDialog(context, service, providerName, providerId);
+      }
   }
 
   void _showBookingDialog(BuildContext context, String service, String providerName, String providerId) {

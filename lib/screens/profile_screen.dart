@@ -26,6 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = 'User';
   String _userVillage = 'Your Village';
   String _userDistrict = 'Your District';
+  String _userRole = 'User';
 
   @override
   void initState() {
@@ -40,6 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _userName = prefs.getString('user_name') ?? 'User';
       _userVillage = prefs.getString('user_village') ?? 'Your Village';
       _userDistrict = prefs.getString('user_district') ?? 'Your District';
+      _userRole = prefs.getString('user_role') ?? 'User';
     });
   }
 
@@ -210,16 +212,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       }
                     },
                   ),
-                  _buildDividerLine(),
-                  _buildListTile(
-                    Icons.work_outline,
-                    'Worker Requests', // New option for providers
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()),
-                      );
-                    },
-                  ),
+                  if (['Farmer', 'Provider'].contains(_userRole)) ...[
+                    _buildListTile(
+                      Icons.work_outline,
+                      'Service Requests', // Generalized for providers
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()),
+                        );
+                      },
+                    ),
+                    _buildDividerLine(),
+                  ],
                   _buildDividerLine(),
                   _buildListTile(
                     Icons.notifications_outlined, 
