@@ -13,6 +13,7 @@ import 'tools/farming_calculator_screen.dart';
 import 'tools/crop_advisory_screen.dart';
 import 'provider/provider_requests_screen.dart'; // Import for header action
 import 'community_screen.dart';
+import 'upload_item_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -405,6 +406,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                    ),
+
+                  const SizedBox(height: 24),
+                  const SizedBox(height: 24),
+
+                  // List Your Assets Section (For Providers/Farmers)
+                   Text(
+                    'List Your Assets', // TODO: Localize
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildSectionContainer(
+                     Row(
+                      children: [
+                        Expanded(child: _buildServiceItem(Icons.local_shipping, 'List Transport', const Color(0xFFE8F5E9), Colors.green, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
+                        })),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildServiceItem(Icons.agriculture, 'List Equipment', const Color(0xFFFFF3E0), Colors.orange, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
+                        })),
+                      ],
+                    ),
+                  ),
 
                   const SizedBox(height: 24),
                    Text(
