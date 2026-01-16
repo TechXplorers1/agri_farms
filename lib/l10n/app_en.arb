@@ -1,0 +1,94 @@
+{
+  "appTitle": "Agri Farms",
+  "@appTitle": {
+    "description": "The title of the application"
+  },
+  "namaste": "Namaste",
+  "@namaste": {
+    "description": "Greeting text"
+  },
+  "searchHint": "Search seeds, tractor, spraying...",
+  "@searchHint": {
+    "description": "Hint text for search bar"
+  },
+  "bookServices": "Book Services",
+  "@bookServices": {
+    "description": "Section header for services"
+  },
+  "bookTransport": "Book Transport",
+  "@bookTransport": {
+    "description": "Section header for transport"
+  },
+  "rentEquipment": "Rent Equipment",
+  "@rentEquipment": {
+    "description": "Section header for equipment rentals"
+  },
+  "tools": "Tools",
+  "@tools": {
+    "description": "Section header for tools"
+  },
+  "viewMore": "View More",
+  "@viewMore": {
+    "description": "Button text to view more items"
+  },
+  
+  "orders": "Orders",
+  "rentals": "Rentals",
+  "services": "Services",
+  "activity": "Activity",
+  "myServices": "My Services",
+  "myTransports": "My Transports",
+  "myRentals": "My Rentals",
+  "account": "Account",
+  "adminPanel": "Admin Panel",
+  "editProfile": "Edit Profile",
+  "serviceRequests": "Service Requests",
+  "notifications": "Notifications",
+  "language": "Language",
+  "support": "Support",
+  "helpSupport": "Help & Support",
+  "termsPrivacy": "Terms & Privacy",
+  "logout": "Logout",
+  "yourVillage": "Your Village",
+  "yourDistrict": "Your District",
+
+  "ploughing": "Ploughing",
+  "harvesting": "Harvesting",
+  "farmWorkers": "Farm Workers",
+  "droneSpraying": "Drone Spraying",
+  "irrigation": "Irrigation",
+  "soilTesting": "Soil Testing",
+  "vetCare": "Vet Care",
+
+  "miniTruck": "Mini Truck",
+  "tractorTrolley": "Tractor Trolley",
+  "fullTruck": "Full Truck",
+  "tempo": "Tempo",
+  "pickupVan": "Pickup Van",
+  "container": "Container",
+
+  "tractors": "Tractors",
+  "harvesters": "Harvesters",
+  "sprayers": "Sprayers",
+  "trolleys": "Trolleys",
+
+  "cropAdvisory": "Crop Advisory",
+  "fertilizerCalculator": "Fertilizer Calculator",
+  "pesticideCalculator": "Pesticide Calculator",
+  "farmingCalculator": "Farming Calculator",
+  
+  "freeSoilTesting": "Free Soil Testing",
+  "bookNow": "Book now",
+  "newTractorsAvailable": "New Tractors Available",
+  "lowRentalRates": "Low rental rates",
+  "mandiPrices": "Mandi Prices",
+  "checkTodaysRates": "Check today's rates",
+  "viewPrices": "View Prices",
+  "weather": "Weather",
+  "sevenDayForecast": "7-Day Forecast",
+  "communityQuestions": "Community Questions",
+
+  "equipmentRentals": "Equipment Rentals",
+  "browseEquipment": "Browse Equipment",
+  "nearbyEquipment": "Nearby Equipment"
+}

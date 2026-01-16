@@ -13,6 +13,7 @@ import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
 import 'admin/admin_dashboard_screen.dart';
 import 'provider/provider_requests_screen.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -47,6 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    var appLocalizations = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.grey[50], // Light background
       body: SingleChildScrollView(
@@ -92,7 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const Icon(Icons.location_on_outlined, color: Colors.white70, size: 16),
                           const SizedBox(width: 4),
                           Text(
-                            '$_userVillage, $_userDistrict',
+                            '${AppLocalizations.of(context)!.yourVillage}, ${AppLocalizations.of(context)!.yourDistrict}',
                             style: const TextStyle(color: Colors.white70, fontSize: 14),
                           ),
                         ],
@@ -115,11 +117,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _buildStatItem('12', 'Orders', Icons.shopping_bag_outlined, Colors.green),
+                          _buildStatItem('12', AppLocalizations.of(context)!.orders, Icons.shopping_bag_outlined, Colors.green),
                           _buildDivider(),
-                          _buildStatItem('5', 'Rentals', Icons.build_outlined, Colors.green),
+                          _buildStatItem('5', AppLocalizations.of(context)!.rentals, Icons.build_outlined, Colors.green),
                           _buildDivider(),
-                          _buildStatItem('8', 'Services', Icons.cases_outlined, Colors.green),
+                          _buildStatItem('8', AppLocalizations.of(context)!.services, Icons.cases_outlined, Colors.green),
                         ],
                       ),
                     ),
@@ -131,7 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 60), // Space for the overlapping card
 
             // Activity Section
-            _buildSectionHeader('Activity'),
+            _buildSectionHeader(AppLocalizations.of(context)!.activity),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               decoration: _boxDecoration(),
@@ -139,7 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildListTile(
                     Icons.history, 
-                    'My Services',
+                    appLocalizations.myServices,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
@@ -152,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildDividerLine(),
                   _buildListTile(
                     Icons.local_shipping_outlined, 
-                    'My Transports',
+                    appLocalizations.myTransports,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
@@ -165,7 +167,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildDividerLine(),
                   _buildListTile(
                     Icons.build_outlined, 
-                    'My Rentals',
+                    appLocalizations.myRentals,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
@@ -184,7 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 20),
 
             // Account Section
-            _buildSectionHeader('Account'),
+            _buildSectionHeader(AppLocalizations.of(context)!.account),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               decoration: _boxDecoration(),
@@ -192,7 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildListTile(
                     Icons.admin_panel_settings,
-                    'Admin Panel',
+                    AppLocalizations.of(context)!.adminPanel,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) => const AdminDashboard()),
@@ -202,7 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildDividerLine(),
                   _buildListTile(
                     Icons.person_outline, 
-                    'Edit Profile',
+                    AppLocalizations.of(context)!.editProfile,
                     onTap: () async {
                       final result = await Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) => const EditProfileScreen()),
@@ -215,7 +217,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (['Farmer', 'Provider'].contains(_userRole)) ...[
                     _buildListTile(
                       Icons.work_outline,
-                      'Service Requests', // Generalized for providers
+                      AppLocalizations.of(context)!.serviceRequests, // Generalized for providers
                       onTap: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()),
@@ -227,7 +229,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildDividerLine(),
                   _buildListTile(
                     Icons.notifications_outlined, 
-                    'Notifications',
+                    AppLocalizations.of(context)!.notifications,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) => const NotificationSettingsScreen()),
@@ -237,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildDividerLine(),
                   _buildListTile(
                     Icons.language,
-                    'Language',
+                    AppLocalizations.of(context)!.language,
                     trailingText: _selectedLanguage,
                     onTap: () async {
                       final result = await Navigator.of(context).push(
@@ -257,7 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 20),
 
             // Support Section
-            _buildSectionHeader('Support'),
+            _buildSectionHeader(AppLocalizations.of(context)!.support),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               decoration: _boxDecoration(),
@@ -265,7 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildListTile(
                     Icons.help_outline, 
-                    'Help & Support',
+                    AppLocalizations.of(context)!.helpSupport,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) => const HelpSupportScreen()),
@@ -275,7 +277,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildDividerLine(),
                   _buildListTile(
                     Icons.description_outlined, 
-                    'Terms & Privacy',
+                    AppLocalizations.of(context)!.termsPrivacy,
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) => const TermsPrivacyScreen()),
@@ -305,7 +307,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
                 icon: const Icon(Icons.logout),
-                label: const Text('Logout'),
+                label: Text(AppLocalizations.of(context)!.logout),
               ),
             ),
 

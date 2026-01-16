@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import '../utils/language_provider.dart';
 import 'onboarding_screen.dart';
 
 class LanguageSelectionScreen extends StatefulWidget {
@@ -113,11 +115,9 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                             color: Colors.grey.shade600,
                           ),
                         ),
-                        onTap: () async {
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.setString('selected_language', language['name']!);
-
-                          if (!mounted) return;
+                        onTap: () {
+                          // Update Language via Provider
+                          Provider.of<LanguageProvider>(context, listen: false).setLanguage(language['name']!);
 
                           if (widget.isFromProfile) {
                             Navigator.pop(context, true); // Return true to indicate change

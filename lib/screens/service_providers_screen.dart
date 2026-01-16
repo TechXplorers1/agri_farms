@@ -8,10 +8,16 @@ import '../utils/provider_manager.dart';
 import '../utils/booking_manager.dart';
 
 class ServiceProvidersScreen extends StatelessWidget {
-  final String serviceName;
+  final String serviceKey; // Internal key for data fetching (e.g., 'Ploughing')
+  final String title;      // Localized title for display
   final String? userRole;
 
-  const ServiceProvidersScreen({super.key, required this.serviceName, this.userRole});
+  const ServiceProvidersScreen({
+    super.key, 
+    required this.serviceKey, 
+    required this.title, 
+    this.userRole
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,14 +29,14 @@ class ServiceProvidersScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          serviceName,
+          title,
           style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.white,
         actions: [
-          if (serviceName == 'Farm Workers' && userRole == 'Farmer')
+          if (serviceKey == 'Farm Workers' && userRole == 'Farmer')
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: ElevatedButton.icon(
@@ -51,7 +57,7 @@ class ServiceProvidersScreen extends StatelessWidget {
       body: AnimatedBuilder(
         animation: ProviderManager(),
         builder: (context, _) {
-          final providers = ProviderManager().getProvidersByService(serviceName);
+          final providers = ProviderManager().getProvidersByService(serviceKey);
 
           if (providers.isEmpty) {
              return Center(
@@ -60,7 +66,7 @@ class ServiceProvidersScreen extends StatelessWidget {
                  children: [
                    Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
                    const SizedBox(height: 16),
-                   Text('No providers found for $serviceName', style: TextStyle(color: Colors.grey[600])),
+                   Text('No providers found for $title', style: TextStyle(color: Colors.grey[600])),
                  ],
                ),
              );
@@ -72,7 +78,7 @@ class ServiceProvidersScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final provider = providers[index];
               
-              if (serviceName == 'Farm Workers') {
+              if (serviceKey == 'Farm Workers') {
                 return Column(
                   children: [
                     _buildWorkerProviderCard(

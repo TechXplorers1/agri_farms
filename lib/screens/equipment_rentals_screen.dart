@@ -4,6 +4,7 @@ import 'upload_item_screen.dart';
 import 'generic_history_screen.dart';
 import 'service_providers_screen.dart';
 import '../utils/booking_manager.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class EquipmentRentalsScreen extends StatelessWidget {
   final String? userRole;
@@ -14,8 +15,8 @@ class EquipmentRentalsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white, // As per image
       appBar: AppBar(
-        title: const Text(
-          'Equipment Rentals',
+        title: Text(
+          AppLocalizations.of(context)!.equipmentRentals,
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         actions: [
@@ -66,10 +67,10 @@ class EquipmentRentalsScreen extends StatelessWidget {
                             )
                           ],
                         ),
-                        child: const Text(
-                          'Rent Equipment',
+                        child: Text(
+                          AppLocalizations.of(context)!.rentEquipment,
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
                           ),
@@ -79,15 +80,15 @@ class EquipmentRentalsScreen extends StatelessWidget {
                     Expanded(
                       child: InkWell(
                         onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-                            title: 'My Rentals',
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => GenericHistoryScreen(
+                            title: AppLocalizations.of(context)!.myRentals,
                             categories: [BookingCategory.rentals],
                           )));
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           child: Text(
-                            'My Rentals',
+                            AppLocalizations.of(context)!.myRentals,
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.grey[600],
@@ -102,9 +103,9 @@ class EquipmentRentalsScreen extends StatelessWidget {
               const SizedBox(height: 24),
 
               // Browse Equipment
-              const Text(
-                'Browse Equipment',
-                style: TextStyle(
+              Text(
+                AppLocalizations.of(context)!.browseEquipment,
+                style: const TextStyle(
                   fontSize: 16,
                   color: Colors.black87,
                 ),
@@ -120,10 +121,10 @@ class EquipmentRentalsScreen extends StatelessWidget {
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
                 children: [
-                   _buildEquipmentCard(context, 'Tractors', '24 available', Icons.agriculture, Colors.green[50]!, Colors.green),
-                   _buildEquipmentCard(context, 'Harvesters', '12 available', Icons.grass, Colors.yellow[50]!, Colors.orange),
-                   _buildEquipmentCard(context, 'Sprayers', '18 available', Icons.water_drop, Colors.blue[50]!, Colors.blue),
-                   _buildEquipmentCard(context, 'Trolleys', '15 available', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey), // Placeholder
+                   _buildEquipmentCard(context, 'Tractors', AppLocalizations.of(context)!.tractors, '24 available', Icons.agriculture, Colors.green[50]!, Colors.green),
+                   _buildEquipmentCard(context, 'Harvesters', AppLocalizations.of(context)!.harvesters, '12 available', Icons.grass, Colors.yellow[50]!, Colors.orange),
+                   _buildEquipmentCard(context, 'Sprayers', AppLocalizations.of(context)!.sprayers, '18 available', Icons.water_drop, Colors.blue[50]!, Colors.blue),
+                   _buildEquipmentCard(context, 'Trolleys', AppLocalizations.of(context)!.trolleys, '15 available', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey), // Placeholder
                 ],
               ),
 
@@ -133,9 +134,9 @@ class EquipmentRentalsScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Nearby Equipment',
-                    style: TextStyle(
+                  Text(
+                    AppLocalizations.of(context)!.nearbyEquipment,
+                    style: const TextStyle(
                       fontSize: 16,
                       color: Colors.black87,
                     ),
@@ -151,7 +152,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
 
               // Nearby Item Card - Make clickable too?
               GestureDetector(
-                onTap: () => _showBookingDialog(context, 'Mahindra Tractor 575 DI'),
+                onTap: () => _showBookingDialog(context, 'Tractors', AppLocalizations.of(context)!.tractors), // Assuming specific tractor maps to general category for list or using specific ID if available
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -224,7 +225,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEquipmentCard(BuildContext context, String title, String subtitle, IconData icon, Color bgColor, Color iconColor) {
+  Widget _buildEquipmentCard(BuildContext context, String title, String displayTitle, String subtitle, IconData icon, Color bgColor, Color iconColor) {
      return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -241,7 +242,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _showBookingDialog(context, title),
+          onTap: () => _showBookingDialog(context, title, displayTitle),
           borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -262,7 +263,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
                  ),
                 const Spacer(),
                 Text(
-                  title,
+                  displayTitle,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -285,7 +286,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
     );
   }
 
-  void _showBookingDialog(BuildContext context, String equipmentName) {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: equipmentName)));
+  void _showBookingDialog(BuildContext context, String equipmentName, String displayTitle) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: equipmentName, title: displayTitle)));
   }
 }

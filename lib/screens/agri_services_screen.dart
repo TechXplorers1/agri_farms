@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:agriculture/screens/service_providers_screen.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class AgriServicesScreen extends StatelessWidget {
   final String? userRole;
@@ -40,9 +41,9 @@ class AgriServicesScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Choose a Service',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.bookServices,
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
                 color: Colors.black87,
@@ -56,13 +57,13 @@ class AgriServicesScreen extends StatelessWidget {
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
                 children: [
-                   _buildServiceCard(context, 'Ploughing', Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue),
-                   _buildServiceCard(context, 'Harvesting', Icons.grass, const Color(0xFFFFF9C4), Colors.orange), // Yellowish bg
-                   _buildServiceCard(context, 'Farm Workers', Icons.groups, const Color(0xFFF3E5F5), Colors.purple),
-                   _buildServiceCard(context, 'Drone Spraying', Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green),
-                   _buildServiceCard(context, 'Irrigation', Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan),
-                   _buildServiceCard(context, 'Soil Testing', Icons.science, const Color(0xFFF3E5F5), Colors.purple),
-                   _buildServiceCard(context, 'Vet Care', Icons.pets, const Color(0xFFFCE4EC), Colors.pink),
+                   _buildServiceCard(context, 'Ploughing', AppLocalizations.of(context)!.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue),
+                   _buildServiceCard(context, 'Harvesting', AppLocalizations.of(context)!.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange), // Yellowish bg
+                   _buildServiceCard(context, 'Farm Workers', AppLocalizations.of(context)!.farmWorkers, Icons.groups, const Color(0xFFF3E5F5), Colors.purple),
+                   _buildServiceCard(context, 'Drone Spraying', AppLocalizations.of(context)!.droneSpraying, Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green),
+                   _buildServiceCard(context, 'Irrigation', AppLocalizations.of(context)!.irrigation, Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan),
+                   _buildServiceCard(context, 'Soil Testing', AppLocalizations.of(context)!.soilTesting, Icons.science, const Color(0xFFF3E5F5), Colors.purple),
+                   _buildServiceCard(context, 'Vet Care', AppLocalizations.of(context)!.vetCare, Icons.pets, const Color(0xFFFCE4EC), Colors.pink),
                 ],
               ),
             ),
@@ -72,7 +73,7 @@ class AgriServicesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildServiceCard(BuildContext context, String title, IconData icon, Color bgColor, Color iconColor) {
+  Widget _buildServiceCard(BuildContext context, String title, String displayTitle, IconData icon, Color bgColor, Color iconColor) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -90,7 +91,7 @@ class AgriServicesScreen extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: title, userRole: userRole)));
+            Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: title, title: displayTitle, userRole: userRole)));
           },
           borderRadius: BorderRadius.circular(16),
           child: Column(
@@ -107,7 +108,7 @@ class AgriServicesScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                title,
+                displayTitle,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 15, // Slightly smaller than 16 to fit better

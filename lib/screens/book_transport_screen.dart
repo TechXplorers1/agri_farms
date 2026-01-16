@@ -4,6 +4,7 @@ import 'upload_item_screen.dart';
 import 'generic_history_screen.dart';
 import 'service_providers_screen.dart';
 import '../utils/booking_manager.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class BookTransportScreen extends StatelessWidget {
   final String? userRole;
@@ -41,8 +42,8 @@ class BookTransportScreen extends StatelessWidget {
             padding: const EdgeInsets.only(right: 16.0),
             child: OutlinedButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-                  title: 'My Transports',
+                Navigator.push(context, MaterialPageRoute(builder: (context) => GenericHistoryScreen(
+                  title: AppLocalizations.of(context)!.myTransports,
                   categories: [BookingCategory.transport],
                 )));
               },
@@ -55,7 +56,7 @@ class BookTransportScreen extends StatelessWidget {
                 side: BorderSide(color: Colors.grey[300]!),
                 foregroundColor: Colors.black87,
               ),
-              child: const Text('My Bookings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.normal)),
+              child: Text(AppLocalizations.of(context)!.myTransports, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.normal)),
             ),
           ),
         ],
@@ -65,9 +66,9 @@ class BookTransportScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Choose Vehicle Type',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context)!.bookTransport,
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
                 color: Colors.black87,
@@ -81,12 +82,12 @@ class BookTransportScreen extends StatelessWidget {
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
                 children: [
-                   _buildVehicleCard(context, 'Mini Truck', '1-2 tons', Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue),
-                   _buildVehicleCard(context, 'Tractor Trolley', '2-3 tons', Icons.agriculture, const Color(0xFFE8F5E9), Colors.green),
-                   _buildVehicleCard(context, 'Full Truck', '5-10 tons', Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange),
-                   _buildVehicleCard(context, 'Tempo', '500kg-1 ton', Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!),
-                   _buildVehicleCard(context, 'Pickup Van', '300-500 kg', Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple), 
-                   _buildVehicleCard(context, 'Container', '10+ tons', Icons.inventory, const Color(0xFFEFEBE9), Colors.brown),
+                   _buildVehicleCard(context, 'Mini Truck', AppLocalizations.of(context)!.miniTruck, '1-2 tons', Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue),
+                   _buildVehicleCard(context, 'Tractor Trolley', AppLocalizations.of(context)!.tractorTrolley, '2-3 tons', Icons.agriculture, const Color(0xFFE8F5E9), Colors.green),
+                   _buildVehicleCard(context, 'Full Truck', AppLocalizations.of(context)!.fullTruck, '5-10 tons', Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange),
+                   _buildVehicleCard(context, 'Tempo', AppLocalizations.of(context)!.tempo, '500kg-1 ton', Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!),
+                   _buildVehicleCard(context, 'Pickup Van', AppLocalizations.of(context)!.pickupVan, '300-500 kg', Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple), 
+                   _buildVehicleCard(context, 'Container', AppLocalizations.of(context)!.container, '10+ tons', Icons.inventory, const Color(0xFFEFEBE9), Colors.brown),
                 ],
               ),
             ),
@@ -96,7 +97,7 @@ class BookTransportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildVehicleCard(BuildContext context, String title, String capacity, IconData icon, Color bgColor, Color iconColor) {
+  Widget _buildVehicleCard(BuildContext context, String title, String displayTitle, String capacity, IconData icon, Color bgColor, Color iconColor) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -113,7 +114,7 @@ class BookTransportScreen extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => _showBookingDialog(context, title),
+          onTap: () => _showBookingDialog(context, title, displayTitle),
           borderRadius: BorderRadius.circular(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -129,7 +130,7 @@ class BookTransportScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                title,
+                displayTitle,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 16,
@@ -153,7 +154,7 @@ class BookTransportScreen extends StatelessWidget {
     );
   }
 
-  void _showBookingDialog(BuildContext context, String vehicleType) {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceName: vehicleType)));
+  void _showBookingDialog(BuildContext context, String vehicleType, String displayTitle) {
+    Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: vehicleType, title: displayTitle)));
   }
 }
