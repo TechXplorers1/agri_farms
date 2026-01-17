@@ -90,5 +90,37 @@
 
   "equipmentRentals": "Equipment Rentals",
   "browseEquipment": "Browse Equipment",
-  "nearbyEquipment": "Nearby Equipment"
+  "nearbyEquipment": "Nearby Equipment",
+  
+  "buySell": "Buy & Sell",
+  "buySellDesc": "Direct marketplace for seeds, fertilizers, pesticides, and farm produce. Connect with local farmers and merchants.",
+  "rentEquipmentDesc": "Access tractors, harvesters, sprayers and more. Rent equipment or list your own to earn extra income.",
+  "bookServicesLogistics": "Book Services & Logistics",
+  "bookServicesLogisticsDesc": "Hire ploughing, harvesting, spraying services. Book transport to take your produce to mandi.",
+  "skip": "Skip",
+  "next": "Next",
+  "getStarted": "Get Started",
+  
+  "welcomeTitle": "Welcome to Agri Farms",
+  "enterMobile": "Enter your mobile number to continue",
+  "fullName": "Full Name",
+  "fullNameHint": "Enter your full name",
+  "chooseRole": "Choose Role",
+  "selectRole": "Select your role",
+  "mobileNumber": "Mobile Number",
+  "getOtp": "Get OTP",
+  "termsPolicy": "By continuing, you accept our Terms of Service\nand Privacy Policy",
+  "generalUser": "General User",
+  "farmer": "Farmer",
+  
+  "listYourAssets": "List Your Assets",
+  "listTransport": "List Transport",
+  "listEquipment": "List Equipment",
+  
+  "navHome": "Home",
+  "navMarket": "Market",
+  "navRentals": "Rentals",
+  "navCommunity": "Community",
+  "navProfile": "Profile",
+  "noMatchFound": "No match found for your search"
 }

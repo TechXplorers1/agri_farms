@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'verify_otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,7 +14,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   String? _selectedRole;
-  final List<String> _roles = ['General User', 'Farmer'];
+  List<String> _getRoles(BuildContext context) {
+    var l10n = AppLocalizations.of(context)!;
+    return [l10n.generalUser, l10n.farmer];
+  }
   bool _isButtonEnabled = false;
 
   @override
@@ -79,8 +83,8 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 30),
               // Title
-              const Text(
-                'Welcome to Agri Farms',
+              Text(
+                AppLocalizations.of(context)!.welcomeTitle,
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
@@ -90,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 10),
               // Subtitle
               Text(
-                'Enter your mobile number to continue',
+                AppLocalizations.of(context)!.enterMobile,
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],
@@ -100,8 +104,8 @@ class _LoginScreenState extends State<LoginScreen> {
               // Full Name Input
               Align(
                 alignment: Alignment.centerLeft,
-                child: const Text(
-                  'Full Name',
+                child: Text(
+                  AppLocalizations.of(context)!.fullName,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -119,8 +123,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: TextField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    hintText: 'Enter your full name',
+                  decoration: InputDecoration(
+                    hintText: AppLocalizations.of(context)!.fullNameHint,
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(horizontal: 16),
                   ),
@@ -131,8 +135,8 @@ class _LoginScreenState extends State<LoginScreen> {
               // Role Selection
               Align(
                 alignment: Alignment.centerLeft,
-                child: const Text(
-                  'Choose Role',
+                child: Text(
+                  AppLocalizations.of(context)!.chooseRole,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -150,10 +154,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selectedRole,
-                    hint: const Text('Select your role'),
+                    hint: Text(AppLocalizations.of(context)!.selectRole),
                     isExpanded: true,
                     icon: const Icon(Icons.arrow_drop_down),
-                    items: _roles.map((String role) {
+                    items: _getRoles(context).map((String role) {
                       return DropdownMenuItem<String>(
                         value: role,
                         child: Text(role),
@@ -172,8 +176,8 @@ class _LoginScreenState extends State<LoginScreen> {
               // Mobile Number Input
               Row(
                 children: [
-                  const Text(
-                    'Mobile Number',
+                  Text(
+                    AppLocalizations.of(context)!.mobileNumber,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -244,8 +248,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     disabledBackgroundColor: Colors.grey,
                   ),
-                  child: const Text(
-                    'Get OTP',
+                  child: Text(
+                    AppLocalizations.of(context)!.getOtp,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -257,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 20),
               // Footer
               Text(
-                'By continuing, you accept our Terms of Service\nand Privacy Policy',
+                AppLocalizations.of(context)!.termsPolicy,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

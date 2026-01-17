@@ -261,7 +261,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'No match found for your search',
+                                    AppLocalizations.of(context)!.noMatchFound,
                                     style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                                   ),
                                 ],
@@ -412,18 +412,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   // List Your Assets Section (For Providers/Farmers)
                    Text(
-                    'List Your Assets', // TODO: Localize
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    AppLocalizations.of(context)!.listYourAssets,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   _buildSectionContainer(
                      Row(
                       children: [
-                        Expanded(child: _buildServiceItem(Icons.local_shipping, 'List Transport', const Color(0xFFE8F5E9), Colors.green, onTap: () {
+                        Expanded(child: _buildServiceItem(Icons.local_shipping, AppLocalizations.of(context)!.listTransport, const Color(0xFFE8F5E9), Colors.green, onTap: () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
                         })),
                         const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.agriculture, 'List Equipment', const Color(0xFFFFF3E0), Colors.orange, onTap: () {
+                        Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.listEquipment, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
                         })),
                       ],
@@ -558,12 +558,12 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedItemColor: const Color(0xFF00AA55),
         unselectedItemColor: Colors.grey,
         selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.storefront_outlined), label: 'Market'), 
-          BottomNavigationBarItem(icon: Icon(Icons.build_outlined), label: 'Rentals'),
-          BottomNavigationBarItem(icon: Icon(Icons.people_outlined), label: 'Community'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), label: AppLocalizations.of(context)!.navHome),
+          BottomNavigationBarItem(icon: const Icon(Icons.storefront_outlined), label: AppLocalizations.of(context)!.navMarket), 
+          BottomNavigationBarItem(icon: const Icon(Icons.build_outlined), label: AppLocalizations.of(context)!.navRentals),
+          BottomNavigationBarItem(icon: const Icon(Icons.people_outlined), label: AppLocalizations.of(context)!.navCommunity),
+          BottomNavigationBarItem(icon: const Icon(Icons.person_outline), label: AppLocalizations.of(context)!.navProfile),
         ],
       ),
     );

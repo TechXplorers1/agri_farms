@@ -6,11 +6,17 @@ import 'utils/language_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 
-void main() {
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final savedLanguage = prefs.getString('selected_language');
+  
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => LanguageProvider()),
+        ChangeNotifierProvider(create: (_) => LanguageProvider(initialLanguage: savedLanguage)),
       ],
       child: const MyApp(),
     ),
@@ -33,7 +39,7 @@ class MyApp extends StatelessWidget {
             scaffoldBackgroundColor: Colors.white,
           ),
           locale: languageProvider.locale,
-          home: const HomeScreen(),
+          home: const SplashScreen(),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
         );

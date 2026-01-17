@@ -7,8 +7,12 @@ class LanguageProvider extends ChangeNotifier {
   Locale get locale => _locale;
 
   // Constructor
-  LanguageProvider() {
-    _loadLanguage();
+  LanguageProvider({String? initialLanguage}) {
+    if (initialLanguage != null) {
+      _setLocaleFromLanguageName(initialLanguage);
+    } else {
+      _loadLanguage();
+    }
   }
 
   Future<void> _loadLanguage() async {
@@ -26,6 +30,14 @@ class LanguageProvider extends ChangeNotifier {
   void _setLocaleFromLanguageName(String languageName) {
     if (languageName == 'Telugu') {
       _locale = const Locale('te');
+    } else if (languageName == 'Hindi') {
+      _locale = const Locale('hi');
+    } else if (languageName == 'Tamil') {
+      _locale = const Locale('ta');
+    } else if (languageName == 'Kannada') {
+      _locale = const Locale('kn');
+    } else if (languageName == 'Marathi') {
+      _locale = const Locale('mr');
     } else {
       _locale = const Locale('en');
     }
