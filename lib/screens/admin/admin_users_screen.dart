@@ -10,6 +10,14 @@ class AdminUsersScreen extends StatefulWidget {
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final UserManager _userManager = UserManager();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,127 +33,193 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         backgroundColor: Colors.green,
         child: const Icon(Icons.add, color: Colors.white),
       ),
-      body: AnimatedBuilder(
-        animation: _userManager,
-        builder: (context, _) {
-          final users = _userManager.users;
-          return ListView.builder(
+      body: Column(
+        children: [
+          // Search Bar
+          Container(
             padding: const EdgeInsets.all(16),
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final user = users[index];
-              return Card(
-                color: Colors.white,
-                elevation: 1,
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundColor: user.isBlocked ? Colors.red[50] : Colors.green[50],
-                            child: Icon(
-                              user.isBlocked ? Icons.block : Icons.person, 
-                              color: user.isBlocked ? Colors.red : Colors.green
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+            color: Colors.white,
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by name or phone...',
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                suffixIcon: _searchQuery.isNotEmpty 
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.green),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+              ),
+              onChanged: (value) {
+                setState(() => _searchQuery = value);
+              },
+            ),
+          ),
+          
+          Expanded(
+            child: AnimatedBuilder(
+              animation: _userManager,
+              builder: (context, _) {
+                final allUsers = _userManager.users;
+                
+                // --- Filter Logic ---
+                final filteredUsers = allUsers.where((user) {
+                  final query = _searchQuery.toLowerCase();
+                  return user.name.toLowerCase().contains(query) || 
+                         user.phone.contains(query);
+                }).toList();
+                // --------------------
+
+                if (filteredUsers.isEmpty) {
+                   return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 48, color: Colors.grey[300]),
+                        const SizedBox(height: 16),
+                        Text('No users found matching "$_searchQuery"', style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredUsers.length,
+                  itemBuilder: (context, index) {
+                    final user = filteredUsers[index];
+                    return Card(
+                      color: Colors.white,
+                      elevation: 1,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            Row(
                               children: [
-                                Text(
-                                  user.name, 
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold, 
-                                    fontSize: 16,
-                                    decoration: user.isBlocked ? TextDecoration.lineThrough : null,
-                                    color: user.isBlocked ? Colors.grey : Colors.black87
-                                  )
+                                CircleAvatar(
+                                  radius: 24,
+                                  backgroundColor: user.isBlocked ? Colors.red[50] : Colors.green[50],
+                                  child: Icon(
+                                    user.isBlocked ? Icons.block : Icons.person, 
+                                    color: user.isBlocked ? Colors.red : Colors.green
+                                  ),
                                 ),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Icon(Icons.phone_android, size: 12, color: Colors.grey[500]),
-                                    const SizedBox(width: 4),
-                                    Text(user.phone, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                                    const SizedBox(width: 12),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[100],
-                                        borderRadius: BorderRadius.circular(4),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        user.name, 
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold, 
+                                          fontSize: 16,
+                                          decoration: user.isBlocked ? TextDecoration.lineThrough : null,
+                                          color: user.isBlocked ? Colors.grey : Colors.black87
+                                        )
                                       ),
-                                      child: Text(user.role, style: TextStyle(fontSize: 10, color: Colors.grey[800], fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.phone_android, size: 12, color: Colors.grey[500]),
+                                          const SizedBox(width: 4),
+                                          Text(user.phone, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                                          const SizedBox(width: 12),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[100],
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(user.role, style: TextStyle(fontSize: 10, color: Colors.grey[800], fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Actions Menu
+                                PopupMenuButton<String>(
+                                  onSelected: (value) {
+                                    if (value == 'edit') {
+                                      _showUserDialog(user: user);
+                                    } else if (value == 'delete') {
+                                      _confirmDelete(user.id);
+                                    } else if (value == 'block') {
+                                      _userManager.toggleUserBlockStatus(user.id);
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(user.isBlocked ? 'User Unblocked' : 'User Blocked'),
+                                          duration: const Duration(seconds: 1),
+                                        )
+                                      );
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(
+                                      value: 'edit',
+                                      child: Row(children: const [Icon(Icons.edit, size: 20), SizedBox(width: 8), Text('Edit')]),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(children: const [Icon(Icons.delete, size: 20, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))]),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'block',
+                                      child: Row(children: [
+                                        Icon(user.isBlocked ? Icons.check_circle : Icons.block, size: 20), 
+                                        const SizedBox(width: 8), 
+                                        Text(user.isBlocked ? 'Unblock' : 'Block')
+                                      ]),
                                     ),
                                   ],
+                                  icon: const Icon(Icons.more_vert, color: Colors.grey),
                                 ),
                               ],
                             ),
-                          ),
-                          // Actions Menu
-                          PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                _showUserDialog(user: user);
-                              } else if (value == 'delete') {
-                                _confirmDelete(user.id);
-                              } else if (value == 'block') {
-                                _userManager.toggleUserBlockStatus(user.id);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(user.isBlocked ? 'User Unblocked' : 'User Blocked'),
-                                    duration: const Duration(seconds: 1),
-                                  )
-                                );
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Row(children: const [Icon(Icons.edit, size: 20), SizedBox(width: 8), Text('Edit')]),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Row(children: const [Icon(Icons.delete, size: 20, color: Colors.red), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))]),
-                              ),
-                              PopupMenuItem(
-                                value: 'block',
-                                child: Row(children: [
-                                  Icon(user.isBlocked ? Icons.check_circle : Icons.block, size: 20), 
-                                  const SizedBox(width: 8), 
-                                  Text(user.isBlocked ? 'Unblock' : 'Block')
-                                ]),
-                              ),
-                            ],
-                            icon: const Icon(Icons.more_vert, color: Colors.grey),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            const Divider(height: 1),
+                            const SizedBox(height: 12),
+                            
+                            // Mock Stats Row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildStat('Total Orders', '${(index + 1) * 5}'), // Deterministic Mock
+                                _buildStat('Joined', 'Jan 2025'),
+                                _buildStat('Status', user.isBlocked ? 'Blocked' : 'Active', color: user.isBlocked ? Colors.red : Colors.green),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
-                      const Divider(height: 1),
-                      const SizedBox(height: 12),
-                      
-                      // Mock Stats Row
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildStat('Total Orders', '${(index + 1) * 5}'), // Deterministic Mock
-                          _buildStat('Joined', 'Jan 2025'),
-                          _buildStat('Status', user.isBlocked ? 'Blocked' : 'Active', color: user.isBlocked ? Colors.red : Colors.green),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

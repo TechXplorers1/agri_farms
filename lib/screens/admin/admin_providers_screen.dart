@@ -17,7 +17,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text('Manage Providers'),
+        title: const Text('Service Directory'),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
@@ -60,91 +60,166 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
              );
            });
         },
-        label: const Text('Add Provider'),
+        label: const Text('Add New'),
         icon: const Icon(Icons.add),
         backgroundColor: const Color(0xFF00AA55),
         foregroundColor: Colors.white,
       ),
-      body: AnimatedBuilder(
-        animation: _providerManager,
-        builder: (context, _) {
-          final providers = _providerManager.providers;
-          if (providers.isEmpty) {
-            return const Center(child: Text('No providers found'));
-          }
+      body: Column(
+        children: [
+          // Filter Chips
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterChip('All'),
+                  const SizedBox(width: 8),
+                  _buildFilterChip('Farm Workers'),
+                   const SizedBox(width: 8),
+                  _buildFilterChip('Machinery'),
+                   const SizedBox(width: 8),
+                  _buildFilterChip('Transport'),
+                   const SizedBox(width: 8),
+                  _buildFilterChip('Services'),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: AnimatedBuilder(
+              animation: _providerManager,
+              builder: (context, _) {
+                final allProviders = _providerManager.providers;
+                
+                // --- Filter Logic ---
+                final filteredProviders = allProviders.where((provider) {
+                  if (_selectedFilter == 'All') return true;
+                  if (_selectedFilter == 'Farm Workers') return provider.serviceName == 'Farm Workers';
+                  if (_selectedFilter == 'Machinery') return ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'Ploughing', 'Harvesting'].contains(provider.serviceName);
+                  if (_selectedFilter == 'Transport') return ['Mini Truck', 'Full Truck', 'Tempo', 'Pickup Van', 'Container', 'Tractor Trolley'].contains(provider.serviceName);
+                  if (_selectedFilter == 'Services') return !['Farm Workers', 'Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'Ploughing', 'Harvesting', 'Mini Truck', 'Full Truck', 'Tempo', 'Pickup Van', 'Container', 'Tractor Trolley'].contains(provider.serviceName);
+                  return true;
+                }).toList();
+                // --------------------
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: providers.length,
-            itemBuilder: (context, index) {
-              final provider = providers[index];
-              return Card(
-                color: Colors.white,
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ExpansionTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.green[50],
-                    child: Text(provider.name[0], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                  ),
-                  title: Text(provider.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('${provider.serviceName} • ${provider.distance ?? "Unknown location"}'),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                      child: Column(
+                if (filteredProviders.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.filter_list_off, size: 48, color: Colors.grey[300]),
+                        const SizedBox(height: 16),
+                        Text('No services found in "$_selectedFilter"', style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: filteredProviders.length,
+                  itemBuilder: (context, index) {
+                    final provider = filteredProviders[index];
+                    return Card(
+                      color: Colors.white,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: ExpansionTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.green[50],
+                          child: Text(provider.name[0], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                        ),
+                        title: Text(provider.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('${provider.serviceName} • ${provider.distance ?? "Unknown location"}'),
                         children: [
-                          const Divider(),
-                          // Details Row
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildDetailItem(Icons.star, '${provider.rating}', 'Rating'),
-                              _buildDetailItem(Icons.work, '${provider.jobs ?? 0}', 'Jobs Done'),
-                              _buildDetailItem(Icons.verified, provider.isAvailable == false ? 'Busy' : 'Available', 'Status'),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          
-                          // Capacity / Price Specifics
-                          if (provider.maleCount != null || provider.femaleCount != null) ...[
-                            _buildInfoRow('Male Workers', '${provider.maleCount ?? 0} Available', '₹${provider.malePrice ?? 0}/day'),
-                            const SizedBox(height: 8),
-                            _buildInfoRow('Female Workers', '${provider.femaleCount ?? 0} Available', '₹${provider.femalePrice ?? 0}/day'),
-                          ],
-                          
-                          if (provider.price != null) ...[
-                             _buildInfoRow('Service Price', provider.price!, ''),
-                          ],
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                            child: Column(
+                              children: [
+                                const Divider(),
+                                // Details Row
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _buildDetailItem(Icons.star, '${provider.rating}', 'Rating'),
+                                    _buildDetailItem(Icons.work, '${provider.jobs ?? 0}', 'Jobs Done'),
+                                    _buildDetailItem(Icons.verified, provider.isAvailable == false ? 'Busy' : 'Available', 'Status'),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                
+                                // Capacity / Price Specifics
+                                if (provider.maleCount != null || provider.femaleCount != null) ...[
+                                  _buildInfoRow('Male Workers', '${provider.maleCount ?? 0} Available', '₹${provider.malePrice ?? 0}/day'),
+                                  const SizedBox(height: 8),
+                                  _buildInfoRow('Female Workers', '${provider.femaleCount ?? 0} Available', '₹${provider.femalePrice ?? 0}/day'),
+                                ],
+                                
+                                if (provider.price != null) ...[
+                                   _buildInfoRow('Service Price', provider.price!, ''),
+                                ],
 
-                          const SizedBox(height: 16),
-                          
-                          // Actions
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                _confirmDelete(context, provider);
-                              },
-                              icon: const Icon(Icons.delete_outline, size: 18),
-                              label: const Text('Remove Provider'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red[50],
-                                foregroundColor: Colors.red,
-                                elevation: 0,
-                              ),
+                                const SizedBox(height: 16),
+                                
+                                // Actions
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    onPressed: () {
+                                      _confirmDelete(context, provider);
+                                    },
+                                    icon: const Icon(Icons.delete_outline, size: 18),
+                                    label: const Text('Remove from Directory'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red[50],
+                                      foregroundColor: Colors.red,
+                                      elevation: 0,
+                                    ),
+                                  ),
+                                )
+                              ],
                             ),
-                          )
+                          ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  String _selectedFilter = 'All';
+
+  Widget _buildFilterChip(String label) {
+    final isSelected = _selectedFilter == label;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (bool selected) {
+        setState(() {
+          _selectedFilter = label;
+        });
+      },
+      backgroundColor: Colors.white,
+      selectedColor: Colors.green[50],
+      checkmarkColor: Colors.green,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.green[800] : Colors.grey[700],
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: isSelected ? Colors.green : Colors.grey[300]!),
+      ),
+      showCheckmark: false,
     );
   }
 

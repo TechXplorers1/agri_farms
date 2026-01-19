@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'admin_bookings_screen.dart';
+import 'admin_disputes_screen.dart';
+import 'admin_broadcast_screen.dart';
 import 'admin_providers_screen.dart';
 import 'admin_users_screen.dart';
-import 'admin_upload_requests_screen.dart';
+import 'admin_service_approvals_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -44,19 +45,28 @@ class AdminDashboard extends StatelessWidget {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
+             _buildLinkCard(
+              context,
+              'Dispute Resolution', 
+              'Resolve user complaints', 
+              Icons.gavel, 
+              Colors.redAccent,
+              const AdminDisputesScreen()
+            ),
+            const SizedBox(height: 16),
             _buildLinkCard(
               context,
-              'Manage Bookings', 
-              'Approve or reject bookings', 
-              Icons.calendar_month, 
-              Colors.blue,
-              const AdminBookingsScreen()
+              'Broadcast Alerts', 
+              'Send announcements to all', 
+              Icons.campaign, 
+              Colors.blueAccent,
+              const AdminBroadcastScreen()
             ),
             const SizedBox(height: 16),
              _buildLinkCard(
               context,
-              'Manage Providers', 
-              'Add or remove services', 
+              'Service Directory', 
+              'View all active services', 
               Icons.agriculture, 
               Colors.green,
               const AdminProvidersScreen()
@@ -73,11 +83,11 @@ class AdminDashboard extends StatelessWidget {
             const SizedBox(height: 16),
              _buildLinkCard(
               context,
-              'Upload Requests', 
-              'Approve farmer listings', 
-              Icons.cloud_upload_outlined, 
+              'Service Approvals', 
+              'Approve vehicles, equipment & workers', 
+              Icons.verified_user_outlined, 
               Colors.orange,
-              const AdminUploadRequestsScreen()
+              const ServiceApprovalsScreen()
             ),
           ],
         ),
