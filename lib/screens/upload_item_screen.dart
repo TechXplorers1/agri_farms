@@ -47,7 +47,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   // Mock Lists
   final List<String> _transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
   final List<String> _equipmentCategories = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys']; 
-  final List<String> _serviceCategories = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Soil Testing', 'Vet Care']; // For dropdown if category is generic 'Services' 
+  final List<String> _serviceCategories = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Soil Testing', 'Vet Care', 'Electricians', 'Mechanics']; // For dropdown if category is generic 'Services' 
   
   final List<String> _conditions = ['New', 'Good', 'Average', 'Poor'];
 

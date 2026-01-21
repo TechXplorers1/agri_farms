@@ -41,6 +41,8 @@ class AgriServicesScreen extends StatelessWidget {
                 crossAxisSpacing: 16,
                 children: [
                    _buildServiceCard(context, 'Ploughing', AppLocalizations.of(context)!.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue),
+                   _buildServiceCard(context, 'Electricians', 'Electricians', Icons.electrical_services, const Color(0xFFFFF8E1), Colors.amber[800]!),
+                   _buildServiceCard(context, 'Mechanics', 'Mechanics', Icons.build, const Color(0xFFECEFF1), Colors.blueGrey),
                    _buildServiceCard(context, 'Harvesting', AppLocalizations.of(context)!.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange), // Yellowish bg
                    _buildServiceCard(context, 'Farm Workers', AppLocalizations.of(context)!.farmWorkers, Icons.groups, const Color(0xFFF3E5F5), Colors.purple),
                    _buildServiceCard(context, 'Drone Spraying', AppLocalizations.of(context)!.droneSpraying, Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green),

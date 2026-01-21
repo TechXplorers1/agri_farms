@@ -285,6 +285,31 @@ class ProviderManager extends ChangeNotifier {
         equipmentUsed: 'Diesel Pump 5HP',
         operatorIncluded: true,
         jobsCompleted: 200,
+        image: 'https://images.unsplash.com/photo-1595843472097-dfd63ff444d1?q=80&w=200&auto=format&fit=crop', // Irrigation - just using worker image for now or placeholder
+      ),
+      ServiceListing(
+        id: '108',
+        name: 'Quick Fix Electric',
+        serviceName: 'Electricians',
+        distance: '2 km',
+        rating: 4.8,
+        price: '₹200 / visit',
+        equipmentUsed: 'Standard Toolkit',
+        operatorIncluded: true,
+        jobsCompleted: 150,
+        image: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop',
+      ),
+      ServiceListing(
+        id: '109',
+        name: 'Sharma Motor Works',
+        serviceName: 'Mechanics',
+        distance: '3 km',
+        rating: 4.6,
+        price: '₹300 / visit',
+        equipmentUsed: 'Garage Tools',
+        operatorIncluded: true,
+        jobsCompleted: 120,
+        image: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?q=80&w=200&auto=format&fit=crop',
       ),
 
       // --- Transport Services ---
