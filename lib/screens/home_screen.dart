@@ -159,11 +159,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       Row(
                         children: [
-                          IconButton(
-                            icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white),
-                            onPressed: () {},
-                          ),
-                          if (['Farmer', 'Provider'].contains(_userRole)) // Visible for Farmers and Providers
+
+                          if (['Owner', 'Provider'].contains(_userRole)) // Visible for Owners and Providers
                             IconButton(
                               icon: const Icon(Icons.assignment_outlined, color: Colors.white),
                               onPressed: () {
@@ -341,8 +338,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
                   }),
                   const SizedBox(height: 12),
-                  _buildSectionContainer(
-                    Row(
+                     _buildSectionContainer(
+                     Row(
                       children: [
                         Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.ploughing, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Ploughing', title: AppLocalizations.of(context)!.ploughing, userRole: widget.userRole)));
@@ -355,6 +352,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(child: _buildServiceItem(Icons.groups, AppLocalizations.of(context)!.farmWorkers, const Color(0xFFF3E5F5), Colors.purple, onTap: () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Farm Workers', title: AppLocalizations.of(context)!.farmWorkers, userRole: widget.userRole)));
                         })),
+                        const SizedBox(width: 8),
+                         _buildArrowButton(onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
+                        }),
                       ],
                     ),
                   ),
@@ -379,6 +380,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(child: _buildServiceItem(Icons.local_shipping_outlined, AppLocalizations.of(context)!.fullTruck, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Full Truck', title: AppLocalizations.of(context)!.fullTruck, userRole: widget.userRole)));
                         })),
+                        const SizedBox(width: 8),
+                         _buildArrowButton(onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
+                        }),
                       ],
                     ),
                    ),
@@ -403,6 +408,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         Expanded(child: _buildServiceItem(Icons.water_drop, AppLocalizations.of(context)!.sprayers, Colors.blue[50]!, Colors.blue, onTap: () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Sprayers', title: AppLocalizations.of(context)!.sprayers, userRole: widget.userRole)));
                         })),
+                        const SizedBox(width: 8),
+                         _buildArrowButton(onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
+                        }),
                       ],
                     ),
                    ),
@@ -440,24 +449,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Tools Section
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildToolCard(context, AppLocalizations.of(context)!.cropAdvisory, Icons.grass, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
+                        _buildToolCard(context, AppLocalizations.of(context)!.weather, Icons.cloud_outlined, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
+                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Detailed Weather Coming Soon!')));
+                        }),
+                        const SizedBox(width: 12),
+                        _buildToolCard(context, AppLocalizations.of(context)!.cropAdvisory, Icons.grass, const Color(0xFFE8F5E9), Colors.green, onTap: () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => const CropAdvisoryScreen()));
                         }),
-                        const SizedBox(width: 12),
-                        _buildToolCard(context, AppLocalizations.of(context)!.fertilizerCalculator, Icons.calculate_outlined, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const FertilizerCalculatorScreen()));
+                         const SizedBox(width: 12),
+                        _buildToolCard(context, AppLocalizations.of(context)!.mandiPrices, Icons.show_chart, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
+                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Market Prices Coming Soon!')));
                         }),
                         const SizedBox(width: 12),
-                        _buildToolCard(context, AppLocalizations.of(context)!.pesticideCalculator, Icons.science_outlined, const Color(0xFFE3F2FD), Colors.blue, isNew: true, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const PesticideCalculatorScreen()));
+                        _buildToolCard(context, AppLocalizations.of(context)!.farmingCalculator, Icons.calculate_outlined, const Color(0xFFF3E5F5), Colors.purple, onTap: () {
+                          // Show bottom sheet to choose calculator type? Or just link to one main one. 
+                          // Linking to FarmingCalculatorScreen as main entrance
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => const FarmingCalculatorScreen()));
                         }),
                         const SizedBox(width: 12),
-                         _buildToolCard(context, AppLocalizations.of(context)!.farmingCalculator, Icons.agriculture_outlined, const Color(0xFFE3F2FD), Colors.blue, isNew: true, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const FarmingCalculatorScreen()));
-                         }),
+                        _buildToolCard(context, 'Support', Icons.headset_mic_outlined, const Color(0xFFE0F7FA), Colors.cyan, onTap: () {
+                           // Navigate to Help or specific support screen
+                           // For now reusing Profile or a simple placeholder
+                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Support Center Coming Soon!')));
+                        }),
                       ],
                     ),
                   ),
@@ -472,20 +490,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 24),
                    
                    // Info Cards & Weather
-             Padding(
-               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-               child: SizedBox(
-                 height: 170, // Increased height to prevent overflow
-                 child: Row(
-                   children: [
-                       Expanded(child: _buildInfoCard(AppLocalizations.of(context)!.mandiPrices, AppLocalizations.of(context)!.checkTodaysRates, AppLocalizations.of(context)!.viewPrices, Icons.show_chart, Colors.orange[100]!, Colors.orange)),
-                       const SizedBox(width: 16),
-                       Expanded(child: _buildInfoCard(AppLocalizations.of(context)!.weather, '28°C, Sunny\n\n${AppLocalizations.of(context)!.sevenDayForecast}', '', Icons.cloud_outlined, Colors.blue[50]!, Colors.blue)),
-                   ],
-                 ),
-               ),
-             ),
-             SizedBox(height: 24),
+
                   
                   // Community Section
                   Container(
@@ -536,8 +541,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      // Market Placeholder (Index 1)
-      const Center(child: Text('Market Screen Placeholder')), // You can replace this later
+      // Market Placeholder (Index 1) - Disabled
+      // const Center(child: Text('Market Screen Placeholder')),
       // Rentals Placeholder (Index 2)
       // Rentals Placeholder (Index 2)
       EquipmentRentalsScreen(userRole: widget.userRole),
@@ -560,7 +565,7 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         items: [
           BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), label: AppLocalizations.of(context)!.navHome),
-          BottomNavigationBarItem(icon: const Icon(Icons.storefront_outlined), label: AppLocalizations.of(context)!.navMarket), 
+          // BottomNavigationBarItem(icon: const Icon(Icons.storefront_outlined), label: AppLocalizations.of(context)!.navMarket), 
           BottomNavigationBarItem(icon: const Icon(Icons.build_outlined), label: AppLocalizations.of(context)!.navRentals),
           BottomNavigationBarItem(icon: const Icon(Icons.people_outlined), label: AppLocalizations.of(context)!.navCommunity),
           BottomNavigationBarItem(icon: const Icon(Icons.person_outline), label: AppLocalizations.of(context)!.navProfile),
@@ -609,6 +614,22 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Text(AppLocalizations.of(context)!.viewMore),
         ),
       ],
+    );
+  }
+
+  Widget _buildArrowButton({required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: 30,
+        height: 60,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black54),
+      ),
     );
   }
 

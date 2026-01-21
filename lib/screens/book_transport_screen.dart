@@ -38,27 +38,7 @@ class BookTransportScreen extends StatelessWidget {
                 ),
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: OutlinedButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (context) => GenericHistoryScreen(
-                  title: AppLocalizations.of(context)!.myTransports,
-                  categories: [BookingCategory.transport],
-                )));
-              },
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                minimumSize: const Size(0, 36),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                side: BorderSide(color: Colors.grey[300]!),
-                foregroundColor: Colors.black87,
-              ),
-              child: Text(AppLocalizations.of(context)!.myTransports, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.normal)),
-            ),
-          ),
+
         ],
       ),
       body: Padding(

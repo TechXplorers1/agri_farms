@@ -143,20 +143,24 @@ class _ServiceApprovalsScreenState extends State<ServiceApprovalsScreen> with Si
                 const SizedBox(height: 12),
                 
                 // Details Section
-                if (isWorker) ...[
+                if (provider is FarmWorkerListing) ...[
                   _buildDetailRow(Icons.person, 'Workers', 'Male: ${provider.maleCount} | Female: ${provider.femaleCount}'),
                   const SizedBox(height: 8),
                   _buildDetailRow(Icons.payments_outlined, 'Rates', 'M: ₹${provider.malePrice} / F: ₹${provider.femalePrice}'),
                 ] else ...[
-                   _buildDetailRow(Icons.price_change_outlined, 'Price', provider.price ?? 'N/A'),
-                   if (provider.jobs != null) ...[
-                      const SizedBox(height: 8),
-                      _buildDetailRow(Icons.work_history_outlined, 'Past Jobs', '${provider.jobs} completed'),
-                   ]
+                   if (provider is ServiceListing)
+                      _buildDetailRow(Icons.price_change_outlined, 'Price', provider.price),
+                   if (provider is TransportListing)
+                      _buildDetailRow(Icons.price_change_outlined, 'Price', provider.price),
+                   if (provider is EquipmentListing)
+                      _buildDetailRow(Icons.price_change_outlined, 'Price', provider.price),
+
+                   const SizedBox(height: 8),
+                   _buildDetailRow(Icons.work_history_outlined, 'Past Jobs', '${provider.jobsCompleted} completed'),
                 ],
                 
                 const SizedBox(height: 8),
-                _buildDetailRow(Icons.location_on_outlined, 'Distance', provider.distance ?? 'Unknown'),
+                _buildDetailRow(Icons.location_on_outlined, 'Distance', provider.distance),
 
                 const SizedBox(height: 20),
                 Row(

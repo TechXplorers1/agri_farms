@@ -18,13 +18,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final l10n = AppLocalizations.of(context)!;
     return [
     {
-      'title': l10n.buySell,
-      'description': l10n.buySellDesc,
-      'icon': Icons.shopping_bag_outlined,
-      'color': Colors.blue,
-      'bgColor': const Color(0xFFE3F2FD), // Light Blue
-    },
-    {
       'title': l10n.rentEquipment,
       'description': l10n.rentEquipmentDesc,
       'icon': Icons.build_outlined, // Wrench
@@ -37,6 +30,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'icon': Icons.trending_up, // Graph up
       'color': Colors.green,
       'bgColor': const Color(0xFFE8F5E9), // Light Green
+    },
+    {
+      'title': l10n.buySell,
+      'description': l10n.buySellDesc,
+      'icon': Icons.shopping_bag_outlined,
+      'color': Colors.blue,
+      'bgColor': const Color(0xFFE3F2FD), // Light Blue
     },
   ];
   }

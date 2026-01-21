@@ -110,12 +110,12 @@
   "mobileNumber": "Mobile Number",
   "getOtp": "Get OTP",
   "termsPolicy": "By continuing, you accept our Terms of Service\nand Privacy Policy",
-  "generalUser": "General User",
-  "farmer": "Farmer",
+  "generalUser": "Farmer",
+  "farmer": "Owner",
   
   "listYourAssets": "List Your Assets",
-  "listTransport": "List Transport",
-  "listEquipment": "List Equipment",
+  "listTransport": "Add Vehicle",
+  "listEquipment": "Add Equipment",
   
   "navHome": "Home",
   "navMarket": "Market",

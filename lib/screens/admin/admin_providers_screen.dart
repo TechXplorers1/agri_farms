@@ -145,21 +145,26 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                                   children: [
                                     _buildDetailItem(Icons.star, '${provider.rating}', 'Rating'),
-                                    _buildDetailItem(Icons.work, '${provider.jobs ?? 0}', 'Jobs Done'),
+                                    _buildDetailItem(Icons.work, '${provider.jobsCompleted}', 'Jobs Done'),
                                     _buildDetailItem(Icons.verified, provider.isAvailable == false ? 'Busy' : 'Available', 'Status'),
                                   ],
                                 ),
                                 const SizedBox(height: 16),
                                 
                                 // Capacity / Price Specifics
-                                if (provider.maleCount != null || provider.femaleCount != null) ...[
-                                  _buildInfoRow('Male Workers', '${provider.maleCount ?? 0} Available', '₹${provider.malePrice ?? 0}/day'),
+                                if (provider is FarmWorkerListing) ...[
+                                  _buildInfoRow('Male Workers', '${provider.maleCount} Available', '₹${provider.malePrice}/day'),
                                   const SizedBox(height: 8),
-                                  _buildInfoRow('Female Workers', '${provider.femaleCount ?? 0} Available', '₹${provider.femalePrice ?? 0}/day'),
-                                ],
-                                
-                                if (provider.price != null) ...[
-                                   _buildInfoRow('Service Price', provider.price!, ''),
+                                  _buildInfoRow('Female Workers', '${provider.femaleCount} Available', '₹${provider.femalePrice}/day'),
+                                ] else if (provider is TransportListing) ...[
+                                   _buildInfoRow('Service Price', provider.price, ''),
+                                   _buildInfoRow('Capacity', provider.loadCapacity, provider.vehicleType),
+                                ] else if (provider is EquipmentListing) ...[
+                                   _buildInfoRow('Rental Price', provider.price, ''),
+                                   _buildInfoRow('Condition', provider.condition, provider.operatorAvailable ? 'Op. Avail' : 'No Op.'),
+                                ] else if (provider is ServiceListing) ...[
+                                   _buildInfoRow('Service Price', provider.price, ''),
+                                   _buildInfoRow('Equipment', provider.equipmentUsed, ''),
                                 ],
 
                                 const SizedBox(height: 16),

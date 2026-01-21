@@ -25,6 +25,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   int _maleCount = 0;
   int _femaleCount = 0;
   String? _selectedSlot;
+  DateTime? _selectedDate;
 
   final List<String> _timeSlots = [
     'Morning (8:00 AM - 12:00 PM)',
@@ -36,14 +37,40 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     return (_maleCount * widget.priceMale) + (_femaleCount * widget.priceFemale);
   }
 
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF00AA55),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
   void _confirmBooking() {
-    if ((_maleCount > 0 || _femaleCount > 0) && _selectedSlot != null) {
+    if ((_maleCount > 0 || _femaleCount > 0) && _selectedSlot != null && _selectedDate != null) {
       
       // Save to BookingManager
       BookingManager().addBooking(BookingDetails(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: widget.providerName,
-        date: DateTime.now().toString().split(' ')[0], // specific date logic can be improved
+        date: _selectedDate.toString().split(' ')[0],
         price: '₹$_totalPrice',
         status: 'Scheduled',
         category: BookingCategory.farmWorkers,
@@ -51,6 +78,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
           'Male': _maleCount,
           'Female': _femaleCount,
           'Slot': _selectedSlot,
+          'Date': _selectedDate.toString().split(' ')[0],
         }
       ));
 
@@ -60,8 +88,13 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       Navigator.pop(context); // Go back to list
       Navigator.pop(context); // Go back to main screen if needed, or user can navigate manually
     } else {
+      String msg = 'Please fill all details';
+      if (_maleCount == 0 && _femaleCount == 0) msg = 'Select at least one worker';
+      else if (_selectedDate == null) msg = 'Please select a date';
+      else if (_selectedSlot == null) msg = 'Please select a time slot';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select workers and a time slot')),
+        SnackBar(content: Text(msg)),
       );
     }
   }
@@ -127,6 +160,43 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               setState(() => _femaleCount = val);
             }),
 
+            const SizedBox(height: 32),
+
+            // Date Selection
+            Text(
+              'Select Date',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => _selectDate(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, color: _selectedDate == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+                    const SizedBox(width: 12),
+                    Text(
+                      _selectedDate == null 
+                          ? 'Choose a date' 
+                          : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
+                        fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 32),
 
             // Time Slot Selection

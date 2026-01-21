@@ -214,7 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       }
                     },
                   ),
-                  if (['Farmer', 'Provider'].contains(_userRole)) ...[
+                  if (['Owner', 'Provider'].contains(_userRole)) ...[
                     _buildListTile(
                       Icons.work_outline,
                       AppLocalizations.of(context)!.serviceRequests, // Generalized for providers

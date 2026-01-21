@@ -17,24 +17,7 @@ class AgriServicesScreen extends StatelessWidget {
         ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                minimumSize: const Size(0, 36),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                side: BorderSide(color: Colors.grey[300]!),
-                foregroundColor: Colors.black87,
-              ),
-              child: const Text('My Bookings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.normal)),
-            ),
-          ),
-        ],
+        actions: [],
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
