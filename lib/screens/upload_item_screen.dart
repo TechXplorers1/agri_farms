@@ -102,6 +102,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       malePrice: int.tryParse(_malePriceController.text) ?? 0,
       femalePrice: int.tryParse(_femalePriceController.text) ?? 0,
       skills: _skillsController.text.isNotEmpty ? _skillsController.text : 'General Farm Work',
+      image: 'https://placehold.co/600x400?text=Workers',
     );
 
     ProviderManager().addProvider(newProvider);
@@ -129,6 +130,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       operatorAvailable: _operatorAvailable,
       condition: _condition,
       yearOfManufacture: _yearController.text.isNotEmpty ? _yearController.text : null,
+      image: 'https://placehold.co/600x400?text=Equipment',
     );
 
     ProviderManager().addProvider(newProvider);
@@ -329,6 +331,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       driverIncluded: _driverIncluded,
       vehicleNumber: _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
       serviceArea: _serviceAreaController.text.isNotEmpty ? _serviceAreaController.text : null,
+      image: 'https://placehold.co/600x400?text=Vehicle',
     );
     
     ProviderManager().addProvider(newProvider);
@@ -353,7 +356,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       price: _priceController.text,
       operatorIncluded: _operatorIncludedService,
       jobsCompleted: 0,
+
       isAvailable: true,
+      image: 'https://placehold.co/600x400?text=Service', 
     );
 
     ProviderManager().addProvider(newProvider);

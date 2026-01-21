@@ -10,6 +10,7 @@ abstract class ServiceProvider {
   final String location;
   final bool isAvailable;
   final int jobsCompleted;
+  final String? image; // New image field
 
   ServiceProvider({
     required this.id,
@@ -21,6 +22,7 @@ abstract class ServiceProvider {
     this.location = '',
     this.isAvailable = true,
     this.jobsCompleted = 0,
+    this.image,
   });
 }
 
@@ -42,6 +44,7 @@ class ServiceListing extends ServiceProvider {
     required this.equipmentUsed,
     required this.price,
     required this.operatorIncluded,
+    super.image,
   }) : super(approvalStatus: approvalStatus);
 }
 
@@ -67,6 +70,7 @@ class FarmWorkerListing extends ServiceProvider {
     required this.malePrice,
     required this.femalePrice,
     required this.skills,
+    super.image,
   }) : super(approvalStatus: approvalStatus);
 }
 
@@ -96,6 +100,7 @@ class TransportListing extends ServiceProvider {
     this.driverIncluded = true, // Default usually yes
     this.vehicleNumber,
     this.serviceArea,
+    super.image,
   }) : super(approvalStatus: approvalStatus);
 }
 
@@ -121,6 +126,7 @@ class EquipmentListing extends ServiceProvider {
     required this.operatorAvailable,
     this.condition = 'Good',
     this.yearOfManufacture,
+    super.image,
   }) : super(approvalStatus: approvalStatus);
 }
 
@@ -215,6 +221,7 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.8,
         skills: 'Sowing, Harvesting',
         location: 'Rampur Village',
+        image: 'https://images.unsplash.com/photo-1595843472097-dfd63ff444d1?q=80&w=200&auto=format&fit=crop',
       ),
       FarmWorkerListing(
         id: '2',
@@ -228,6 +235,7 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.5,
         skills: 'Weeding, Loading',
         location: 'Sonapur',
+        image: 'https://images.unsplash.com/photo-1628155985854-443b740523bb?q=80&w=200&auto=format&fit=crop',
       ),
 
       // --- Agricultural Services (Ploughing/Harvesting) ---
@@ -242,6 +250,7 @@ class ProviderManager extends ChangeNotifier {
         operatorIncluded: true,
         jobsCompleted: 85,
         location: 'Rampur',
+        image: 'https://images.unsplash.com/photo-1530267981375-f0de93fe1e91?q=80&w=200&auto=format&fit=crop',
       ),
       ServiceListing(
         id: '102',
@@ -253,6 +262,7 @@ class ProviderManager extends ChangeNotifier {
         equipmentUsed: 'Swaraj 855',
         operatorIncluded: true,
         jobsCompleted: 60,
+        image: 'https://plus.unsplash.com/premium_photo-1661963248881-22920c743fe5?q=80&w=200&auto=format&fit=crop',
       ),
       ServiceListing(
         id: '103',
@@ -290,6 +300,7 @@ class ProviderManager extends ChangeNotifier {
         fuelIncluded: true,
         driverIncluded: true,
         jobsCompleted: 50,
+        image: 'https://images.unsplash.com/photo-1605218427306-022ba951dd0c?q=80&w=200&auto=format&fit=crop', 
       ),
       TransportListing(
         id: '4',
@@ -303,6 +314,7 @@ class ProviderManager extends ChangeNotifier {
         fuelIncluded: true,
         driverIncluded: true,
         jobsCompleted: 42,
+        image: 'https://images.unsplash.com/photo-1626847037657-fd3622613ce3?q=80&w=200&auto=format&fit=crop',
       ),
       TransportListing(
         id: '5',
@@ -316,6 +328,7 @@ class ProviderManager extends ChangeNotifier {
         fuelIncluded: true,
         driverIncluded: true,
         jobsCompleted: 120,
+        image: 'https://images.unsplash.com/photo-1588665313070-653606f5712e?q=80&w=200&auto=format&fit=crop', // Tractor Trolleyish
       ),
       TransportListing(
         id: '201',
@@ -329,6 +342,7 @@ class ProviderManager extends ChangeNotifier {
         fuelIncluded: true,
         driverIncluded: true,
         jobsCompleted: 80,
+         image: 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?q=80&w=200&auto=format&fit=crop', // Truck
       ),
 
       // --- Equipment Rentals ---
@@ -343,6 +357,7 @@ class ProviderManager extends ChangeNotifier {
         operatorAvailable: true, // "With or Without"
         condition: 'Good',
         jobsCompleted: 200,
+        image: 'https://images.unsplash.com/photo-1592860956971-555df6d915c7?q=80&w=200&auto=format&fit=crop',
       ),
        EquipmentListing(
         id: '7',
@@ -355,6 +370,7 @@ class ProviderManager extends ChangeNotifier {
         operatorAvailable: false,
         condition: 'Average',
         jobsCompleted: 80,
+        image: 'https://images.unsplash.com/photo-1628155985854-443b740523bb?q=80&w=200&auto=format&fit=crop',
       ),
       EquipmentListing(
         id: '301',
@@ -367,6 +383,7 @@ class ProviderManager extends ChangeNotifier {
         operatorAvailable: true,
         condition: 'New',
         jobsCompleted: 65,
+        image: 'https://images.unsplash.com/photo-1632152862822-7776104bc179?q=80&w=200&auto=format&fit=crop', // Harvester
       ),
       EquipmentListing(
         id: '302',
@@ -379,6 +396,7 @@ class ProviderManager extends ChangeNotifier {
         operatorAvailable: false,
         condition: 'Good',
         jobsCompleted: 180,
+        image: 'https://images.unsplash.com/photo-1559304822-9eb2813c9844?q=80&w=200&auto=format&fit=crop', // Sprayer
       ),
     ]);
   }

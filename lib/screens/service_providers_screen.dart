@@ -127,9 +127,26 @@ class ServiceProvidersScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _buildDistanceRow(provider.distance),
-          if (provider.location.isNotEmpty) ...[
+           if (provider.location.isNotEmpty) ...[
              const SizedBox(height: 4),
              Text(provider.location, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+          ],
+          if (provider.image != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                provider.image!,
+                height: 150,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 150,
+                  color: Colors.grey[200],
+                  child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                ),
+              ),
+            ),
           ],
           const SizedBox(height: 12),
           // Skills
@@ -214,6 +231,23 @@ class ServiceProvidersScreen extends StatelessWidget {
               if (provider.isAvailable) _buildAvailableBadge(),
             ],
           ),
+          if (provider.image != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                provider.image!,
+                height: 150,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 150,
+                  color: Colors.grey[200],
+                  child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             children: [
@@ -287,6 +321,23 @@ class ServiceProvidersScreen extends StatelessWidget {
               if (provider.isAvailable) _buildAvailableBadge(),
             ],
           ),
+          if (provider.image != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                provider.image!,
+                height: 150,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 150,
+                  color: Colors.grey[200],
+                  child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -358,6 +409,23 @@ class ServiceProvidersScreen extends StatelessWidget {
               if (provider.isAvailable) _buildAvailableBadge(),
             ],
           ),
+          if (provider.image != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                provider.image!,
+                height: 150,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 150,
+                  color: Colors.grey[200],
+                  child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
              children: [
