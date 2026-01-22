@@ -78,7 +78,6 @@ class TransportListing extends ServiceProvider {
   final String vehicleType; // Duplicate of serviceName usually, e.g. 'Mini Truck'
   final String loadCapacity; // '1 ton'
   final String price; // '₹1200 / trip'
-  final String price; // '₹1200 / trip'
   final bool driverIncluded;
   final String? vehicleNumber; // Optional / Private
   final String? serviceArea;
@@ -94,7 +93,6 @@ class TransportListing extends ServiceProvider {
     super.isAvailable,
     super.jobsCompleted,
     required this.vehicleType,
-    required this.loadCapacity,
     required this.loadCapacity,
     required this.price,
     this.driverIncluded = true, // Default usually yes

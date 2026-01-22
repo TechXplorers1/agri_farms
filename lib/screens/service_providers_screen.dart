@@ -345,12 +345,11 @@ class ServiceProvidersScreen extends StatelessWidget {
               const SizedBox(width: 16),
               _buildDistanceRow(provider.distance),
                const SizedBox(width: 16),
-               if (provider.fuelIncluded) 
-                 Container(
-                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                   decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(4)),
-                   child: const Text('Fuel Inc.', style: TextStyle(fontSize: 10, color: Colors.blue)),
-                 ),
+               Container(
+                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                 decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(4)),
+                 child: const Text('Driver Inc.', style: TextStyle(fontSize: 10, color: Colors.blue)),
+               ),
             ],
           ),
           

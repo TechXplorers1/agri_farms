@@ -367,7 +367,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       vehicleType: _selectedTransportType!,
       loadCapacity: _capacityController.text,
       price: _priceController.text,
-      fuelIncluded: false,
       driverIncluded: _driverIncluded,
       vehicleNumber: _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
       serviceArea: _serviceAreaController.text.isNotEmpty ? _serviceAreaController.text : null,
