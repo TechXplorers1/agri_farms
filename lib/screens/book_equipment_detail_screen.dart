@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/booking_manager.dart';
+import 'booking_confirmation_screen.dart';
 
 class BookEquipmentDetailScreen extends StatefulWidget {
   final String providerName;
@@ -97,11 +98,15 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         }
       ));
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Rental Request Sent! Added to My Rentals.'), backgroundColor: Colors.green),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BookingConfirmationScreen(
+            bookingId: DateTime.now().millisecondsSinceEpoch.toString(),
+            bookingTitle: '${widget.equipmentType} Rental',
+          ),
+        ),
       );
-      Navigator.pop(context); 
-      Navigator.pop(context);
     } else {
       String msg = 'Please fill all details';
       if (_selectedDate == null) msg = 'Select a start date';

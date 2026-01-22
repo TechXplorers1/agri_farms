@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/booking_manager.dart';
+import 'booking_confirmation_screen.dart';
 
 class BookTransportDetailScreen extends StatefulWidget {
   final String providerName;
@@ -20,7 +21,7 @@ class BookTransportDetailScreen extends StatefulWidget {
 }
 
 class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
-  int _vehicleCount = 1; // Default 1
+
   String? _selectedGoodsType;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
@@ -38,7 +39,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
   double get _totalPrice {
     // Simple mock calculation: rate * count
-    return widget.rate * _vehicleCount;
+    return widget.rate;
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -114,18 +115,22 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         details: {
           'Provider': widget.providerName,
           'Vehicle Type': widget.vehicleType,
-          'Vehicle Count': _vehicleCount,
+          'Vehicle Count': 1,
           'Goods Type': _selectedGoodsType,
           'Time': formattedTime,
           'Date': _selectedDate.toString().split(' ')[0],
         }
       ));
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Transport Request Sent! Added to My Transports.'), backgroundColor: Colors.green),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BookingConfirmationScreen(
+            bookingId: DateTime.now().millisecondsSinceEpoch.toString(),
+            bookingTitle: '${widget.vehicleType} Service',
+          ),
+        ),
       );
-      Navigator.pop(context); // Back to details
-      Navigator.pop(context); // Back to list
     } else {
       String msg = 'Please fill all details';
       if (_selectedGoodsType == null) msg = 'Select goods type';
@@ -193,18 +198,6 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Vehicle Count (Group option equivalent)
-            const Text(
-              'Select Requirement',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 16),
-            _buildCounter('Number of Vehicles', _vehicleCount, 5, widget.rate.toInt(), (val) {
-              setState(() => _vehicleCount = val);
-            }),
-
-            const SizedBox(height: 24),
-            
             // Goods Type
             const Text(
               'Goods Type',
@@ -393,57 +386,4 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     );
   }
 
-  Widget _buildCounter(String label, int count, int max, int price, Function(int) onChanged) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              Text('approx ₹$price / vehicle', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-            ],
-          ),
-          Row(
-            children: [
-              _buildIconButton(Icons.remove, () {
-                if (count > 1) onChanged(count - 1);
-              }, isDisabled: count <= 1),
-              Container(
-                width: 40,
-                alignment: Alignment.center,
-                child: Text('$count', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              _buildIconButton(Icons.add, () {
-                if (count < max) onChanged(count + 1);
-              }, isDisabled: count >= max),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIconButton(IconData icon, VoidCallback onPressed, {bool isDisabled = false}) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: isDisabled ? Colors.grey[200] : Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        icon: Icon(icon, size: 18, color: isDisabled ? Colors.grey : Colors.blue),
-        onPressed: isDisabled ? null : onPressed,
-      ),
-    );
-  }
 }

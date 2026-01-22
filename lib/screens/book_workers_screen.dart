@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/booking_manager.dart'; // Import BookingManager
+import 'booking_confirmation_screen.dart';
 
 class BookWorkersScreen extends StatefulWidget {
   final String providerName;
@@ -110,11 +111,15 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         }
       ));
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Booking Confirmed! Added to My Services.')),
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BookingConfirmationScreen(
+            bookingId: DateTime.now().millisecondsSinceEpoch.toString(), // Ideally reuse the ID
+            bookingTitle: widget.providerName,
+          ),
+        ),
       );
-      Navigator.pop(context); // Go back to list
-      Navigator.pop(context); // Go back to main screen if needed, or user can navigate manually
     } else {
       String msg = 'Please fill all details';
       if (_maleCount == 0 && _femaleCount == 0) msg = 'Select at least one worker';
