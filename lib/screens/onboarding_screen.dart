@@ -18,6 +18,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final l10n = AppLocalizations.of(context)!;
     return [
     {
+      'title': l10n.bookTransport,
+      'description': "Book transport to take your produce to mandi.",
+      'icon': Icons.local_shipping_outlined, // Truck
+      'color': Colors.blue,
+      'bgColor': const Color(0xFFE3F2FD), // Light Blue
+    },
+    {
       'title': l10n.rentEquipment,
       'description': l10n.rentEquipmentDesc,
       'icon': Icons.build_outlined, // Wrench
@@ -25,18 +32,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'bgColor': const Color(0xFFFFF3E0), // Light Orange
     },
     {
-      'title': l10n.bookServicesLogistics,
-      'description': l10n.bookServicesLogisticsDesc,
-      'icon': Icons.trending_up, // Graph up
+      'title': l10n.bookServices,
+      'description': "Hire ploughing, harvesting, spraying services.",
+      'icon': Icons.agriculture_outlined, // Tractor/Agri
       'color': Colors.green,
       'bgColor': const Color(0xFFE8F5E9), // Light Green
-    },
-    {
-      'title': l10n.buySell,
-      'description': l10n.buySellDesc,
-      'icon': Icons.shopping_bag_outlined,
-      'color': Colors.blue,
-      'bgColor': const Color(0xFFE3F2FD), // Light Blue
     },
   ];
   }
