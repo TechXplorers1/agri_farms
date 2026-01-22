@@ -23,16 +23,15 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   int _equipmentCount = 1;
   String? _selectedDuration;
   bool _includeOperator = false; // "With Driver"
+  DateTime? _selectedDate;
 
   // Duration options with multipliers
   final Map<String, double> _durationOptions = {
-    '4 Hours (Half Day)': 0.6, // 60% of daily rate or similar logic, assuming rate is per day. 
-                               // Or if rate is per hour, then 4. Let's assume passed rate is Per Hour for simplicity or Per Day.
-                               // Let's assume Rate is Per Hour for rental usually.
+    '4 Hours (Half Day)': 0.6, 
     '8 Hours (Full Day)': 1.0, 
     '2 Days': 2.0,
     '3 Days': 3.0,
-    '1 Week': 6.0, // Discounted
+    '1 Week': 6.0, 
   };
 
   // Helper to get multiplier
@@ -46,20 +45,44 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   }
 
   double get _totalPrice {
-    // Basic logic: Rate (per hour) * Hours * Count
-    // Let's assume rate passed is "Per Hour" as per typical rental
     double multiplier = _selectedDuration != null ? _getDurationMultiplier(_selectedDuration!) : 0;
     double operatorCost = _includeOperator ? (200 * multiplier) : 0; // 200/hr for operator
     return ((widget.rate * multiplier) + operatorCost) * _equipmentCount;
   }
 
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.green, // Equipment Theme Green
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
   void _confirmBooking() {
-    if (_selectedDuration != null) {
+    if (_selectedDuration != null && _selectedDate != null) {
       
       BookingManager().addBooking(BookingDetails(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: '${widget.equipmentType} Rental',
-        date: DateTime.now().toString().split(' ')[0], 
+        date: _selectedDate.toString().split(' ')[0], 
         price: '₹${_totalPrice.toStringAsFixed(0)}',
         status: 'Pending',
         category: BookingCategory.rentals,
@@ -70,6 +93,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           'Count': _equipmentCount,
           'Duration': _selectedDuration,
           'Operator Required': _includeOperator ? 'Yes' : 'No',
+          'Date': _selectedDate.toString().split(' ')[0],
         }
       ));
 
@@ -79,8 +103,12 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       Navigator.pop(context); 
       Navigator.pop(context);
     } else {
+      String msg = 'Please fill all details';
+      if (_selectedDate == null) msg = 'Select a start date';
+      else if (_selectedDuration == null) msg = 'Select rental duration';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a duration'), backgroundColor: Colors.red),
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
     }
   }
@@ -152,6 +180,43 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
             const SizedBox(height: 24),
             
+            // Date Selection
+            const Text(
+              'Select Start Date',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => _selectDate(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, color: _selectedDate == null ? Colors.grey[400] : Colors.green),
+                    const SizedBox(width: 12),
+                    Text(
+                      _selectedDate == null 
+                          ? 'Choose a date' 
+                          : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
+                        fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // Duration
             const Text(
               'Rental Duration',

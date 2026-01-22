@@ -78,7 +78,7 @@ class TransportListing extends ServiceProvider {
   final String vehicleType; // Duplicate of serviceName usually, e.g. 'Mini Truck'
   final String loadCapacity; // '1 ton'
   final String price; // '₹1200 / trip'
-  final bool fuelIncluded;
+  final String price; // '₹1200 / trip'
   final bool driverIncluded;
   final String? vehicleNumber; // Optional / Private
   final String? serviceArea;
@@ -95,8 +95,8 @@ class TransportListing extends ServiceProvider {
     super.jobsCompleted,
     required this.vehicleType,
     required this.loadCapacity,
+    required this.loadCapacity,
     required this.price,
-    this.fuelIncluded = true, // Default usually yes
     this.driverIncluded = true, // Default usually yes
     this.vehicleNumber,
     this.serviceArea,
@@ -182,7 +182,7 @@ class ProviderManager extends ChangeNotifier {
          updated = TransportListing(
            id: old.id, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, vehicleType: old.vehicleType, loadCapacity: old.loadCapacity,
-           price: old.price, fuelIncluded: old.fuelIncluded, driverIncluded: old.driverIncluded, isAvailable: old.isAvailable,
+           price: old.price, driverIncluded: old.driverIncluded, isAvailable: old.isAvailable,
            jobsCompleted: old.jobsCompleted, vehicleNumber: old.vehicleNumber, serviceArea: old.serviceArea
          );
       } else if (old is EquipmentListing) {
@@ -322,7 +322,6 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.6,
         price: '₹1200 / trip',
         loadCapacity: '1 ton',
-        fuelIncluded: true,
         driverIncluded: true,
         jobsCompleted: 50,
         image: 'https://images.unsplash.com/photo-1605218427306-022ba951dd0c?q=80&w=200&auto=format&fit=crop', 
@@ -336,7 +335,6 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.2,
         price: '₹1100 / trip',
         loadCapacity: '1.5 ton',
-        fuelIncluded: true,
         driverIncluded: true,
         jobsCompleted: 42,
         image: 'https://images.unsplash.com/photo-1626847037657-fd3622613ce3?q=80&w=200&auto=format&fit=crop',
@@ -350,7 +348,6 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.8,
         price: '₹800 / trip',
         loadCapacity: '3 ton',
-        fuelIncluded: true,
         driverIncluded: true,
         jobsCompleted: 120,
         image: 'https://images.unsplash.com/photo-1588665313070-653606f5712e?q=80&w=200&auto=format&fit=crop', // Tractor Trolleyish
@@ -364,7 +361,6 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.5,
         price: '₹5000 / trip',
         loadCapacity: '10 ton',
-        fuelIncluded: true,
         driverIncluded: true,
         jobsCompleted: 80,
          image: 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?q=80&w=200&auto=format&fit=crop', // Truck

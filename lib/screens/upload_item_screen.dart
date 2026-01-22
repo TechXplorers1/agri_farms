@@ -23,7 +23,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _capacityController = TextEditingController();
   final TextEditingController _vehicleNumberController = TextEditingController(); // New
   final TextEditingController _serviceAreaController = TextEditingController(); // New
-  bool _fuelIncluded = true;
   bool _driverIncluded = true;
 
   // Equipment Specific
@@ -38,7 +37,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _femaleCountController = TextEditingController();
   final TextEditingController _malePriceController = TextEditingController();
   final TextEditingController _femalePriceController = TextEditingController();
-  final TextEditingController _skillsController = TextEditingController(); 
+  // Skills handled by _selectedSkills list now
   
   // Service Specific (Ploughing, etc.)
   final TextEditingController _equipmentUsedController = TextEditingController(); // e.g., "John Deere 5310"
@@ -50,6 +49,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final List<String> _serviceCategories = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Soil Testing', 'Vet Care', 'Electricians', 'Mechanics']; // For dropdown if category is generic 'Services' 
   
   final List<String> _conditions = ['New', 'Good', 'Average', 'Poor'];
+
+  final List<String> _farmSkills = [
+    'Harvesting', 'Sowing', 'Plowing', 'Fertilizer Application', 
+    'Pesticide Spraying', 'Weeding', 'Irrigation', 'Pruning', 
+    'Grading & Sorting', 'Loading & Unloading', 'Cattle Management', 'Others'
+  ];
+  final List<String> _selectedSkills = [];
 
   @override
   void dispose() {
@@ -66,7 +72,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _femaleCountController.dispose();
     _malePriceController.dispose();
     _femalePriceController.dispose();
-    _skillsController.dispose();
     super.dispose();
   }
 
@@ -89,6 +94,11 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       return;
     }
 
+    if (_selectedSkills.isEmpty) {
+      _showError('Please select at least one skill');
+      return;
+    }
+
     final newProvider = FarmWorkerListing(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameController.text, // Group Name
@@ -101,7 +111,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       femaleCount: int.tryParse(_femaleCountController.text) ?? 0,
       malePrice: int.tryParse(_malePriceController.text) ?? 0,
       femalePrice: int.tryParse(_femalePriceController.text) ?? 0,
-      skills: _skillsController.text.isNotEmpty ? _skillsController.text : 'General Farm Work',
+      skills: _selectedSkills.join(', '),
       image: 'https://placehold.co/600x400?text=Workers',
     );
 
@@ -237,7 +247,45 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         const SizedBox(height: 12),
         _buildTextField('Group Name / Leader Name', _nameController, 'e.g. Ramesh Labour Group'),
         const SizedBox(height: 16),
-        _buildTextField('Skills', _skillsController, 'e.g. Sowing, Harvesting, Loading'),
+        
+        // Multi-select Skills
+        const Text(
+          'Select Skills',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8.0,
+          runSpacing: 4.0,
+          children: _farmSkills.map((skill) {
+            final isSelected = _selectedSkills.contains(skill);
+            return FilterChip(
+              label: Text(skill),
+              selected: isSelected,
+              onSelected: (bool selected) {
+                setState(() {
+                  if (selected) {
+                    _selectedSkills.add(skill);
+                  } else {
+                    _selectedSkills.remove(skill);
+                  }
+                });
+              },
+              backgroundColor: Colors.white,
+              selectedColor: const Color(0xFFE8F5E9),
+              checkmarkColor: const Color(0xFF00AA55),
+              labelStyle: TextStyle(
+                color: isSelected ? const Color(0xFF00AA55) : Colors.black87, 
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!),
+              ),
+            );
+          }).toList(),
+        ),
+
         const SizedBox(height: 20),
         
         _buildSectionTitle('Staff & Pricing'),
@@ -291,14 +339,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         const SizedBox(height: 20),
         _buildSectionTitle('Options'),
         CheckboxListTile(
-          title: const Text('Fuel Included'),
-          value: _fuelIncluded,
-          onChanged: (v) => setState(() => _fuelIncluded = v!),
-          controlAffinity: ListTileControlAffinity.leading,
-          contentPadding: EdgeInsets.zero,
-          activeColor: const Color(0xFF00AA55),
-        ),
-        CheckboxListTile(
           title: const Text('Driver Included'),
           value: _driverIncluded,
           onChanged: (v) => setState(() => _driverIncluded = v!),
@@ -327,7 +367,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       vehicleType: _selectedTransportType!,
       loadCapacity: _capacityController.text,
       price: _priceController.text,
-      fuelIncluded: _fuelIncluded,
+      fuelIncluded: false,
       driverIncluded: _driverIncluded,
       vehicleNumber: _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
       serviceArea: _serviceAreaController.text.isNotEmpty ? _serviceAreaController.text : null,

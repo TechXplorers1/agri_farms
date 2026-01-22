@@ -602,81 +602,118 @@ class ServiceProvidersScreen extends StatelessWidget {
 
   void _showBookingDialog(BuildContext context, ServiceProvider provider, String price) {
      final field1Controller = TextEditingController();
-     final field2Controller = TextEditingController();
-     String selectedDate = DateTime.now().add(const Duration(days: 1)).toString().split(' ')[0];
+     
+     // Default date
+     DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
      
      String label1 = 'Details';
-     String label2 = 'Additional Info';
      String service = provider.serviceName;
 
      if (provider is ServiceListing) {
         label1 = 'Acres / Hours';
-        label2 = 'Special Instructions';
      }
 
      showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Book $service'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Provider: ${provider.name}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-              const SizedBox(height: 4),
-              Text('Rate: $price', style: TextStyle(color: Colors.green[700], fontSize: 12)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: field1Controller,
-                decoration: InputDecoration(labelText: label1, border: const OutlineInputBorder()),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Book $service'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Provider: ${provider.name}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const SizedBox(height: 4),
+                    Text('Rate: $price', style: TextStyle(color: Colors.green[700], fontSize: 12)),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: field1Controller,
+                      decoration: InputDecoration(labelText: label1, border: const OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 16),
+                    GestureDetector(
+                      onTap: () async {
+                         final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(const Duration(days: 30)),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: const ColorScheme.light(
+                                    primary: Color(0xFF00AA55),
+                                    onPrimary: Colors.white,
+                                    onSurface: Colors.black,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                         );
+                         if (picked != null && picked != selectedDate) {
+                            setState(() {
+                              selectedDate = picked;
+                            });
+                         }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          children: [
+                             const Icon(Icons.calendar_today, size: 20, color: Color(0xFF00AA55)),
+                             const SizedBox(width: 8),
+                             Text(
+                               'Date: ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}', 
+                               style: const TextStyle(color: Colors.black87)
+                             ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: field2Controller,
-                decoration: InputDecoration(labelText: label2, border: const OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                   const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                   const SizedBox(width: 8),
-                   Text('Date: $selectedDate', style: const TextStyle(color: Colors.black87)),
-                ],
-              )
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-               if (field1Controller.text.isNotEmpty) {
-                 BookingManager().addBooking(BookingDetails(
-                    id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    title: '$service Booking',
-                    date: selectedDate,
-                    price: 'On Request', // Calculate if possible
-                    status: 'Pending',
-                    category: BookingCategory.services,
-                    details: {
-                      'provider': provider.name,
-                      label1: field1Controller.text,
-                      label2: field2Controller.text,
-                    },
-                    providerId: provider.id
-                 ));
-                 Navigator.pop(ctx);
-                 ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Booking Request Sent to Provider!'), backgroundColor: Colors.green)
-                 );
-               }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0A0E21), foregroundColor: Colors.white),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () {
+                     if (field1Controller.text.isNotEmpty) {
+                       BookingManager().addBooking(BookingDetails(
+                          id: DateTime.now().millisecondsSinceEpoch.toString(),
+                          title: '$service Booking',
+                          date: selectedDate.toString().split(' ')[0],
+                          price: 'On Request', 
+                          status: 'Pending',
+                          category: BookingCategory.services,
+                          details: {
+                            'provider': provider.name,
+                            label1: field1Controller.text,
+                            'Date': selectedDate.toString().split(' ')[0],
+                          },
+                          providerId: provider.id
+                       ));
+                       Navigator.pop(ctx);
+                       ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Booking Request Sent to Provider!'), backgroundColor: Colors.green)
+                       );
+                     }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0A0E21), foregroundColor: Colors.white),
+                  child: const Text('Confirm'),
+                ),
+              ],
+            );
+          }
+        );
+      }
     );
   }
 

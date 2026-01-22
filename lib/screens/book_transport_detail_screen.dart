@@ -22,7 +22,9 @@ class BookTransportDetailScreen extends StatefulWidget {
 class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   int _vehicleCount = 1; // Default 1
   String? _selectedGoodsType;
-  String? _selectedSlot;
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
+  DateTime? _selectedDate;
 
   // Mock data for dropdowns
   final List<String> _goodsTypes = [
@@ -34,25 +36,77 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     'Other',
   ];
 
-  final List<String> _timeSlots = [
-    'Morning (6:00 AM - 10:00 AM)',
-    'Afternoon (12:00 PM - 4:00 PM)',
-    'Evening (5:00 PM - 9:00 PM)',
-    'Immediate / Urgent',
-  ];
-
   double get _totalPrice {
     // Simple mock calculation: rate * count
     return widget.rate * _vehicleCount;
   }
 
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.blue,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  Future<void> _selectTime(BuildContext context, bool isStartTime) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: isStartTime 
+          ? const TimeOfDay(hour: 9, minute: 0) 
+          : const TimeOfDay(hour: 17, minute: 0),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.blue, // Transport Theme Blue
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStartTime) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+      });
+    }
+  }
+
   void _confirmBooking() {
-    if (_selectedGoodsType != null && _selectedSlot != null) {
+    if (_selectedGoodsType != null && _startTime != null && _endTime != null && _selectedDate != null) {
       
+      String formattedTime = '${_startTime!.format(context)} - ${_endTime!.format(context)}';
+
       BookingManager().addBooking(BookingDetails(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: '${widget.vehicleType} Service',
-        date: DateTime.now().toString().split(' ')[0], 
+        date: _selectedDate.toString().split(' ')[0], 
         price: '₹${_totalPrice.toStringAsFixed(0)}',
         status: 'Pending',
         category: BookingCategory.transport,
@@ -62,7 +116,8 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
           'Vehicle Type': widget.vehicleType,
           'Vehicle Count': _vehicleCount,
           'Goods Type': _selectedGoodsType,
-          'Slot': _selectedSlot,
+          'Time': formattedTime,
+          'Date': _selectedDate.toString().split(' ')[0],
         }
       ));
 
@@ -72,8 +127,13 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       Navigator.pop(context); // Back to details
       Navigator.pop(context); // Back to list
     } else {
+      String msg = 'Please fill all details';
+      if (_selectedGoodsType == null) msg = 'Select goods type';
+      else if (_selectedDate == null) msg = 'Select a date';
+      else if (_startTime == null || _endTime == null) msg = 'Select time duration';
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select goods type and time slot'), backgroundColor: Colors.red),
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
     }
   }
@@ -179,39 +239,69 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
             const SizedBox(height: 24),
 
-            // Time Slot Selection
+             // Date Selection
+            const Text(
+              'Select Date',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => _selectDate(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, color: _selectedDate == null ? Colors.grey[400] : Colors.blue),
+                    const SizedBox(width: 12),
+                    Text(
+                      _selectedDate == null 
+                          ? 'Choose a date' 
+                          : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
+                        fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Time Selection
             const Text(
               'Preferred Time',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: _timeSlots.map((slot) {
-                final isSelected = _selectedSlot == slot;
-                return ChoiceChip(
-                  label: Text(
-                    slot,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    ),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTimePicker(
+                    context: context, 
+                    label: 'Start Time', 
+                    time: _startTime, 
+                    onTap: () => _selectTime(context, true)
                   ),
-                  selected: isSelected,
-                  selectedColor: Colors.blue,
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey[300]!),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                   child: _buildTimePicker(
+                    context: context, 
+                    label: 'End Time', 
+                    time: _endTime, 
+                    onTap: () => _selectTime(context, false)
                   ),
-                  onSelected: (bool selected) {
-                    setState(() {
-                      _selectedSlot = selected ? slot : null;
-                    });
-                  },
-                );
-              }).toList(),
+                ),
+              ],
             ),
 
             const SizedBox(height: 40),
@@ -256,6 +346,46 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimePicker({
+    required BuildContext context, 
+    required String label, 
+    required TimeOfDay? time, 
+    required VoidCallback onTap
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.access_time, size: 18, color: time == null ? Colors.grey[400] : Colors.blue),
+                const SizedBox(width: 8),
+                Text(
+                  time == null ? '-- : --' : time.format(context),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: time == null ? Colors.grey[400] : Colors.black87,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

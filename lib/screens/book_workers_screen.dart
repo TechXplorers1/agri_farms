@@ -24,14 +24,9 @@ class BookWorkersScreen extends StatefulWidget {
 class _BookWorkersScreenState extends State<BookWorkersScreen> {
   int _maleCount = 0;
   int _femaleCount = 0;
-  String? _selectedSlot;
   DateTime? _selectedDate;
-
-  final List<String> _timeSlots = [
-    'Morning (8:00 AM - 12:00 PM)',
-    'Afternoon (1:00 PM - 5:00 PM)',
-    'Evening (4:00 PM - 7:00 PM)', // Ends by 7 PM
-  ];
+  TimeOfDay? _startTime;
+  TimeOfDay? _endTime;
 
   int get _totalPrice {
     return (_maleCount * widget.priceMale) + (_femaleCount * widget.priceFemale);
@@ -63,9 +58,42 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     }
   }
 
+  Future<void> _selectTime(BuildContext context, bool isStartTime) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: isStartTime 
+          ? const TimeOfDay(hour: 9, minute: 0) 
+          : const TimeOfDay(hour: 17, minute: 0),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF00AA55),
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStartTime) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+      });
+    }
+  }
+
   void _confirmBooking() {
-    if ((_maleCount > 0 || _femaleCount > 0) && _selectedSlot != null && _selectedDate != null) {
+    if ((_maleCount > 0 || _femaleCount > 0) && _startTime != null && _endTime != null && _selectedDate != null) {
       
+      String formattedTime = '${_startTime!.format(context)} - ${_endTime!.format(context)}';
+
       // Save to BookingManager
       BookingManager().addBooking(BookingDetails(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -77,7 +105,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         details: {
           'Male': _maleCount,
           'Female': _femaleCount,
-          'Slot': _selectedSlot,
+          'Time': formattedTime,
           'Date': _selectedDate.toString().split(' ')[0],
         }
       ));
@@ -91,7 +119,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       String msg = 'Please fill all details';
       if (_maleCount == 0 && _femaleCount == 0) msg = 'Select at least one worker';
       else if (_selectedDate == null) msg = 'Please select a date';
-      else if (_selectedSlot == null) msg = 'Please select a time slot';
+      else if (_startTime == null || _endTime == null) msg = 'Please select start and end time';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg)),
@@ -199,44 +227,37 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Time Slot Selection
+            // Time Selection
             Text(
-              'Select Time Slot',
+              'Select Time',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 8),
             Text(
-              'All tasks must be completed before 7 PM',
+              'Choose your work duration',
               style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: _timeSlots.map((slot) {
-                final isSelected = _selectedSlot == slot;
-                return ChoiceChip(
-                  label: Text(
-                    slot,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black87,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    ),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTimePicker(
+                    context: context, 
+                    label: 'Start Time', 
+                    time: _startTime, 
+                    onTap: () => _selectTime(context, true)
                   ),
-                  selected: isSelected,
-                  selectedColor: const Color(0xFF00AA55),
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey[300]!),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                   child: _buildTimePicker(
+                    context: context, 
+                    label: 'End Time', 
+                    time: _endTime, 
+                    onTap: () => _selectTime(context, false)
                   ),
-                  onSelected: (bool selected) {
-                    setState(() {
-                      _selectedSlot = selected ? slot : null;
-                    });
-                  },
-                );
-              }).toList(),
+                ),
+              ],
             ),
 
             const SizedBox(height: 40),
@@ -281,6 +302,46 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimePicker({
+    required BuildContext context, 
+    required String label, 
+    required TimeOfDay? time, 
+    required VoidCallback onTap
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.grey[300]!),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.access_time, size: 18, color: time == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+                const SizedBox(width: 8),
+                Text(
+                  time == null ? '-- : --' : time.format(context),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: time == null ? Colors.grey[400] : Colors.black87,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
