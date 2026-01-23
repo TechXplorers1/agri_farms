@@ -23,33 +23,22 @@ class BookEquipmentDetailScreen extends StatefulWidget {
 
 class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   int _equipmentCount = 1;
-  String? _selectedDuration;
+  final List<int> _selectedSlots = []; // Stores selected hours (24h format, e.g., 9, 10, 11)
   bool _includeOperator = false; // "With Driver"
   DateTime? _selectedDate;
 
-  // Duration options with multipliers
-  final Map<String, double> _durationOptions = {
-    '4 Hours (Half Day)': 0.6, 
-    '8 Hours (Full Day)': 1.0, 
-    '2 Days': 2.0,
-    '3 Days': 3.0,
-    '1 Week': 6.0, 
-  };
-
-  // Helper to get multiplier
-  double _getDurationMultiplier(String duration) {
-    if (duration.contains('4 Hours')) return 4;
-    if (duration.contains('8 Hours')) return 8;
-    if (duration.contains('2 Days')) return 16; // 8*2 working hours
-    if (duration.contains('3 Days')) return 24;
-    if (duration.contains('1 Week')) return 48;
-    return 1;
-  }
+  // Time Slot Configuration
+  final int _startHour = 6; // 6:00 AM
+  final int _endHour = 20;  // 8:00 PM (Last slot starts at 8)
 
   double get _totalPrice {
-    double multiplier = _selectedDuration != null ? _getDurationMultiplier(_selectedDuration!) : 0;
-    double operatorCost = _includeOperator ? (200 * multiplier) : 0; // 200/hr for operator
-    return ((widget.rate * multiplier) + operatorCost) * _equipmentCount;
+    // Price calculation based on number of slots (hours)
+    // If no slots selected, 0
+    if (_selectedSlots.isEmpty) return 0;
+    
+    double hours = _selectedSlots.length.toDouble();
+    double operatorCost = _includeOperator ? (200 * hours) : 0; // 200/hr for operator
+    return ((widget.rate * hours) + operatorCost) * _equipmentCount;
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -74,13 +63,60 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+        _selectedSlots.clear(); // Clear slots when date changes
       });
     }
   }
 
+  // Mock Logic: Check if a slot is blocked
+  bool _isSlotBlocked(int hour) {
+    if (_selectedDate == null) return false;
+    // Deterministic blocking based on date and hour hash
+    String dateKey = "${_selectedDate!.year}-${_selectedDate!.month}-${_selectedDate!.day}";
+    int hash = dateKey.hashCode + hour;
+    // Block roughly 20% of slots for demonstration
+    return (hash % 5) == 0;
+  }
+
+  void _onSlotTap(int hour) {
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a date first')),
+      );
+      return;
+    }
+    if (_isSlotBlocked(hour)) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This slot is already booked')),
+      );
+      return;
+    }
+
+    setState(() {
+      if (_selectedSlots.contains(hour)) {
+        _selectedSlots.remove(hour);
+        // Clean up non-contiguous selection if needed, or allow gaps?
+        // For now, simple toggle.
+        _selectedSlots.sort();
+      } else {
+        _selectedSlots.add(hour);
+        _selectedSlots.sort();
+        // Optional: Enforce contiguous selection logic could go here
+        // For now, simpler multi-select for UX clarity
+      }
+    });
+  }
+
   void _confirmBooking() {
-    if (_selectedDuration != null && _selectedDate != null) {
-      
+    if (_selectedSlots.isNotEmpty && _selectedDate != null) {
+      // Format duration text
+      String durationText;
+      if (_selectedSlots.length == 1) {
+        durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.first + 1)}';
+      } else {
+         durationText = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})';
+      }
+
       BookingManager().addBooking(BookingDetails(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: '${widget.equipmentType} Rental',
@@ -93,9 +129,10 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           'Provider': widget.providerName,
           'Equipment': widget.equipmentType,
           'Count': _equipmentCount,
-          'Duration': _selectedDuration,
+          'Duration': durationText,
           'Operator Required': _includeOperator ? 'Yes' : 'No',
           'Date': _selectedDate.toString().split(' ')[0],
+          'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
         }
       ));
 
@@ -111,13 +148,15 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
       if (_selectedDate == null) msg = 'Select a start date';
-      else if (_selectedDuration == null) msg = 'Select rental duration';
+      else if (_selectedSlots.isEmpty) msg = 'Select at least one time slot';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
       );
     }
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -223,36 +262,57 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Duration
+            // Time Slots
             const Text(
-              'Rental Duration',
+              'Select Duration (Time Slots)',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
+            if (_selectedDate == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('Select a date to view available time slots', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+              ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[300]!),
+            
+            // Slots Grid
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3, // Reduced to 3 to fit text better
+                childAspectRatio: 2.5,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  isExpanded: true,
-                  hint: const Text('Select duration'),
-                  value: _selectedDuration,
-                  items: _durationOptions.keys.map((String mood) {
-                    return DropdownMenuItem<String>(
-                      value: mood,
-                      child: Text(mood),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedDuration = newValue;
-                    });
-                  },
-                ),
-              ),
+              itemCount: _endHour - _startHour, // One less item since we show ranges (6-7, 7-8... 19-20)
+              itemBuilder: (context, index) {
+                int hour = _startHour + index;
+                bool isBlocked = _isSlotBlocked(hour);
+                bool isSelected = _selectedSlots.contains(hour);
+                
+                return InkWell(
+                  onTap: () => _onSlotTap(hour),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isBlocked ? Colors.grey[200] : (isSelected ? Colors.green : Colors.white),
+                      border: Border.all(
+                        color: isBlocked ? Colors.transparent : (isSelected ? Colors.green : Colors.grey[300]!)
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _formatTimeRange(hour),
+                      style: TextStyle(
+                        color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : Colors.black87),
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 12,
+                        decoration: isBlocked ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 24),
@@ -371,5 +431,15 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         onPressed: isDisabled ? null : onPressed,
       ),
     );
+  }
+  
+  String _formatTime(int hour) {
+      if (hour == 12) return '12 PM';
+      if (hour > 12) return '${hour - 12} PM';
+      return '$hour AM';
+  }
+
+  String _formatTimeRange(int hour) {
+    return '${_formatTime(hour)} - ${_formatTime(hour + 1)}';
   }
 }
