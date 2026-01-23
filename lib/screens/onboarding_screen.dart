@@ -20,14 +20,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {
       'title': l10n.rentEquipment,
       'description': l10n.rentEquipmentDesc,
-      'icon': Icons.build_outlined, // Wrench
+      'icon': Icons.agriculture_outlined, // Tractor
       'color': Colors.deepOrange,
       'bgColor': const Color(0xFFFFF3E0), // Light Orange
     },
     {
       'title': l10n.bookServices,
       'description': "Hire ploughing, harvesting, spraying services.",
-      'icon': Icons.agriculture_outlined, // Tractor/Agri
+      'icon': Icons.grass_outlined, // Crop/Farm Work
       'color': Colors.green,
       'bgColor': const Color(0xFFE8F5E9), // Light Green
     },
