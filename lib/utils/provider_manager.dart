@@ -54,6 +54,7 @@ class FarmWorkerListing extends ServiceProvider {
   final int malePrice;
   final int femalePrice;
   final String skills; // e.g., 'Sowing, Harvesting'
+  final List<String> roleDistribution; // e.g. ["5 Men - Sowing", "4 Women - Weeding"]
 
   FarmWorkerListing({
     required super.id,
@@ -70,6 +71,7 @@ class FarmWorkerListing extends ServiceProvider {
     required this.malePrice,
     required this.femalePrice,
     required this.skills,
+    this.roleDistribution = const [],
     super.image,
   }) : super(approvalStatus: approvalStatus);
 }
@@ -174,7 +176,7 @@ class ProviderManager extends ChangeNotifier {
            id: old.id, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, maleCount: old.maleCount, femaleCount: old.femaleCount,
            malePrice: old.malePrice, femalePrice: old.femalePrice, skills: old.skills, isAvailable: old.isAvailable,
-           jobsCompleted: old.jobsCompleted
+           jobsCompleted: old.jobsCompleted, roleDistribution: old.roleDistribution
          );
       } else if (old is TransportListing) {
          updated = TransportListing(
@@ -218,6 +220,7 @@ class ProviderManager extends ChangeNotifier {
         distance: '3 km',
         rating: 4.8,
         skills: 'Sowing, Harvesting',
+        roleDistribution: ['12 Men - Sowing', '20 Women - Harvesting'],
         location: 'Rampur Village',
         image: 'https://images.unsplash.com/photo-1595843472097-dfd63ff444d1?q=80&w=200&auto=format&fit=crop',
       ),
@@ -232,6 +235,7 @@ class ProviderManager extends ChangeNotifier {
         distance: '5 km',
         rating: 4.5,
         skills: 'Weeding, Loading',
+        roleDistribution: ['8 Men - Loading', '15 Women - Weeding'],
         location: 'Sonapur',
         image: 'https://images.unsplash.com/photo-1628155985854-443b740523bb?q=80&w=200&auto=format&fit=crop',
       ),

@@ -38,6 +38,11 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _femaleCountController = TextEditingController();
   final TextEditingController _malePriceController = TextEditingController();
   final TextEditingController _femalePriceController = TextEditingController();
+  // Role Distribution
+  final List<String> _roleDistributions = [];
+  final TextEditingController _roleCountController = TextEditingController();
+  String? _selectedRoleTask;
+  String _roleGender = 'Male';
   // Skills handled by _selectedSkills list now
   
   // Service Specific (Ploughing, etc.)
@@ -73,6 +78,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _femaleCountController.dispose();
     _malePriceController.dispose();
     _femalePriceController.dispose();
+    _roleCountController.dispose();
     super.dispose();
   }
 
@@ -95,10 +101,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       return;
     }
 
-    if (_selectedSkills.isEmpty) {
-      _showError(AppLocalizations.of(context)!.selectSkillError);
+    if (_roleDistributions.isEmpty) {
+      _showError(AppLocalizations.of(context)!.selectSkillError); // Reuse or add new error message
       return;
     }
+
+    // Derive skills from the added roles
+    final derivedSkills = _roleDistributions.map((e) => e.split('-')[1].trim()).toSet().toList();
 
     final newProvider = FarmWorkerListing(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -112,7 +121,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       femaleCount: int.tryParse(_femaleCountController.text) ?? 0,
       malePrice: int.tryParse(_malePriceController.text) ?? 0,
       femalePrice: int.tryParse(_femalePriceController.text) ?? 0,
-      skills: _selectedSkills.join(', '),
+      skills: derivedSkills.join(', '),
+      roleDistribution: _roleDistributions,
       image: 'https://placehold.co/600x400?text=Workers',
     );
 
@@ -249,43 +259,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         _buildTextField('Group Name / Leader Name', _nameController, AppLocalizations.of(context)!.groupNameHint),
         const SizedBox(height: 16),
         
-        // Multi-select Skills
-        Text(
-          AppLocalizations.of(context)!.selectSkills,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8.0,
-          runSpacing: 4.0,
-          children: _farmSkills.map((skill) {
-            final isSelected = _selectedSkills.contains(skill);
-            return FilterChip(
-              label: Text(skill),
-              selected: isSelected,
-              onSelected: (bool selected) {
-                setState(() {
-                  if (selected) {
-                    _selectedSkills.add(skill);
-                  } else {
-                    _selectedSkills.remove(skill);
-                  }
-                });
-              },
-              backgroundColor: Colors.white,
-              selectedColor: const Color(0xFFE8F5E9),
-              checkmarkColor: const Color(0xFF00AA55),
-              labelStyle: TextStyle(
-                color: isSelected ? const Color(0xFF00AA55) : Colors.black87, 
-                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(color: isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!),
-              ),
-            );
-          }).toList(),
-        ),
+        // Skills selection removed as per request. Skills are now derived from Role Distribution.
 
         const SizedBox(height: 20),
         
@@ -306,6 +280,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceFemale, _femalePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number)),
           ],
         ),
+        _buildRoleDistributionForm(),
       ],
     );
   }
@@ -523,5 +498,124 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       filled: true,
       fillColor: Colors.grey[50],
     );
+  }
+  void _addRoleDistribution() {
+    final count = _roleCountController.text.trim();
+    if (count.isNotEmpty && _selectedRoleTask != null) {
+      setState(() {
+        _roleDistributions.add('$count $_roleGender - $_selectedRoleTask');
+        _roleCountController.clear();
+        _selectedRoleTask = null; // Reset dropdown
+      });
+    } else {
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter details to add')));
+    }
+  }
+
+  Widget _buildRoleDistributionForm() {
+      return Column(
+          children: [
+                const SizedBox(height: 20),
+                _buildSectionTitle('Role Distribution (Optional)'),
+                const SizedBox(height: 8),
+                Text('Specify who does what (e.g. 5 Men - Sowing)', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                const SizedBox(height: 12),
+                
+                Row(
+                children: [
+                    SizedBox(
+                    width: 80,
+                    child: _buildTextField('Count', _roleCountController, 'Num', keyboardType: TextInputType.number),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                    width: 100,
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                        const Text('Gender', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                            value: _roleGender,
+                            decoration: _inputDecoration('').copyWith(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                            ),
+                            items: ['Male', 'Female'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 14)))).toList(),
+                            onChanged: (v) => setState(() => _roleGender = v!),
+                        ),
+                        ],
+                    ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                           const Text('Task', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                           const SizedBox(height: 8),
+                           DropdownButtonFormField<String>(
+                            value: _selectedRoleTask,
+                            decoration: _inputDecoration('Select Task').copyWith(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                            ),
+                            items: _farmSkills.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 14)))).toList(),
+                            onChanged: (v) => setState(() => _selectedRoleTask = v),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton.icon(
+                    onPressed: _addRoleDistribution,
+                    icon: const Icon(Icons.add, size: 16, color: Colors.white),
+                    label: const Text('Add', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00AA55),
+                    minimumSize: const Size(80, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                ),
+                ),
+
+                const SizedBox(height: 12),
+                if (_roleDistributions.isNotEmpty)
+                Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _roleDistributions.map((item) {
+                        return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                            children: [
+                            const Icon(Icons.circle, size: 8, color: Colors.green),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(item, style: const TextStyle(fontSize: 14))),
+                            InkWell(
+                                onTap: () {
+                                setState(() {
+                                    _roleDistributions.remove(item);
+                                });
+                                },
+                                child: const Icon(Icons.close, size: 16, color: Colors.red),
+                            )
+                            ],
+                        ),
+                        );
+                    }).toList(),
+                    ),
+                ),
+          ],
+      );
   }
 }

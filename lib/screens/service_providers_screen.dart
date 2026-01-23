@@ -153,7 +153,30 @@ class ServiceProvidersScreen extends StatelessWidget {
           const SizedBox(height: 12),
           // Skills
           Text(provider.skills, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87)),
-          
+           
+          // Role Distribution
+          if (provider.roleDistribution.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 4.0,
+              children: provider.roleDistribution.map((role) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.blue[100]!),
+                  ),
+                  child: Text(
+                    role,
+                    style: TextStyle(fontSize: 12, color: Colors.blue[800]),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+
           const SizedBox(height: 16),
           const Divider(height: 1),
           const SizedBox(height: 16),
