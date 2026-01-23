@@ -1,12 +1,24 @@
 AGRI FARMS — PRODUCT USER STORY & UI SPECIFICATION
-Developer-Ready Specification Document
 
-This document outlines the complete product user stories and UI specifications for the Agri Farms platform. It is based on the current codebase and intended to guide developers in maintaining and expanding the Flutter-based agricultural ecosystem.
+0. Splash & Onboarding (Pre-Login)
+• Splash Screen:
+  - Central Logo/Icon (Eco/Plant theme) and "Agri Farms" text.
+  - Animated fade-in/transition.
+  - Auto-navigation to Language Selection after 3 seconds.
+• Language Selection:
+  - Choose preferred language (English, Hindi, etc.).
+  - Proceed to Onboarding.
+• Onboarding Carousel:
+  - Page 1: Book Transport (Truck icon) - "Book transport to take your produce to mandi."
+  - Page 2: Rent Equipment (Wrench icon) - "Rent tractors, harvesters, and more."
+  - Page 3: Book Services (Tractor icon) - "Hire ploughing, harvesting, spraying services."
+  - "Skip" button to go directly to Login.
+  - "Next" / "Get Started" buttons to navigate carousel.
 
 1. Global Header & Navigation
 • Greeting: "Namaste, [User Name]"
 • Location Display: Village & District (e.g., "Your Village, Your District")
-• Action Icons: Shopping Cart | Notifications (with badge count)
+• Action Icons: Notifications (with badge count)
 • Persistent Search Bar: Search for seeds, tractors, spraying, etc.
 • Bottom Navigation: Home | Market | Rentals | Community | Profile
 
@@ -29,7 +41,7 @@ This document outlines the complete product user stories and UI specifications f
 • Login Screen:
   - Mobile Number input (+91 prefix)
   - Full Name input
-  - Role Selection Dropdown: General User, Farmer
+  - Role Selection Dropdown: General User, Farmer, Farm Worker, Vehicle Provider
   - "Get OTP" Trigger
 • OTP Verification:
   - 4-Digit OTP entry
@@ -59,7 +71,7 @@ This document outlines the complete product user stories and UI specifications f
   - "Book Now" / "Call" actions
 
 7. Upload & Provider Onboarding
-• Access: Available to "Farmer" role via specific screens (e.g., Equipment Rentals top bar, Farm Workers).
+• Access: Available to "Vehicle Provider", "Farmer", "Farm Worker" roles via specific screens (e.g., Equipment Rentals top bar).
 • Category Context: Upload Transport vs. Upload Equipment vs. Farm Worker Profile.
 • Input Fields (General):
   - Upload Picture

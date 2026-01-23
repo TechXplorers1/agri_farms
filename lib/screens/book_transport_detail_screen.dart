@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import 'booking_confirmation_screen.dart';
 
@@ -132,10 +133,10 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         ),
       );
     } else {
-      String msg = 'Please fill all details';
-      if (_selectedGoodsType == null) msg = 'Select goods type';
-      else if (_selectedDate == null) msg = 'Select a date';
-      else if (_startTime == null || _endTime == null) msg = 'Select time duration';
+      String msg = AppLocalizations.of(context)!.fillAllDetails;
+      if (_selectedGoodsType == null) msg = AppLocalizations.of(context)!.selectGoodsTypeError;
+      else if (_selectedDate == null) msg = AppLocalizations.of(context)!.selectDateError;
+      else if (_startTime == null || _endTime == null) msg = AppLocalizations.of(context)!.selectTimeError;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
@@ -148,7 +149,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Book ${widget.vehicleType}'),
+        title: Text(AppLocalizations.of(context)!.bookTransportTitle(widget.vehicleType)),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
@@ -199,9 +200,9 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             const SizedBox(height: 24),
 
             // Goods Type
-            const Text(
-              'Goods Type',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            Text(
+              AppLocalizations.of(context)!.goodsType,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 12),
             Container(
@@ -213,7 +214,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   isExpanded: true,
-                  hint: const Text('Select what you want to transport'),
+                  hint: Text(AppLocalizations.of(context)!.selectGoodsType),
                   value: _selectedGoodsType,
                   items: _goodsTypes.map((String type) {
                     return DropdownMenuItem<String>(
@@ -233,9 +234,9 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             const SizedBox(height: 24),
 
              // Date Selection
-            const Text(
-              'Select Date',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            Text(
+              AppLocalizations.of(context)!.selectDate,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 12),
             GestureDetector(
@@ -253,7 +254,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                     const SizedBox(width: 12),
                     Text(
                       _selectedDate == null 
-                          ? 'Choose a date' 
+                          ? AppLocalizations.of(context)!.chooseDate 
                           : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                       style: TextStyle(
                         fontSize: 16,
@@ -270,9 +271,9 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             const SizedBox(height: 24),
 
             // Time Selection
-            const Text(
-              'Preferred Time',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            Text(
+              AppLocalizations.of(context)!.preferredTime,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 12),
             Row(
@@ -280,7 +281,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                 Expanded(
                   child: _buildTimePicker(
                     context: context, 
-                    label: 'Start Time', 
+                    label: AppLocalizations.of(context)!.startTime, 
                     time: _startTime, 
                     onTap: () => _selectTime(context, true)
                   ),
@@ -289,7 +290,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                 Expanded(
                    child: _buildTimePicker(
                     context: context, 
-                    label: 'End Time', 
+                    label: AppLocalizations.of(context)!.endTime, 
                     time: _endTime, 
                     onTap: () => _selectTime(context, false)
                   ),
@@ -312,7 +313,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total Estimate:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                      Text('${AppLocalizations.of(context)!.totalEstimate}:', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                       Text(
                         '₹${_totalPrice.toStringAsFixed(0)}',
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
@@ -331,9 +332,9 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text(
-                        'Confirm Request',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      child: Text(
+                        AppLocalizations.of(context)!.confirmRequest,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                   ),

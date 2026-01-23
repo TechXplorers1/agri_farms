@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/provider_manager.dart';
 
@@ -90,12 +91,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   void _submitFarmWorker() {
     if (_nameController.text.isEmpty || (_maleCountController.text.isEmpty && _femaleCountController.text.isEmpty)) {
-      _showError('Please fill required fields');
+      _showError(AppLocalizations.of(context)!.fillRequiredFields);
       return;
     }
 
     if (_selectedSkills.isEmpty) {
-      _showError('Please select at least one skill');
+      _showError(AppLocalizations.of(context)!.selectSkillError);
       return;
     }
 
@@ -123,7 +124,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   void _submitEquipment() {
     if (_selectedEquipmentType == null || _brandModelController.text.isEmpty || _priceController.text.isEmpty) {
-       _showError('Please provide equipment details');
+       _showError(AppLocalizations.of(context)!.fillRequiredFields);
        return;
     }
 
@@ -151,8 +152,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _upgradeUserToProvider();
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Listing uploaded successfully! Pending Approval.'),
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.listingUploaded),
         backgroundColor: Color(0xFF00AA55),
       ),
     );
@@ -168,10 +169,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   String _getScreenTitle() {
-    if (widget.category == 'Transport') return 'Add Vehicle';
-    if (widget.category == 'Equipment') return 'Add Equipment';
-    if (widget.category == 'Farm Workers') return 'Add Group';
-    return 'Add ${widget.category}';
+    if (widget.category == 'Transport') return AppLocalizations.of(context)!.addVehicle;
+    if (widget.category == 'Equipment') return AppLocalizations.of(context)!.addEquipment;
+    if (widget.category == 'Farm Workers') return AppLocalizations.of(context)!.addGroup;
+    return '${AppLocalizations.of(context)!.addListing} ${widget.category}';
   }
 
   @override
@@ -202,7 +203,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 children: [
                    Icon(Icons.add_a_photo, size: 40, color: Colors.grey[400]),
                    const SizedBox(height: 8),
-                   Text('Add Photos', style: TextStyle(color: Colors.grey[600])),
+                   Text(AppLocalizations.of(context)!.addPhotos, style: TextStyle(color: Colors.grey[600])),
                 ],
               ),
             ),
@@ -214,9 +215,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             if (!['Farm Workers', 'Transport', 'Equipment'].contains(widget.category)) _buildServicesForm(),
 
             const SizedBox(height: 24),
-             _buildTextField('Location (Village -> District)', _locationController, 'e.g. Rampur, Nagpur'),
+             _buildTextField(AppLocalizations.of(context)!.locationLabel, _locationController, 'e.g. Rampur, Nagpur'),
             const SizedBox(height: 16),
-             _buildTextField('Description (Optional)', _descriptionController, 'Any extra info...', maxLines: 3),
+             _buildTextField(AppLocalizations.of(context)!.descriptionLabel, _descriptionController, 'Any extra info...', maxLines: 3),
 
             const SizedBox(height: 40),
             SizedBox(
@@ -228,7 +229,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   backgroundColor: const Color(0xFF00AA55),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                child: const Text('Submit Listing', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: Text(AppLocalizations.of(context)!.submitListing, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             ),
           ],
@@ -243,15 +244,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Group Details'),
+        _buildSectionTitle(AppLocalizations.of(context)!.groupDetails),
         const SizedBox(height: 12),
-        _buildTextField('Group Name / Leader Name', _nameController, 'e.g. Ramesh Labour Group'),
+        _buildTextField('Group Name / Leader Name', _nameController, AppLocalizations.of(context)!.groupNameHint),
         const SizedBox(height: 16),
         
         // Multi-select Skills
-        const Text(
-          'Select Skills',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
+        Text(
+          AppLocalizations.of(context)!.selectSkills,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -288,21 +289,21 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
         const SizedBox(height: 20),
         
-        _buildSectionTitle('Staff & Pricing'),
+        _buildSectionTitle(AppLocalizations.of(context)!.staffPricing),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildTextField('Male Workers', _maleCountController, 'Count', keyboardType: TextInputType.number)),
+            Expanded(child: _buildTextField(AppLocalizations.of(context)!.maleWorkers, _maleCountController, 'Count', keyboardType: TextInputType.number)),
             const SizedBox(width: 16),
-             Expanded(child: _buildTextField('Price/Male (₹)', _malePriceController, 'Daily Wage', keyboardType: TextInputType.number)),
+             Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceMale, _malePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number)),
           ],
         ),
         const SizedBox(height: 16),
         Row(
            children: [
-            Expanded(child: _buildTextField('Female Workers', _femaleCountController, 'Count', keyboardType: TextInputType.number)),
+            Expanded(child: _buildTextField(AppLocalizations.of(context)!.femaleWorkers, _femaleCountController, 'Count', keyboardType: TextInputType.number)),
             const SizedBox(width: 16),
-            Expanded(child: _buildTextField('Price/Female (₹)', _femalePriceController, 'Daily Wage', keyboardType: TextInputType.number)),
+            Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceFemale, _femalePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number)),
           ],
         ),
       ],
@@ -314,32 +315,32 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Vehicle Details'),
+        _buildSectionTitle(AppLocalizations.of(context)!.vehicleDetails),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           value: _selectedTransportType,
-          decoration: _inputDecoration('Vehicle Type'),
+          decoration: _inputDecoration(AppLocalizations.of(context)!.vehicleType),
           items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
           onChanged: (v) => setState(() => _selectedTransportType = v),
         ),
         const SizedBox(height: 16),
-        _buildTextField('Vehicle Name / Title', _nameController, 'e.g. Mahindra Bolero Pickup'),
+        _buildTextField('Vehicle Name / Title', _nameController, AppLocalizations.of(context)!.vehicleNameHint),
         const SizedBox(height: 16),
-        _buildTextField('Vehicle Number (Optional/Private)', _vehicleNumberController, 'e.g. MH 40 AB 1234'),
+        _buildTextField(AppLocalizations.of(context)!.vehicleNumber, _vehicleNumberController, 'e.g. MH 40 AB 1234'),
         const SizedBox(height: 16),
-        _buildTextField('Load Capacity', _capacityController, 'e.g. 1.5 Ton'),
+        _buildTextField(AppLocalizations.of(context)!.loadCapacity, _capacityController, 'e.g. 1.5 Ton'),
         const SizedBox(height: 16),
-        _buildTextField('Service Area', _serviceAreaController, 'e.g. Within 50km or specific districts'),
+        _buildTextField(AppLocalizations.of(context)!.serviceArea, _serviceAreaController, 'e.g. Within 50km or specific districts'),
         
         const SizedBox(height: 20),
-        _buildSectionTitle('Pricing & Availability'),
+        _buildSectionTitle(AppLocalizations.of(context)!.pricingAvailability),
         const SizedBox(height: 12),
-        _buildTextField('Price (No hidden charges)', _priceController, 'e.g. ₹20/km or ₹1000/trip', keyboardType: TextInputType.text),
+        _buildTextField(AppLocalizations.of(context)!.priceLabel, _priceController, 'e.g. ₹20/km or ₹1000/trip', keyboardType: TextInputType.text),
         
         const SizedBox(height: 20),
-        _buildSectionTitle('Options'),
+        _buildSectionTitle(AppLocalizations.of(context)!.options),
         CheckboxListTile(
-          title: const Text('Driver Included'),
+          title: Text(AppLocalizations.of(context)!.driverIncluded),
           value: _driverIncluded,
           onChanged: (v) => setState(() => _driverIncluded = v!),
           controlAffinity: ListTileControlAffinity.leading,
@@ -440,7 +441,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Equipment Info'),
+        _buildSectionTitle(AppLocalizations.of(context)!.equipmentInfo),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           value: _selectedEquipmentType,
@@ -449,25 +450,25 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           onChanged: (v) => setState(() => _selectedEquipmentType = v),
         ),
         const SizedBox(height: 16),
-         _buildTextField('Owner Name / Business', _nameController, 'Your Name'),
+         _buildTextField('Owner Name / Business', _nameController, AppLocalizations.of(context)!.ownerNameHint),
         const SizedBox(height: 16),
-        _buildTextField('Brand & Model', _brandModelController, 'e.g. John Deere 5310'),
+        _buildTextField(AppLocalizations.of(context)!.brandModel, _brandModelController, 'e.g. John Deere 5310'),
         const SizedBox(height: 16),
-        _buildTextField('Year of Manufacture (Optional)', _yearController, 'e.g. 2021', keyboardType: TextInputType.number),
+        _buildTextField(AppLocalizations.of(context)!.yearManufacture, _yearController, 'e.g. 2021', keyboardType: TextInputType.number),
         const SizedBox(height: 16),
-        _buildTextField('Rental Price', _priceController, 'e.g. ₹500 / hour'),
+        _buildTextField(AppLocalizations.of(context)!.rentalPrice, _priceController, 'e.g. ₹500 / hour'),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
           value: _condition,
-          decoration: _inputDecoration('Condition'),
+          decoration: _inputDecoration(AppLocalizations.of(context)!.condition),
           items: _conditions.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
           onChanged: (v) => setState(() => _condition = v!),
         ),
 
         const SizedBox(height: 20),
         SwitchListTile(
-          title: const Text('Operator Available?'),
-          subtitle: const Text('Can you provide a driver/operator?'),
+          title: Text(AppLocalizations.of(context)!.operatorAvailable),
+          subtitle: Text(AppLocalizations.of(context)!.operatorAvailableSubtitle),
           value: _operatorAvailable,
           onChanged: (v) => setState(() => _operatorAvailable = v),
           activeColor: const Color(0xFF00AA55),

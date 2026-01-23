@@ -28,7 +28,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
                 },
                 icon: const Icon(Icons.add, size: 18, color: Colors.white),
-                label: const Text('Upload', style: TextStyle(color: Colors.white)),
+                label: Text(AppLocalizations.of(context)!.addListing, style: const TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00AA55),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -107,7 +107,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () {},
-                    child: const Text('View All', style: TextStyle(color: Colors.grey)),
+                    child: Text(AppLocalizations.of(context)!.viewMore, style: const TextStyle(color: Colors.grey)),
                   ),
                 ],
               ),
@@ -144,9 +144,9 @@ class EquipmentRentalsScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(color: Colors.green),
                             ),
-                            child: const Text(
-                              'Available',
-                              style: TextStyle(color: Colors.green, fontSize: 12),
+                            child: Text(
+                              AppLocalizations.of(context)!.available,
+                              style: const TextStyle(color: Colors.green, fontSize: 12),
                             ),
                           ),
                         ],

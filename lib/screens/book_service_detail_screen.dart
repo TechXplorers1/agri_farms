@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import 'booking_confirmation_screen.dart';
 
@@ -117,7 +118,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         ),
       );
     } else {
-      String msg = 'Please fill all details';
+      String msg = AppLocalizations.of(context)!.fillAllDetails;
       if (_quantityController.text.isEmpty) msg = 'Please enter quantity (Acres/Hours)';
       else if (_selectedDate == null) msg = 'Please select a date';
 
@@ -202,9 +203,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             const SizedBox(height: 24),
 
              // Date Selection
-            const Text(
-              'Preferred Date',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            Text(
+              AppLocalizations.of(context)!.selectDate,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 12),
             GestureDetector(
@@ -222,7 +223,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                     const SizedBox(width: 12),
                     Text(
                       _selectedDate == null 
-                          ? 'Choose a date' 
+                          ? AppLocalizations.of(context)!.chooseDate 
                           : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                       style: TextStyle(
                         fontSize: 16,
@@ -240,9 +241,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             const SizedBox(height: 24),
 
             // Time Selection
-            const Text(
-              'Preferred Time (Optional)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            Text(
+              AppLocalizations.of(context)!.preferredTime,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 12),
              GestureDetector(
@@ -303,9 +304,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text(
-                  'Confirm Request',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                child: Text(
+                  AppLocalizations.of(context)!.confirmRequest,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
             ),

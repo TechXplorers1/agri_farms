@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import 'booking_confirmation_screen.dart';
 
@@ -108,7 +109,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         ),
       );
     } else {
-      String msg = 'Please fill all details';
+      String msg = AppLocalizations.of(context)!.fillAllDetails;
       if (_selectedDate == null) msg = 'Select a start date';
       else if (_selectedDuration == null) msg = 'Select rental duration';
 
@@ -186,9 +187,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             const SizedBox(height: 24),
             
             // Date Selection
-            const Text(
-              'Select Start Date',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            Text(
+              AppLocalizations.of(context)!.selectDate,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 12),
             GestureDetector(
@@ -206,7 +207,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                     const SizedBox(width: 12),
                     Text(
                       _selectedDate == null 
-                          ? 'Choose a date' 
+                          ? AppLocalizations.of(context)!.chooseDate 
                           : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                       style: TextStyle(
                         fontSize: 16,
@@ -285,7 +286,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total Estimate:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                      Text('${AppLocalizations.of(context)!.totalEstimate}:', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                       Text(
                         '₹${_totalPrice.toStringAsFixed(0)}',
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green),
@@ -304,9 +305,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text(
-                        'Confirm Rental',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      child: Text(
+                        AppLocalizations.of(context)!.rentNow,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                   ),

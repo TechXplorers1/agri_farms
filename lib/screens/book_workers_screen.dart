@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart'; // Import BookingManager
 import 'booking_confirmation_screen.dart';
 
@@ -121,10 +122,10 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         ),
       );
     } else {
-      String msg = 'Please fill all details';
-      if (_maleCount == 0 && _femaleCount == 0) msg = 'Select at least one worker';
-      else if (_selectedDate == null) msg = 'Please select a date';
-      else if (_startTime == null || _endTime == null) msg = 'Please select start and end time';
+      String msg = AppLocalizations.of(context)!.fillAllDetails;
+      if (_maleCount == 0 && _femaleCount == 0) msg = AppLocalizations.of(context)!.selectAtLeastOneWorker;
+      else if (_selectedDate == null) msg = AppLocalizations.of(context)!.selectDateError;
+      else if (_startTime == null || _endTime == null) msg = AppLocalizations.of(context)!.selectTimeError;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg)),
@@ -137,7 +138,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Book Workers'),
+        title: Text(AppLocalizations.of(context)!.bookWorkers),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
@@ -169,7 +170,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                        ),
                        Text(
-                         'Available: ${widget.maxMale} Male, ${widget.maxFemale} Female',
+                         AppLocalizations.of(context)!.availableWorkers(widget.maxMale, widget.maxFemale),
                          style: TextStyle(color: Colors.grey[700], fontSize: 13),
                        ),
                      ],
@@ -181,15 +182,15 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
             // Worker Selection
             Text(
-              'Select Workers',
+              AppLocalizations.of(context)!.selectWorkers,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 16),
-            _buildCounter('Male Workers', _maleCount, widget.maxMale, widget.priceMale, (val) {
+            _buildCounter(AppLocalizations.of(context)!.maleWorkers, _maleCount, widget.maxMale, widget.priceMale, (val) {
               setState(() => _maleCount = val);
             }),
             const SizedBox(height: 16),
-            _buildCounter('Female Workers', _femaleCount, widget.maxFemale, widget.priceFemale, (val) {
+            _buildCounter(AppLocalizations.of(context)!.femaleWorkers, _femaleCount, widget.maxFemale, widget.priceFemale, (val) {
               setState(() => _femaleCount = val);
             }),
 
@@ -197,7 +198,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
             // Date Selection
             Text(
-              'Select Date',
+              AppLocalizations.of(context)!.selectDate,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 12),
@@ -216,7 +217,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                     const SizedBox(width: 12),
                     Text(
                       _selectedDate == null 
-                          ? 'Choose a date' 
+                          ? AppLocalizations.of(context)!.chooseDate 
                           : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                       style: TextStyle(
                         fontSize: 16,
@@ -234,12 +235,12 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
             // Time Selection
             Text(
-              'Select Time',
+              AppLocalizations.of(context)!.preferredTime,
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 8),
             Text(
-              'Choose your work duration',
+              AppLocalizations.of(context)!.chooseWorkDuration,
               style: TextStyle(fontSize: 12, color: Colors.grey[500]),
             ),
             const SizedBox(height: 12),
@@ -248,7 +249,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                 Expanded(
                   child: _buildTimePicker(
                     context: context, 
-                    label: 'Start Time', 
+                    label: AppLocalizations.of(context)!.startTime, 
                     time: _startTime, 
                     onTap: () => _selectTime(context, true)
                   ),
@@ -257,7 +258,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                 Expanded(
                    child: _buildTimePicker(
                     context: context, 
-                    label: 'End Time', 
+                    label: AppLocalizations.of(context)!.endTime, 
                     time: _endTime, 
                     onTap: () => _selectTime(context, false)
                   ),
@@ -280,7 +281,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total Estimate:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                      Text('${AppLocalizations.of(context)!.totalEstimate}:', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                       Text(
                         '₹$_totalPrice',
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF00AA55)),
@@ -299,9 +300,9 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text(
-                        'Confirm Booking',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      child: Text(
+                        AppLocalizations.of(context)!.confirmBooking,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                   ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 import 'upload_item_screen.dart';
 import 'book_workers_screen.dart';
@@ -56,7 +57,7 @@ class ServiceProvidersScreen extends StatelessWidget {
                  children: [
                    Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
                    const SizedBox(height: 16),
-                   Text('No providers found for $title', style: TextStyle(color: Colors.grey[600])),
+                   Text(AppLocalizations.of(context)!.noMatchFound, style: TextStyle(color: Colors.grey[600])),
                  ],
                ),
              );
@@ -162,10 +163,10 @@ class ServiceProvidersScreen extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    const Text('Male', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(AppLocalizations.of(context)!.male, style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
                     Text('${provider.maleCount} Available', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text('₹${provider.malePrice} / day', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                    Text('₹${provider.malePrice} ${AppLocalizations.of(context)!.perDay}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                   ],
                 ),
               ),
@@ -173,10 +174,10 @@ class ServiceProvidersScreen extends StatelessWidget {
               Expanded(
                 child: Column(
                   children: [
-                    const Text('Female', style: TextStyle(color: Colors.pink, fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(AppLocalizations.of(context)!.female, style: const TextStyle(color: Colors.pink, fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
                     Text('${provider.femaleCount} Available', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text('₹${provider.femalePrice} / day', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                    Text('₹${provider.femalePrice} ${AppLocalizations.of(context)!.perDay}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                   ],
                 ),
               ),
@@ -196,7 +197,7 @@ class ServiceProvidersScreen extends StatelessWidget {
                    )));
                 },
                 style: _primaryButtonStyle(),
-                child: const Text('Book Workers'),
+                child: Text(AppLocalizations.of(context)!.bookWorkers),
               ),
            ),
         ],
@@ -229,7 +230,7 @@ class ServiceProvidersScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              if (provider.isAvailable) _buildAvailableBadge(),
+              if (provider.isAvailable) _buildAvailableBadge(context),
             ],
           ),
           if (provider.image != null) ...[
@@ -256,7 +257,7 @@ class ServiceProvidersScreen extends StatelessWidget {
               const SizedBox(width: 16),
               _buildDistanceRow(provider.distance),
                const SizedBox(width: 16),
-              Text('${provider.jobsCompleted} done', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+              Text('${provider.jobsCompleted} ${AppLocalizations.of(context)!.jobsCompleted}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
             ],
           ),
           const SizedBox(height: 8),
@@ -265,7 +266,7 @@ class ServiceProvidersScreen extends StatelessWidget {
               children: [
                 Icon(Icons.person_outline, size: 16, color: Colors.grey[600]),
                 const SizedBox(width: 4),
-                Text('Operator Included', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                Text(AppLocalizations.of(context)!.operatorIncluded, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
               ],
             ),
 
@@ -287,7 +288,7 @@ class ServiceProvidersScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () => _navigateToBooking(context, provider),
                 style: _bookButtonStyle(),
-                child: const Text('Book Service', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: Text(AppLocalizations.of(context)!.bookService, style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -319,7 +320,7 @@ class ServiceProvidersScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              if (provider.isAvailable) _buildAvailableBadge(),
+              if (provider.isAvailable) _buildAvailableBadge(context),
             ],
           ),
           if (provider.image != null) ...[
@@ -349,7 +350,7 @@ class ServiceProvidersScreen extends StatelessWidget {
                Container(
                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                  decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(4)),
-                 child: const Text('Driver Inc.', style: TextStyle(fontSize: 10, color: Colors.blue)),
+                 child: Text(AppLocalizations.of(context)!.driverIncluded, style: const TextStyle(fontSize: 10, color: Colors.blue)),
                ),
             ],
           ),
@@ -372,7 +373,7 @@ class ServiceProvidersScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () => _navigateToBooking(context, provider),
                 style: _bookButtonStyle(),
-                child: const Text('Book Now', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: Text(AppLocalizations.of(context)!.bookNow, style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -406,7 +407,7 @@ class ServiceProvidersScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              if (provider.isAvailable) _buildAvailableBadge(),
+              if (provider.isAvailable) _buildAvailableBadge(context),
             ],
           ),
           if (provider.image != null) ...[
@@ -442,7 +443,7 @@ class ServiceProvidersScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            provider.operatorAvailable ? 'With Operator Available' : 'No Operator',
+            provider.operatorAvailable ? AppLocalizations.of(context)!.withOperatorAvailable : AppLocalizations.of(context)!.noOperator,
              style: TextStyle(color: Colors.grey[600], fontSize: 13),
           ),
           
@@ -464,7 +465,7 @@ class ServiceProvidersScreen extends StatelessWidget {
               ElevatedButton(
                 onPressed: () => _navigateToBooking(context, provider),
                 style: _bookButtonStyle(),
-                child: const Text('Rent Now', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: Text(AppLocalizations.of(context)!.rentNow, style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -520,7 +521,7 @@ class ServiceProvidersScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAvailableBadge() {
+  Widget _buildAvailableBadge(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -528,9 +529,9 @@ class ServiceProvidersScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         color: Colors.green.withOpacity(0.05),
       ),
-      child: const Text(
-        'Available',
-        style: TextStyle(
+      child: Text(
+        AppLocalizations.of(context)!.available,
+        style: const TextStyle(
           color: Colors.green,
           fontSize: 12,
           fontWeight: FontWeight.w500,
@@ -602,30 +603,27 @@ class ServiceProvidersScreen extends StatelessWidget {
       }
   }
 
-
-
   Widget _buildAddButton(BuildContext context) {
-    String label = 'Add Listing';
-    String category = 'Service'; // Default
+    // Localized Logic for category using English keys or separate logic?
+    // Using simple logic for now, titles localized in button label
+    String label = AppLocalizations.of(context)!.addListing;
+    String category = 'Service'; 
 
-    // Logic to determine Category and Label based on serviceKey
-    // Lists synchronized with UploadItemScreen mocks or known keys
     const transportKeys = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
     const equipmentKeys = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys'];
 
     if (serviceKey == 'Farm Workers') {
-      label = 'Add Group';
+      label = AppLocalizations.of(context)!.addGroup;
       category = 'Farm Workers';
     } else if (transportKeys.contains(serviceKey)) {
-      label = 'Add Vehicle';
+      label = AppLocalizations.of(context)!.addVehicle;
       category = 'Transport';
     } else if (equipmentKeys.contains(serviceKey)) {
-      label = 'Add Equipment';
+      label = AppLocalizations.of(context)!.addEquipment;
       category = 'Equipment';
     } else {
-      // Default Services (Ploughing, Harvesting...)
-      label = 'Add Service';
-      category = serviceKey; // Pass the specific service name (e.g. 'Ploughing')
+      label = AppLocalizations.of(context)!.addService;
+      category = serviceKey;
     }
 
     return ElevatedButton.icon(
