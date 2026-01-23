@@ -18,13 +18,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final l10n = AppLocalizations.of(context)!;
     return [
     {
-      'title': l10n.bookTransport,
-      'description': "Book transport to take your produce to mandi.",
-      'icon': Icons.local_shipping_outlined, // Truck
-      'color': Colors.blue,
-      'bgColor': const Color(0xFFE3F2FD), // Light Blue
-    },
-    {
       'title': l10n.rentEquipment,
       'description': l10n.rentEquipmentDesc,
       'icon': Icons.build_outlined, // Wrench
@@ -37,6 +30,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'icon': Icons.agriculture_outlined, // Tractor/Agri
       'color': Colors.green,
       'bgColor': const Color(0xFFE8F5E9), // Light Green
+    },
+    {
+      'title': l10n.bookTransport,
+      'description': "Book transport to take your produce to mandi.",
+      'icon': Icons.local_shipping_outlined, // Truck
+      'color': Colors.blue,
+      'bgColor': const Color(0xFFE3F2FD), // Light Blue
     },
   ];
   }

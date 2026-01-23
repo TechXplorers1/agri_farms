@@ -50,6 +50,12 @@ class _HomeScreenState extends State<HomeScreen> {
   List<HomeServiceItem> _getAllItems(BuildContext context) {
     var l10n = AppLocalizations.of(context)!;
     return [
+      // Rentals
+      HomeServiceItem(l10n.tractors, Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals', ServiceProvidersScreen(serviceKey: 'Tractors', title: l10n.tractors, userRole: widget.userRole)),
+      HomeServiceItem(l10n.harvesters, Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals', ServiceProvidersScreen(serviceKey: 'Harvesters', title: l10n.harvesters, userRole: widget.userRole)),
+      HomeServiceItem(l10n.sprayers, Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals', ServiceProvidersScreen(serviceKey: 'Sprayers', title: l10n.sprayers, userRole: widget.userRole)),
+      HomeServiceItem(l10n.trolleys, Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals', ServiceProvidersScreen(serviceKey: 'Trolleys', title: l10n.trolleys, userRole: widget.userRole)),
+
       // Services
       HomeServiceItem(l10n.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services', ServiceProvidersScreen(serviceKey: 'Ploughing', title: l10n.ploughing, userRole: widget.userRole)),
       HomeServiceItem(l10n.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services', ServiceProvidersScreen(serviceKey: 'Harvesting', title: l10n.harvesting, userRole: widget.userRole)),
@@ -66,12 +72,6 @@ class _HomeScreenState extends State<HomeScreen> {
       HomeServiceItem(l10n.tempo, Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport', ServiceProvidersScreen(serviceKey: 'Tempo', title: l10n.tempo, userRole: widget.userRole)),
       HomeServiceItem(l10n.pickupVan, Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport', ServiceProvidersScreen(serviceKey: 'Pickup Van', title: l10n.pickupVan, userRole: widget.userRole)),
       HomeServiceItem(l10n.container, Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport', ServiceProvidersScreen(serviceKey: 'Container', title: l10n.container, userRole: widget.userRole)),
-      
-      // Rentals
-      HomeServiceItem(l10n.tractors, Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals', ServiceProvidersScreen(serviceKey: 'Tractors', title: l10n.tractors, userRole: widget.userRole)),
-      HomeServiceItem(l10n.harvesters, Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals', ServiceProvidersScreen(serviceKey: 'Harvesters', title: l10n.harvesters, userRole: widget.userRole)),
-      HomeServiceItem(l10n.sprayers, Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals', ServiceProvidersScreen(serviceKey: 'Sprayers', title: l10n.sprayers, userRole: widget.userRole)),
-      HomeServiceItem(l10n.trolleys, Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals', ServiceProvidersScreen(serviceKey: 'Trolleys', title: l10n.trolleys, userRole: widget.userRole)),
     ];
   }
 
@@ -110,6 +110,89 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index == 0) {
       _loadUserData(); // Reload data when switching back to Home
     }
+  }
+
+  void _showLocationSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Select Location',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.my_location, color: Colors.blue),
+                title: const Text('Auto Detect Location'),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                   _userLocation = "Kodad, Suryapet"; 
+                  });
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Location detected successfully!')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.location_city, color: Colors.orange),
+                title: const Text('Select Village / District Manually'),
+                onTap: () {
+                  Navigator.pop(context);
+                   _showManualLocationDialog();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showManualLocationDialog() {
+      showDialog(
+        context: context,
+        builder: (context) {
+            String tempVillage = '';
+            String tempDistrict = '';
+            return AlertDialog(
+                title: const Text('Enter Location'),
+                content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                        TextField(
+                            decoration: const InputDecoration(labelText: 'Village'),
+                            onChanged: (val) => tempVillage = val,
+                        ),
+                        TextField(
+                            decoration: const InputDecoration(labelText: 'District'),
+                            onChanged: (val) => tempDistrict = val,
+                        ),
+                    ],
+                ),
+                actions: [
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                    ElevatedButton(onPressed: () {
+                        if (tempVillage.isNotEmpty && tempDistrict.isNotEmpty) {
+                            setState(() {
+                                _userLocation = "$tempVillage, $tempDistrict";
+                            });
+                             Navigator.pop(context);
+                        }
+                    }, child: const Text('Save')),
+                ],
+            );
+        }
+      );
   }
 
   @override
@@ -169,6 +252,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 );
                               },
                             ),
+                          IconButton(
+                            icon: const Icon(Icons.location_on_outlined, color: Colors.white),
+                            onPressed: () => _showLocationSelector(context),
+                          ),
                           Stack(
                             children: [
                               IconButton(
@@ -266,6 +353,27 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                       
+                      if (_getFilteredItems(context, 'Rentals').isNotEmpty) ...[
+                         _buildSectionHeader(AppLocalizations.of(context)!.rentEquipment, () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
+                         }),
+                         const SizedBox(height: 12),
+                          _buildSectionContainer(
+                           Wrap(
+                             spacing: 12,
+                             runSpacing: 12,
+                             children: _getFilteredItems(context, 'Rentals').map((item) => 
+                               SizedBox(
+                                 width: (MediaQuery.of(context).size.width - 64) / 3,
+                                 child: _buildServiceItem(item.icon, item.title, item.bgColor, item.iconColor, onTap: () {
+                                    Navigator.push(context, MaterialPageRoute(builder: (context) => item.navigationTarget));
+                                 }),
+                               )
+                             ).toList(),
+                           )
+                          ),
+                         const SizedBox(height: 24),
+                      ],
                       if (_getFilteredItems(context, 'Services').isNotEmpty) ...[
                          _buildSectionHeader(AppLocalizations.of(context)!.bookServices, () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => AgriServicesScreen(userRole: widget.userRole)));
@@ -309,59 +417,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                          const SizedBox(height: 24),
                       ],
-                       if (_getFilteredItems(context, 'Rentals').isNotEmpty) ...[
-                         _buildSectionHeader(AppLocalizations.of(context)!.rentEquipment, () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
-                         }),
-                         const SizedBox(height: 12),
-                          _buildSectionContainer(
-                           Wrap(
-                             spacing: 12,
-                             runSpacing: 12,
-                             children: _getFilteredItems(context, 'Rentals').map((item) => 
-                               SizedBox(
-                                 width: (MediaQuery.of(context).size.width - 64) / 3,
-                                 child: _buildServiceItem(item.icon, item.title, item.bgColor, item.iconColor, onTap: () {
-                                    Navigator.push(context, MaterialPageRoute(builder: (context) => item.navigationTarget));
-                                 }),
-                               )
-                             ).toList(),
-                           )
-                          ),
-                         const SizedBox(height: 24),
-                      ],
                    ] else ...[
                   // DEFAULT VIEW (No Search)
                   
-                  // 1. Book Transport Section
-                  _buildSectionHeader(AppLocalizations.of(context)!.bookTransport, () {
-                     Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
-                  }),
-                  const SizedBox(height: 12),
-                   _buildSectionContainer(
-                     Row(
-                      children: [
-                        Expanded(child: _buildServiceItem(Icons.local_shipping, AppLocalizations.of(context)!.miniTruck, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Mini Truck', title: AppLocalizations.of(context)!.miniTruck, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.tractorTrolley, const Color(0xFFE8F5E9), Colors.green, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: AppLocalizations.of(context)!.tractorTrolley, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.local_shipping_outlined, AppLocalizations.of(context)!.fullTruck, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Full Truck', title: AppLocalizations.of(context)!.fullTruck, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 8),
-                         _buildArrowButton(onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
-                        }),
-                      ],
-                    ),
-                   ),
-                  const SizedBox(height: 24),
-
-                   // 2. Rent Equipment Section
+                  // 1. Rent Equipment Section
                   _buildSectionHeader(AppLocalizations.of(context)!.rentEquipment, () {
                      Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
                   }),
@@ -390,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 24),
 
-                  // 3. Book Services Section
+                  // 2. Book Services Section
                   _buildSectionHeader(AppLocalizations.of(context)!.bookServices, () {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
                   }),
@@ -416,6 +475,35 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 24),
+
+                  // 3. Book Transport Section
+                  _buildSectionHeader(AppLocalizations.of(context)!.bookTransport, () {
+                     Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
+                  }),
+                  const SizedBox(height: 12),
+                   _buildSectionContainer(
+                     Row(
+                      children: [
+                        Expanded(child: _buildServiceItem(Icons.local_shipping, AppLocalizations.of(context)!.miniTruck, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Mini Truck', title: AppLocalizations.of(context)!.miniTruck, userRole: widget.userRole)));
+                        })),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.tractorTrolley, const Color(0xFFE8F5E9), Colors.green, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: AppLocalizations.of(context)!.tractorTrolley, userRole: widget.userRole)));
+                        })),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildServiceItem(Icons.local_shipping_outlined, AppLocalizations.of(context)!.fullTruck, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Full Truck', title: AppLocalizations.of(context)!.fullTruck, userRole: widget.userRole)));
+                        })),
+                        const SizedBox(width: 8),
+                         _buildArrowButton(onTap: () {
+                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
+                        }),
+                      ],
+                    ),
+                   ),
 
                   const SizedBox(height: 24),
                   const SizedBox(height: 24),
