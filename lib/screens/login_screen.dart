@@ -3,22 +3,24 @@ import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'verify_otp_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   String? _selectedRole;
+  bool _isLogin = false; // Default to Sign Up
+  bool _isButtonEnabled = false;
+
   List<String> _getRoles(BuildContext context) {
     var l10n = AppLocalizations.of(context)!;
     return [l10n.generalUser, l10n.farmer];
   }
-  bool _isButtonEnabled = false;
 
   @override
   void initState() {
@@ -36,9 +38,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _validateInput() {
     setState(() {
-      _isButtonEnabled = _phoneController.text.length == 10 &&
-          _nameController.text.isNotEmpty &&
+      if (_isLogin) {
+        // Login: Only Phone required
+        _isButtonEnabled = _phoneController.text.length == 10;
+      } else {
+        // Sign Up: All fields required
+        _isButtonEnabled = _phoneController.text.length == 10 &&
+          _nameController.text.trim().isNotEmpty &&
           _selectedRole != null;
+      }
     });
   }
 
@@ -48,12 +56,19 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(
           builder: (context) => VerifyOtpScreen(
             mobileNumber: _phoneController.text,
-            fullName: _nameController.text,
-            role: _selectedRole!,
+            fullName: _isLogin ? 'User' : _nameController.text, // Mock name for login
+            role: _isLogin ? 'Farmer' : _selectedRole!,        // Mock role for login
           ),
         ),
       );
     }
+  }
+
+  void _toggleAuthMode() {
+    setState(() {
+      _isLogin = !_isLogin;
+      _validateInput(); // Re-validate on toggle
+    });
   }
 
   @override
@@ -66,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 100),
+              const SizedBox(height: 80),
               // Icon
               Container(
                 width: 100,
@@ -84,101 +99,109 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 30),
               // Title
               Text(
-                AppLocalizations.of(context)!.welcomeTitle,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                _isLogin ? 'Welcome Back' : AppLocalizations.of(context)!.welcomeTitle,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
               ),
               const SizedBox(height: 10),
               // Subtitle
               Text(
-                AppLocalizations.of(context)!.enterMobile,
+                _isLogin 
+                    ? 'Login to your account' 
+                    : AppLocalizations.of(context)!.enterMobile,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[600],
                 ),
               ),
               const SizedBox(height: 40),
-              // Full Name Input
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  AppLocalizations.of(context)!.fullName,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+
+              // Sign Up Fields (Name & Role)
+              if (!_isLogin) ...[
+                // Full Name Input
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    AppLocalizations.of(context)!.fullName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: TextField(
-                  controller: _nameController,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context)!.fullNameHint,
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                const SizedBox(height: 10),
+                Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Role Selection
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  AppLocalizations.of(context)!.chooseRole,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                  child: TextField(
+                    controller: _nameController,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!.fullNameHint,
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    style: const TextStyle(fontSize: 16),
                   ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedRole,
-                    hint: Text(AppLocalizations.of(context)!.selectRole),
-                    isExpanded: true,
-                    icon: const Icon(Icons.arrow_drop_down),
-                    items: _getRoles(context).map((String role) {
-                      return DropdownMenuItem<String>(
-                        value: role,
-                        child: Text(role),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedRole = newValue;
-                        _validateInput();
-                      });
-                    },
+                const SizedBox(height: 20),
+                // Role Selection
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    AppLocalizations.of(context)!.chooseRole,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              // Mobile Number Input
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedRole,
+                      hint: Text(AppLocalizations.of(context)!.selectRole),
+                      isExpanded: true,
+                      icon: const Icon(Icons.arrow_drop_down),
+                      items: _getRoles(context).map((String role) {
+                        return DropdownMenuItem<String>(
+                          value: role,
+                          child: Text(role),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedRole = newValue;
+                          _validateInput();
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Mobile Number Input (Common)
               Row(
                 children: [
                   Text(
                     AppLocalizations.of(context)!.mobileNumber,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.black87,
@@ -234,8 +257,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
+              
               const SizedBox(height: 30),
-              // Get OTP Button
+              
+              // Action Button (Sign Up / Get OTP)
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -249,8 +274,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     disabledBackgroundColor: Colors.grey,
                   ),
                   child: Text(
-                    AppLocalizations.of(context)!.getOtp,
-                    style: TextStyle(
+                    _isLogin ? 'Login' : AppLocalizations.of(context)!.getOtp, // Or "Sign Up" if preferred
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -258,6 +283,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
+              
+              const SizedBox(height: 50),
+
+              // Toggle Auth Mode
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _isLogin ? "Don't have an account? " : "Already have an account? ",
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  GestureDetector(
+                    onTap: _toggleAuthMode,
+                    child: Text(
+                      _isLogin ? "Sign Up" : "Login",
+                      style: const TextStyle(
+                        color: Color(0xFF00AA55),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              
               const SizedBox(height: 20),
               // Footer
               Text(
