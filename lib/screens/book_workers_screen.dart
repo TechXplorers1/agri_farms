@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart'; // Import BookingManager
 import 'booking_confirmation_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BookWorkersScreen extends StatefulWidget {
   final String providerName;
@@ -31,6 +32,26 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
+  final TextEditingController _addressController = TextEditingController(); // Add controller
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAddress();
+  }
+
+  Future<void> _loadAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _addressController.text = prefs.getString('user_address') ?? '';
+    });
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    super.dispose();
+  }
   
   final Map<String, int> _selectedRoleCounts = {};
 
@@ -104,37 +125,33 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     }
   }
 
-  void _confirmBooking() {
+  void _confirmBooking() async {
     bool hasWorkers = widget.roleDistribution.isNotEmpty ? _selectedRoleCounts.isNotEmpty : (_maleCount > 0 || _femaleCount > 0);
 
-    if (hasWorkers && _startTime != null && _endTime != null && _selectedDate != null) {
+    if (hasWorkers && _startTime != null && _endTime != null && _selectedDate != null && _addressController.text.isNotEmpty) {
       
+      // Save address
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_address', _addressController.text);
+
       String formattedTime = '${_startTime!.format(context)} - ${_endTime!.format(context)}';
       
       String detailsStr = '';
       if (widget.roleDistribution.isNotEmpty) {
-        detailsStr = _selectedRoleCounts.entries.map((e) {
-           // Parse original role string to get skill name for cleaner display if needed
-           // e.key is "12 Men - Sowing"
-           // e.value is 3 (user selected)
-           // Output: "3 Men - Sowing" (construct a meaningful string)
-           
-           // Or just append the user count to the parsed label?
-           // key: "12 Men - Sowing" -> parts -> "Men - Sowing"
+         // ... (existing logic)
+         detailsStr = _selectedRoleCounts.entries.map((e) {
            String label = e.key;
            try {
               final parts = e.key.split(' ');
               label = parts.sublist(1).join(' ');
               if (label.startsWith('- ')) label = label.substring(2);
            } catch (_) {}
-           
            return '${e.value} $label';
         }).join(', ');
       } else {
         detailsStr = 'Male: $_maleCount, Female: $_femaleCount';
       }
 
-      // Save to BookingManager
       BookingManager().addBooking(BookingDetails(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: widget.providerName,
@@ -146,8 +163,11 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
           'Details': detailsStr,
           'Time': formattedTime,
           'Date': _selectedDate.toString().split(' ')[0],
+          'Address': _addressController.text,
         }
       ));
+      
+      if (!mounted) return;
 
       Navigator.push(
         context,
@@ -161,6 +181,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
       if (!hasWorkers) msg = AppLocalizations.of(context)!.selectAtLeastOneWorker;
+      else if (_addressController.text.isEmpty) msg = 'Please enter work location address';
       else if (_selectedDate == null) msg = AppLocalizations.of(context)!.selectDateError;
       else if (_startTime == null || _endTime == null) msg = AppLocalizations.of(context)!.selectTimeError;
 
@@ -276,6 +297,23 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             ],
 
             const SizedBox(height: 32),
+
+            // Address Section
+            const Text(
+              'Work Location Address',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _addressController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter farm address/location...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              ),
+            ),
+            const SizedBox(height: 24),
 
             // Date Selection
             Text(

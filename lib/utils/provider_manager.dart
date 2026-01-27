@@ -272,7 +272,7 @@ class ProviderManager extends ChangeNotifier {
         serviceName: 'Harvesting',
         distance: '10 km',
         rating: 4.9,
-        price: '₹1500 / acre',
+        price: '₹2000 / hour',
         equipmentUsed: 'Kartar 4000',
         operatorIncluded: true,
         jobsCompleted: 110,

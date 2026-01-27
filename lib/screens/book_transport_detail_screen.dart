@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import 'booking_confirmation_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BookTransportDetailScreen extends StatefulWidget {
   final String providerName;
@@ -27,7 +28,27 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
   DateTime? _selectedDate;
+  final TextEditingController _addressController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    _loadAddress();
+  }
+
+  Future<void> _loadAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _addressController.text = prefs.getString('user_address') ?? '';
+    });
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    super.dispose();
+  }
+  
   // Mock data for dropdowns
   final List<String> _goodsTypes = [
     'Crops (Grains/Vegetables)',
@@ -100,9 +121,13 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     }
   }
 
-  void _confirmBooking() {
-    if (_selectedGoodsType != null && _startTime != null && _endTime != null && _selectedDate != null) {
+  void _confirmBooking() async {
+    if (_selectedGoodsType != null && _startTime != null && _endTime != null && _selectedDate != null && _addressController.text.isNotEmpty) {
       
+      // Save address
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_address', _addressController.text);
+
       String formattedTime = '${_startTime!.format(context)} - ${_endTime!.format(context)}';
 
       BookingManager().addBooking(BookingDetails(
@@ -120,8 +145,11 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
           'Goods Type': _selectedGoodsType,
           'Time': formattedTime,
           'Date': _selectedDate.toString().split(' ')[0],
+          'Address': _addressController.text,
         }
       ));
+      
+      if (!mounted) return;
 
       Navigator.push(
         context,
@@ -135,6 +163,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
       if (_selectedGoodsType == null) msg = AppLocalizations.of(context)!.selectGoodsTypeError;
+      else if (_addressController.text.isEmpty) msg = 'Please enter address';
       else if (_selectedDate == null) msg = AppLocalizations.of(context)!.selectDateError;
       else if (_startTime == null || _endTime == null) msg = AppLocalizations.of(context)!.selectTimeError;
 
@@ -228,6 +257,24 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                     });
                   },
                 ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Pickup/Drop Address
+            const Text(
+              'Pickup/Drop Address',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+             const SizedBox(height: 12),
+            TextField(
+              controller: _addressController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter pickup or drop location address...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
             ),
 

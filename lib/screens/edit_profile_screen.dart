@@ -14,6 +14,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _farmSizeController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
 
   bool _isLoading = true;
 
@@ -30,7 +31,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _villageController.text = prefs.getString('user_village') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
       _farmSizeController.text = prefs.getString('user_farm_size') ?? '';
-      _phoneController.text = prefs.getString('user_phone') ?? '+919188528855'; // Default or retrieve
+      _phoneController.text = prefs.getString('user_phone') ?? '+919188528855'; 
+      _addressController.text = prefs.getString('user_address') ?? '';
       _isLoading = false;
     });
   }
@@ -43,6 +45,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     await prefs.setString('user_district', _districtController.text);
     await prefs.setString('user_farm_size', _farmSizeController.text);
     await prefs.setString('user_phone', _phoneController.text);
+    await prefs.setString('user_address', _addressController.text);
     
     if (mounted) {
       setState(() => _isLoading = false);
@@ -57,6 +60,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _districtController.dispose();
     _farmSizeController.dispose();
     _phoneController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -126,6 +130,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   // Name
                   _buildLabel('Full Name'),
                   _buildTextField(_nameController, 'Enter User Name'),
+                  const SizedBox(height: 20),
+
+                  // Address
+                  _buildLabel('Address'),
+                  _buildTextField(_addressController, 'Enter your full address', maxLines: 3),
                   const SizedBox(height: 20),
 
                   // Village & District Row
@@ -198,7 +207,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String hint, {bool enabled = true}) {
+  Widget _buildTextField(TextEditingController controller, String hint, {bool enabled = true, int maxLines = 1}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey[100], // Light grey background
@@ -207,6 +216,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: TextField(
         controller: controller,
         enabled: enabled,
+        maxLines: maxLines,
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),

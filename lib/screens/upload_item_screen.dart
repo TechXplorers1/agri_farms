@@ -403,7 +403,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         const SizedBox(height: 20),
         _buildSectionTitle('Pricing & Terms'),
         const SizedBox(height: 12),
-        _buildTextField('Price / Rate', _priceController, 'e.g. ₹1200 / acre'),
+        _buildTextField('Price / Rate', _priceController, widget.category == 'Harvesting' ? 'e.g. ₹2000 / hour' : 'e.g. ₹1200 / acre'),
         
         const SizedBox(height: 20),
         SwitchListTile(

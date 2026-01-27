@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import 'booking_confirmation_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BookServiceDetailScreen extends StatefulWidget {
   final String providerName;
@@ -24,13 +25,32 @@ class BookServiceDetailScreen extends StatefulWidget {
 class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAddress();
+  }
+
+  Future<void> _loadAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _addressController.text = prefs.getString('user_address') ?? '';
+      if (_addressController.text.isEmpty) {
+        // Fallback for demo if address not set, set empty to prompt user
+        _addressController.text = '';
+      }
+    });
+  }
 
   @override
   void dispose() {
     _notesController.dispose();
     _quantityController.dispose();
+    _addressController.dispose();
     super.dispose();
   }
 
@@ -84,8 +104,12 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     }
   }
 
-  void _confirmBooking() {
-    if (_selectedDate != null && _quantityController.text.isNotEmpty) {
+  void _confirmBooking() async {
+    if (_selectedDate != null && _quantityController.text.isNotEmpty && _addressController.text.isNotEmpty) {
+      // Save address for future use if it changed
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_address', _addressController.text);
+
       String bookingId = DateTime.now().millisecondsSinceEpoch.toString();
       String dateStr = _selectedDate.toString().split(' ')[0];
       String timeStr = _selectedTime?.format(context) ?? 'Any time';
@@ -104,9 +128,12 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
           'Quantity': _quantityController.text, // e.g., 5 Acres
           'Date': dateStr,
           'Preferred Time': timeStr,
+          'Address': _addressController.text,
           'Notes': _notesController.text,
         }
       ));
+      
+      if (!mounted) return;
 
       Navigator.push(
         context,
@@ -119,7 +146,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       );
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
-      if (_quantityController.text.isEmpty) msg = 'Please enter quantity (Acres/Hours)';
+      if (_quantityController.text.isEmpty) msg = widget.serviceName == 'Harvesting' ? 'Please enter duration (Hours)' : 'Please enter quantity (Acres/Hours)';
+      else if (_addressController.text.isEmpty) msg = 'Please enter service address';
       else if (_selectedDate == null) msg = 'Please select a date';
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -193,13 +221,31 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
               controller: _quantityController,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                labelText: 'Quantity (Acres / Hours)',
-                hintText: 'e.g. 2 Acres',
+                labelText: widget.serviceName == 'Harvesting' ? 'Duration (Hours)' : 'Quantity (Acres / Hours)',
+                hintText: widget.serviceName == 'Harvesting' ? 'e.g. 4 Hours' : 'e.g. 2 Acres',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
             ),
             
+            const SizedBox(height: 24),
+
+            // Address
+            const Text(
+              'Service Address (Mandatory)',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+             const SizedBox(height: 12),
+            TextField(
+              controller: _addressController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter full address for service...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              ),
+            ),
+
             const SizedBox(height: 24),
 
              // Date Selection

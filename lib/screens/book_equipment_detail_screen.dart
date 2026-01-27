@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import 'booking_confirmation_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BookEquipmentDetailScreen extends StatefulWidget {
   final String providerName;
@@ -26,6 +27,26 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   final List<int> _selectedSlots = []; // Stores selected hours (24h format, e.g., 9, 10, 11)
   bool _includeOperator = false; // "With Driver"
   DateTime? _selectedDate;
+  final TextEditingController _addressController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAddress();
+  }
+
+  Future<void> _loadAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _addressController.text = prefs.getString('user_address') ?? '';
+    });
+  }
+
+  @override
+  void dispose() {
+    _addressController.dispose();
+    super.dispose();
+  }
 
   // Time Slot Configuration
   final int _startHour = 6; // 6:00 AM
@@ -107,8 +128,12 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     });
   }
 
-  void _confirmBooking() {
-    if (_selectedSlots.isNotEmpty && _selectedDate != null) {
+  void _confirmBooking() async {
+    if (_selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty) {
+      // Save address
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_address', _addressController.text);
+
       // Format duration text
       String durationText;
       if (_selectedSlots.length == 1) {
@@ -133,8 +158,11 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           'Operator Required': _includeOperator ? 'Yes' : 'No',
           'Date': _selectedDate.toString().split(' ')[0],
           'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
+          'Address': _addressController.text,
         }
       ));
+      
+      if (!mounted) return;
 
       Navigator.push(
         context,
@@ -148,6 +176,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
       if (_selectedDate == null) msg = 'Select a start date';
+      else if (_addressController.text.isEmpty) msg = 'Please enter delivery address';
       else if (_selectedSlots.isEmpty) msg = 'Select at least one time slot';
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -222,6 +251,24 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             _buildCounter('Number of Machines', _equipmentCount, 3, widget.rate.toInt(), (val) {
               setState(() => _equipmentCount = val);
             }),
+
+            const SizedBox(height: 24),
+
+            // Delivery Address
+            const Text(
+              'Delivery/Usage Address',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+             const SizedBox(height: 12),
+            TextField(
+              controller: _addressController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Enter location for equipment delivery/usage...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              ),
+            ),
 
             const SizedBox(height: 24),
             
