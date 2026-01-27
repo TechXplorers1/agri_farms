@@ -217,6 +217,7 @@ class ServiceProvidersScreen extends StatelessWidget {
                      maxFemale: provider.femaleCount,
                      priceMale: provider.malePrice,
                      priceFemale: provider.femalePrice,
+                     roleDistribution: provider.roleDistribution,
                    )));
                 },
                 style: _primaryButtonStyle(),

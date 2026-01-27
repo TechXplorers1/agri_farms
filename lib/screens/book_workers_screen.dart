@@ -9,6 +9,7 @@ class BookWorkersScreen extends StatefulWidget {
   final int maxFemale;
   final int priceMale;
   final int priceFemale;
+  final List<String> roleDistribution;
 
   const BookWorkersScreen({
     super.key,
@@ -17,6 +18,7 @@ class BookWorkersScreen extends StatefulWidget {
     required this.maxFemale,
     required this.priceMale,
     required this.priceFemale,
+    this.roleDistribution = const [],
   });
 
   @override
@@ -29,9 +31,20 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
+  
+  final Map<String, int> _selectedRoleCounts = {};
 
   int get _totalPrice {
-    return (_maleCount * widget.priceMale) + (_femaleCount * widget.priceFemale);
+    if (widget.roleDistribution.isNotEmpty) {
+      int total = 0;
+      _selectedRoleCounts.forEach((role, count) {
+         bool isMale = role.toLowerCase().contains('men') && !role.toLowerCase().contains('women');
+         total += count * (isMale ? widget.priceMale : widget.priceFemale);
+      });
+      return total;
+    } else {
+      return (_maleCount * widget.priceMale) + (_femaleCount * widget.priceFemale);
+    }
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -92,9 +105,34 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   }
 
   void _confirmBooking() {
-    if ((_maleCount > 0 || _femaleCount > 0) && _startTime != null && _endTime != null && _selectedDate != null) {
+    bool hasWorkers = widget.roleDistribution.isNotEmpty ? _selectedRoleCounts.isNotEmpty : (_maleCount > 0 || _femaleCount > 0);
+
+    if (hasWorkers && _startTime != null && _endTime != null && _selectedDate != null) {
       
       String formattedTime = '${_startTime!.format(context)} - ${_endTime!.format(context)}';
+      
+      String detailsStr = '';
+      if (widget.roleDistribution.isNotEmpty) {
+        detailsStr = _selectedRoleCounts.entries.map((e) {
+           // Parse original role string to get skill name for cleaner display if needed
+           // e.key is "12 Men - Sowing"
+           // e.value is 3 (user selected)
+           // Output: "3 Men - Sowing" (construct a meaningful string)
+           
+           // Or just append the user count to the parsed label?
+           // key: "12 Men - Sowing" -> parts -> "Men - Sowing"
+           String label = e.key;
+           try {
+              final parts = e.key.split(' ');
+              label = parts.sublist(1).join(' ');
+              if (label.startsWith('- ')) label = label.substring(2);
+           } catch (_) {}
+           
+           return '${e.value} $label';
+        }).join(', ');
+      } else {
+        detailsStr = 'Male: $_maleCount, Female: $_femaleCount';
+      }
 
       // Save to BookingManager
       BookingManager().addBooking(BookingDetails(
@@ -105,8 +143,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         status: 'Scheduled',
         category: BookingCategory.farmWorkers,
         details: {
-          'Male': _maleCount,
-          'Female': _femaleCount,
+          'Details': detailsStr,
           'Time': formattedTime,
           'Date': _selectedDate.toString().split(' ')[0],
         }
@@ -123,7 +160,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       );
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
-      if (_maleCount == 0 && _femaleCount == 0) msg = AppLocalizations.of(context)!.selectAtLeastOneWorker;
+      if (!hasWorkers) msg = AppLocalizations.of(context)!.selectAtLeastOneWorker;
       else if (_selectedDate == null) msg = AppLocalizations.of(context)!.selectDateError;
       else if (_startTime == null || _endTime == null) msg = AppLocalizations.of(context)!.selectTimeError;
 
@@ -186,13 +223,57 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
             const SizedBox(height: 16),
-            _buildCounter(AppLocalizations.of(context)!.maleWorkers, _maleCount, widget.maxMale, widget.priceMale, (val) {
-              setState(() => _maleCount = val);
-            }),
-            const SizedBox(height: 16),
-            _buildCounter(AppLocalizations.of(context)!.femaleWorkers, _femaleCount, widget.maxFemale, widget.priceFemale, (val) {
-              setState(() => _femaleCount = val);
-            }),
+            
+            if (widget.roleDistribution.isNotEmpty) ...[
+              // Role Based Selection
+               ...widget.roleDistribution.map((role) {
+                 // Parse max count and label
+                 // Format: "12 Men - Sowing"
+                 int maxCount = 0;
+                 String label = role;
+                 try {
+                   final parts = role.split(' ');
+                   maxCount = int.parse(parts[0]);
+                   label = parts.sublist(1).join(' '); // "Men - Sowing"
+                   if (label.startsWith('- ')) label = label.substring(2); // Cleanup if "- " remains
+                 } catch (e) {
+                   maxCount = 99; // Fallback
+                 }
+
+                 int currentCount = _selectedRoleCounts[role] ?? 0;
+                 int price = role.toLowerCase().contains('men') && !role.toLowerCase().contains('women') 
+                            ? widget.priceMale 
+                            : widget.priceFemale;
+
+                 return Container(
+                   margin: const EdgeInsets.only(bottom: 12),
+                   child: _buildCounter(
+                     label, 
+                     currentCount, 
+                     maxCount, 
+                     price, 
+                     (val) {
+                       setState(() {
+                         if (val > 0) {
+                           _selectedRoleCounts[role] = val;
+                         } else {
+                           _selectedRoleCounts.remove(role);
+                         }
+                       });
+                     }
+                   ),
+                 );
+               }).toList(),
+            ] else ...[
+               // Classic Counter Selection
+               _buildCounter(AppLocalizations.of(context)!.maleWorkers, _maleCount, widget.maxMale, widget.priceMale, (val) {
+                setState(() => _maleCount = val);
+              }),
+              const SizedBox(height: 16),
+              _buildCounter(AppLocalizations.of(context)!.femaleWorkers, _femaleCount, widget.maxFemale, widget.priceFemale, (val) {
+                setState(() => _femaleCount = val);
+              }),
+            ],
 
             const SizedBox(height: 32),
 
