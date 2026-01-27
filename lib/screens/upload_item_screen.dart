@@ -41,7 +41,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   // Role Distribution
   final List<String> _roleDistributions = [];
   final TextEditingController _roleCountController = TextEditingController();
-  String? _selectedRoleTask;
+  // String? _selectedRoleTask; // Removed
   String _roleGender = 'Male';
   // Skills handled by _selectedSkills list now
   
@@ -106,8 +106,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       return;
     }
 
+
     // Derive skills from the added roles
-    final derivedSkills = _roleDistributions.map((e) => e.split('-')[1].trim()).toSet().toList();
+    final derivedSkills = _roleDistributions
+        .map((e) => e.split('-')[1].trim())
+        .expand((e) => e.split(',').map((s) => s.trim()))
+        .toSet()
+        .toList();
 
     final newProvider = FarmWorkerListing(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -499,17 +504,73 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       fillColor: Colors.grey[50],
     );
   }
+  // Multi-select skills
+  List<String> _selectedRoleSkills = [];
+
   void _addRoleDistribution() {
     final count = _roleCountController.text.trim();
-    if (count.isNotEmpty && _selectedRoleTask != null) {
+    if (count.isNotEmpty && _selectedRoleSkills.isNotEmpty) {
       setState(() {
-        _roleDistributions.add('$count $_roleGender - $_selectedRoleTask');
+        _roleDistributions.add('$count $_roleGender - ${_selectedRoleSkills.join(", ")}');
         _roleCountController.clear();
-        _selectedRoleTask = null; // Reset dropdown
+        _selectedRoleSkills = []; // Reset list
       });
     } else {
-       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter details to add')));
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter count and select at least one skill')));
     }
+  }
+
+  Future<void> _showMultiSelectDialog() async {
+    final List<String> tempSelectedSkills = List.from(_selectedRoleSkills);
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Select Skills'),
+              content: SingleChildScrollView(
+                child: ListBody(
+                  children: _farmSkills.map((skill) {
+                    return CheckboxListTile(
+                      value: tempSelectedSkills.contains(skill),
+                      title: Text(skill),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      activeColor: const Color(0xFF00AA55),
+                      onChanged: (bool? checked) {
+                        setStateDialog(() {
+                          if (checked == true) {
+                            tempSelectedSkills.add(skill);
+                          } else {
+                            tempSelectedSkills.remove(skill);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedRoleSkills = tempSelectedSkills;
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Done', style: TextStyle(color: Color(0xFF00AA55))),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _buildRoleDistributionForm() {
@@ -553,14 +614,23 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                         children: [
                            const Text('Task', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                            const SizedBox(height: 8),
-                           DropdownButtonFormField<String>(
-                            value: _selectedRoleTask,
-                            decoration: _inputDecoration('Select Task').copyWith(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                            ),
-                            items: _farmSkills.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 14)))).toList(),
-                            onChanged: (v) => setState(() => _selectedRoleTask = v),
-                          ),
+                           InkWell(
+                             onTap: _showMultiSelectDialog,
+                             child: InputDecorator(
+                               decoration: _inputDecoration('Select Tasks').copyWith(
+                                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                               ),
+                               child: Text(
+                                 _selectedRoleSkills.isEmpty ? 'Select Skills' : _selectedRoleSkills.join(', '),
+                                 style: TextStyle(
+                                   color: _selectedRoleSkills.isEmpty ? Colors.grey[400] : Colors.black87,
+                                   fontSize: 14,
+                                 ),
+                                 maxLines: 1,
+                                 overflow: TextOverflow.ellipsis,
+                               ),
+                             ),
+                           ),
                         ],
                       ),
                     ),
@@ -597,8 +667,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                         return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                            const Icon(Icons.circle, size: 8, color: Colors.green),
+                            const Padding(
+                              padding: EdgeInsets.only(top: 6.0),
+                              child: Icon(Icons.circle, size: 8, color: Colors.green),
+                            ),
                             const SizedBox(width: 8),
                             Expanded(child: Text(item, style: const TextStyle(fontSize: 14))),
                             InkWell(

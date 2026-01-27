@@ -14,7 +14,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   String? _selectedRole;
-  bool _isLogin = false; // Default to Sign Up
+  bool _isLogin = true; // Default to Login
   bool _isButtonEnabled = false;
 
   List<String> _getRoles(BuildContext context) {
