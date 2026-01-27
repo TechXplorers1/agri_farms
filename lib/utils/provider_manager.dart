@@ -421,6 +421,32 @@ class ProviderManager extends ChangeNotifier {
         jobsCompleted: 180,
         image: 'https://images.unsplash.com/photo-1559304822-9eb2813c9844?q=80&w=200&auto=format&fit=crop', // Sprayer
       ),
+      EquipmentListing(
+        id: '401',
+        name: 'Earth Movers Ltd',
+        serviceName: 'JCB',
+        brandModel: 'JCB 3DX',
+        distance: '8 km',
+        rating: 4.9,
+        price: '₹1200 / hour',
+        operatorAvailable: true,
+        condition: 'Excellent',
+        jobsCompleted: 300,
+        image: 'https://images.unsplash.com/photo-1579621970795-87facc2f976d?q=80&w=200&auto=format&fit=crop', // Construction/JCB
+      ),
+      EquipmentListing(
+        id: '402',
+        name: 'Village Excavators',
+        serviceName: 'JCB',
+        brandModel: 'JCB 4DX',
+        distance: '3 km',
+        rating: 4.5,
+        price: '₹1100 / hour',
+        operatorAvailable: true,
+        condition: 'Good',
+        jobsCompleted: 150,
+        image: 'https://images.unsplash.com/photo-1605218427306-022ba951dd0c?q=80&w=200&auto=format&fit=crop', // Placeholder
+      ),
     ]);
   }
 }

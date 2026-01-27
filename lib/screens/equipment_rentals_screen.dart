@@ -88,6 +88,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
                    _buildEquipmentCard(context, 'Tractors', AppLocalizations.of(context)!.tractors, '24 available', Icons.agriculture, Colors.green[50]!, Colors.green),
                    _buildEquipmentCard(context, 'Harvesters', AppLocalizations.of(context)!.harvesters, '12 available', Icons.grass, Colors.yellow[50]!, Colors.orange),
                    _buildEquipmentCard(context, 'Sprayers', AppLocalizations.of(context)!.sprayers, '18 available', Icons.water_drop, Colors.blue[50]!, Colors.blue),
+                   _buildEquipmentCard(context, 'JCB', AppLocalizations.of(context)!.jcb, '8 available', Icons.construction, Colors.orange[50]!, Colors.orange, imagePath: 'assets/images/jcb_icon.png'),
                    _buildEquipmentCard(context, 'Trolleys', AppLocalizations.of(context)!.trolleys, '15 available', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey), // Placeholder
                 ],
               ),
@@ -189,7 +190,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEquipmentCard(BuildContext context, String title, String displayTitle, String subtitle, IconData icon, Color bgColor, Color iconColor) {
+  Widget _buildEquipmentCard(BuildContext context, String title, String displayTitle, String subtitle, IconData icon, Color bgColor, Color iconColor, {String? imagePath}) {
      return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -222,7 +223,12 @@ class EquipmentRentalsScreen extends StatelessWidget {
                       color: bgColor.withOpacity(0.3), 
                       borderRadius: BorderRadius.circular(15), 
                     ),
-                    child: Icon(icon, size: 32, color: iconColor), 
+                    child: imagePath != null 
+                        ? Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Image.asset(imagePath, fit: BoxFit.contain),
+                          )
+                        : Icon(icon, size: 32, color: iconColor), 
                    ),
                  ),
                 const Spacer(),

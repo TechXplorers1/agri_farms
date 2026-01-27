@@ -25,10 +25,59 @@ class BookTransportDetailScreen extends StatefulWidget {
 class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
   String? _selectedGoodsType;
-  TimeOfDay? _startTime;
-  TimeOfDay? _endTime;
+
   DateTime? _selectedDate;
   final TextEditingController _addressController = TextEditingController();
+
+  // Time Slot Configuration
+  final int _startHour = 6; // 6:00 AM
+  final int _endHour = 20;  // 8:00 PM (Last slot starts at 8)
+  final List<int> _selectedSlots = [];
+
+  // Mock Logic: Check if a slot is blocked
+  bool _isSlotBlocked(int hour) {
+    if (_selectedDate == null) return false;
+    // Deterministic blocking based on date and hour hash
+    String dateKey = "${_selectedDate!.year}-${_selectedDate!.month}-${_selectedDate!.day}";
+    int hash = dateKey.hashCode + hour;
+    // Block roughly 20% of slots for demonstration
+    return (hash % 5) == 0;
+  }
+
+  void _onSlotTap(int hour) {
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a date first')),
+      );
+      return;
+    }
+    if (_isSlotBlocked(hour)) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This slot is already booked')),
+      );
+      return;
+    }
+
+    setState(() {
+      if (_selectedSlots.contains(hour)) {
+        _selectedSlots.remove(hour);
+        _selectedSlots.sort();
+      } else {
+        _selectedSlots.add(hour);
+        _selectedSlots.sort();
+      }
+    });
+  }
+
+  String _formatTime(int hour) {
+      if (hour == 12) return '12 PM';
+      if (hour > 12) return '${hour - 12} PM';
+      return '$hour AM';
+  }
+
+  String _formatTimeRange(int hour) {
+    return '${_formatTime(hour)} - ${_formatTime(hour + 1)}';
+  }
 
   @override
   void initState() {
@@ -90,45 +139,22 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     }
   }
 
-  Future<void> _selectTime(BuildContext context, bool isStartTime) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: isStartTime 
-          ? const TimeOfDay(hour: 9, minute: 0) 
-          : const TimeOfDay(hour: 17, minute: 0),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Colors.blue, // Transport Theme Blue
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
 
-    if (picked != null) {
-      setState(() {
-        if (isStartTime) {
-          _startTime = picked;
-        } else {
-          _endTime = picked;
-        }
-      });
-    }
-  }
 
   void _confirmBooking() async {
-    if (_selectedGoodsType != null && _startTime != null && _endTime != null && _selectedDate != null && _addressController.text.isNotEmpty) {
+    if (_selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty) {
       
       // Save address
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
 
-      String formattedTime = '${_startTime!.format(context)} - ${_endTime!.format(context)}';
+      // Format time slots
+      String formattedTime;
+      if (_selectedSlots.length == 1) {
+        formattedTime = _formatTimeRange(_selectedSlots.first);
+      } else {
+         formattedTime = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})'; // Simplified range display
+      }
 
       BookingManager().addBooking(BookingDetails(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -144,6 +170,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
           'Vehicle Count': 1,
           'Goods Type': _selectedGoodsType,
           'Time': formattedTime,
+          'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
           'Date': _selectedDate.toString().split(' ')[0],
           'Address': _addressController.text,
         }
@@ -165,7 +192,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       if (_selectedGoodsType == null) msg = AppLocalizations.of(context)!.selectGoodsTypeError;
       else if (_addressController.text.isEmpty) msg = 'Please enter address';
       else if (_selectedDate == null) msg = AppLocalizations.of(context)!.selectDateError;
-      else if (_startTime == null || _endTime == null) msg = AppLocalizations.of(context)!.selectTimeError;
+      else if (_selectedSlots.isEmpty) msg = 'Please select at least one time slot';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
@@ -317,32 +344,61 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             ),
             const SizedBox(height: 24),
 
+
+
+
+
             // Time Selection
             Text(
               AppLocalizations.of(context)!.preferredTime,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
+            if (_selectedDate == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('Select a date to view available time slots', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+              ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTimePicker(
-                    context: context, 
-                    label: AppLocalizations.of(context)!.startTime, 
-                    time: _startTime, 
-                    onTap: () => _selectTime(context, true)
+            
+            // Slots Grid
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3, 
+                childAspectRatio: 2.5,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: _endHour - _startHour, 
+              itemBuilder: (context, index) {
+                int hour = _startHour + index;
+                bool isBlocked = _isSlotBlocked(hour);
+                bool isSelected = _selectedSlots.contains(hour);
+                
+                return InkWell(
+                  onTap: () => _onSlotTap(hour),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isBlocked ? Colors.grey[200] : (isSelected ? Colors.blue : Colors.white), // Blue for Transport
+                      border: Border.all(
+                        color: isBlocked ? Colors.transparent : (isSelected ? Colors.blue : Colors.grey[300]!)
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _formatTimeRange(hour),
+                      style: TextStyle(
+                        color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : Colors.black87),
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 12,
+                        decoration: isBlocked ? TextDecoration.lineThrough : null,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                   child: _buildTimePicker(
-                    context: context, 
-                    label: AppLocalizations.of(context)!.endTime, 
-                    time: _endTime, 
-                    onTap: () => _selectTime(context, false)
-                  ),
-                ),
-              ],
+                );
+              },
             ),
 
             const SizedBox(height: 40),
@@ -394,44 +450,6 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     );
   }
 
-  Widget _buildTimePicker({
-    required BuildContext context, 
-    required String label, 
-    required TimeOfDay? time, 
-    required VoidCallback onTap
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 18, color: time == null ? Colors.grey[400] : Colors.blue),
-                const SizedBox(width: 8),
-                Text(
-                  time == null ? '-- : --' : time.format(context),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: time == null ? Colors.grey[400] : Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
 }

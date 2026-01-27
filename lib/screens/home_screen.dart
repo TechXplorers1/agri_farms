@@ -25,7 +25,9 @@ class HomeServiceItem {
   final String category; // 'Services', 'Transport', 'Rentals'
   final Widget navigationTarget;
 
-  HomeServiceItem(this.title, this.icon, this.bgColor, this.iconColor, this.category, this.navigationTarget);
+  final String? imagePath;
+
+  HomeServiceItem(this.title, this.icon, this.bgColor, this.iconColor, this.category, this.navigationTarget, {this.imagePath});
 }
 
 
@@ -55,6 +57,15 @@ class _HomeScreenState extends State<HomeScreen> {
       HomeServiceItem(l10n.harvesters, Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals', ServiceProvidersScreen(serviceKey: 'Harvesters', title: l10n.harvesters, userRole: widget.userRole)),
       HomeServiceItem(l10n.sprayers, Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals', ServiceProvidersScreen(serviceKey: 'Sprayers', title: l10n.sprayers, userRole: widget.userRole)),
       HomeServiceItem(l10n.trolleys, Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals', ServiceProvidersScreen(serviceKey: 'Trolleys', title: l10n.trolleys, userRole: widget.userRole)),
+      HomeServiceItem(
+        l10n.jcb, 
+        Icons.construction, 
+        Colors.orange[50]!, 
+        Colors.orange, 
+        'Rentals', 
+        ServiceProvidersScreen(serviceKey: 'JCB', title: l10n.jcb, userRole: widget.userRole),
+        imagePath: 'assets/images/jcb_icon.png'
+      ),
 
       // Services
       HomeServiceItem(l10n.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services', ServiceProvidersScreen(serviceKey: 'Ploughing', title: l10n.ploughing, userRole: widget.userRole)),

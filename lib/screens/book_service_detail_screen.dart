@@ -27,7 +27,57 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
+
+  // Time Slot Configuration
+  final int _startHour = 6; // 6:00 AM
+  final int _endHour = 20;  // 8:00 PM (Last slot starts at 8)
+  final List<int> _selectedSlots = [];
+
+  // Mock Logic: Check if a slot is blocked
+  bool _isSlotBlocked(int hour) {
+    if (_selectedDate == null) return false;
+    // Deterministic blocking based on date and hour hash
+    String dateKey = "${_selectedDate!.year}-${_selectedDate!.month}-${_selectedDate!.day}";
+    int hash = dateKey.hashCode + hour;
+    // Block roughly 20% of slots for demonstration
+    return (hash % 5) == 0;
+  }
+
+  void _onSlotTap(int hour) {
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a date first')),
+      );
+      return;
+    }
+    if (_isSlotBlocked(hour)) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This slot is already booked')),
+      );
+      return;
+    }
+
+    setState(() {
+      if (_selectedSlots.contains(hour)) {
+        _selectedSlots.remove(hour);
+        _selectedSlots.sort();
+      } else {
+        _selectedSlots.add(hour);
+        _selectedSlots.sort();
+      }
+    });
+  }
+
+  String _formatTime(int hour) {
+      if (hour == 12) return '12 PM';
+      if (hour > 12) return '${hour - 12} PM';
+      return '$hour AM';
+  }
+
+  String _formatTimeRange(int hour) {
+    return '${_formatTime(hour)} - ${_formatTime(hour + 1)}';
+  }
+
 
   @override
   void initState() {
@@ -80,39 +130,24 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     }
   }
 
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: const TimeOfDay(hour: 9, minute: 0),
-       builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF00AA55),
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && picked != _selectedTime) {
-      setState(() {
-        _selectedTime = picked;
-      });
-    }
-  }
+
 
   void _confirmBooking() async {
-    if (_selectedDate != null && _quantityController.text.isNotEmpty && _addressController.text.isNotEmpty) {
+    if (_selectedDate != null && _quantityController.text.isNotEmpty && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty) {
       // Save address for future use if it changed
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
 
       String bookingId = DateTime.now().millisecondsSinceEpoch.toString();
       String dateStr = _selectedDate.toString().split(' ')[0];
-      String timeStr = _selectedTime?.format(context) ?? 'Any time';
+      
+      // Format time slots
+      String timeStr;
+      if (_selectedSlots.length == 1) {
+        timeStr = _formatTimeRange(_selectedSlots.first);
+      } else {
+         timeStr = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})'; // Simplified range display
+      }
 
       BookingManager().addBooking(BookingDetails(
         id: bookingId,
@@ -128,6 +163,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
           'Quantity': _quantityController.text, // e.g., 5 Acres
           'Date': dateStr,
           'Preferred Time': timeStr,
+          'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
           'Address': _addressController.text,
           'Notes': _notesController.text,
         }
@@ -149,6 +185,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       if (_quantityController.text.isEmpty) msg = widget.serviceName == 'Harvesting' ? 'Please enter duration (Hours)' : 'Please enter quantity (Acres/Hours)';
       else if (_addressController.text.isEmpty) msg = 'Please enter service address';
       else if (_selectedDate == null) msg = 'Please select a date';
+      else if (_selectedSlots.isEmpty) msg = 'Please select at least one time slot';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg), backgroundColor: Colors.red),
@@ -286,40 +323,61 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
             const SizedBox(height: 24),
 
+
+
+
+
             // Time Selection
             Text(
               AppLocalizations.of(context)!.preferredTime,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
+            if (_selectedDate == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('Select a date to view available time slots', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+              ),
             const SizedBox(height: 12),
-             GestureDetector(
-              onTap: () => _selectTime(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.access_time, color: _selectedTime == null ? Colors.grey[400] : const Color(0xFF00AA55)),
-                    const SizedBox(width: 12),
-                    Text(
-                      _selectedTime == null 
-                          ? 'Morning / Evening' 
-                          : _selectedTime!.format(context),
+            
+            // Slots Grid
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3, 
+                childAspectRatio: 2.5,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: _endHour - _startHour, 
+              itemBuilder: (context, index) {
+                int hour = _startHour + index;
+                bool isBlocked = _isSlotBlocked(hour);
+                bool isSelected = _selectedSlots.contains(hour);
+                
+                return InkWell(
+                  onTap: () => _onSlotTap(hour),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isBlocked ? Colors.grey[200] : (isSelected ? const Color(0xFF00AA55) : Colors.white),
+                      border: Border.all(
+                        color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!)
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      _formatTimeRange(hour),
                       style: TextStyle(
-                        fontSize: 16,
-                        color: _selectedTime == null ? Colors.grey[500] : Colors.black87,
-                        fontWeight: _selectedTime == null ? FontWeight.normal : FontWeight.w500,
+                        color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : Colors.black87),
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 12,
+                        decoration: isBlocked ? TextDecoration.lineThrough : null,
                       ),
                     ),
-                    const Spacer(),
-                    Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 24),
