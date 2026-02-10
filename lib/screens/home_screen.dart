@@ -227,33 +227,36 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Logo and Actions Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Logo
+                      Row(
                         children: [
-                          Text(
-                            AppLocalizations.of(context)!.namaste,
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00AA55), // Match Splash Screen Green
+                              borderRadius: BorderRadius.circular(8),
                             ),
+                            child: const Icon(Icons.eco, color: Colors.white, size: 24), // Match Splash Icon
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _userName,
-                            style: const TextStyle(
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Agri Farms', // Match Splash Text Spacing
+                            style: TextStyle(
                               color: Colors.white,
-                              fontSize: 20,
+                              fontSize: 22,
                               fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ],
                       ),
+                      // Actions
                       Row(
                         children: [
-
                           if (['Owner', 'Provider'].contains(_userRole)) // Visible for Owners and Providers
                             IconButton(
                               icon: const Icon(Icons.assignment_outlined, color: Colors.white),
@@ -303,6 +306,30 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Greeting Section
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline, // Align text baselines
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        AppLocalizations.of(context)!.namaste,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 18, // Slightly increased for consistency
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _userName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),

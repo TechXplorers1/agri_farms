@@ -215,5 +215,11 @@
   "operatorAvailableSubtitle": "Can you provide a driver/operator?",
   "listingUploaded": "Listing uploaded successfully! Pending Approval.",
   "fillRequiredFields": "Please fill required fields",
-  "selectSkillError": "Please select at least one skill"
+  "selectSkillError": "Please select at least one skill",
+  "filter": "Filter",
+  "chooseMake": "Choose Make",
+  "chooseType": "Choose Type",
+  "chooseVehicle": "Choose Vehicle",
+  "chooseEquipment": "Choose Equipment",
+  "selectLocation": "Select Location"
 }

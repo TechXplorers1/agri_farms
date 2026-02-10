@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/provider_manager.dart';
+import '../data/vehicle_data.dart';
 
 class UploadItemScreen extends StatefulWidget {
   final String category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
@@ -28,6 +29,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   // Equipment Specific
   String? _selectedEquipmentType; 
+  String? _selectedMake; // New
+  String? _selectedModel; // New
   final TextEditingController _brandModelController = TextEditingController();
   final TextEditingController _yearController = TextEditingController(); // New
   bool _operatorAvailable = false;
@@ -418,6 +421,19 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   Widget _buildEquipmentForm() {
+    List<String> makes = [];
+    if (_selectedEquipmentType != null) {
+      makes = VehicleData.getMakes(_selectedEquipmentType!);
+    }
+
+    List<String> models = [];
+    if (_selectedEquipmentType != null && _selectedMake != null) {
+      models = VehicleData.getModels(_selectedEquipmentType!, _selectedMake!);
+    }
+
+    bool showManualMake = makes.isEmpty || _selectedMake == 'Other';
+    bool showManualModel = models.isEmpty || _selectedModel == 'Other';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -427,13 +443,64 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           value: _selectedEquipmentType,
           decoration: _inputDecoration('Category'),
           items: _equipmentCategories.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-          onChanged: (v) => setState(() => _selectedEquipmentType = v),
+          onChanged: (v) {
+            setState(() {
+              _selectedEquipmentType = v;
+              _selectedMake = null;
+              _selectedModel = null;
+              _brandModelController.clear();
+            });
+          },
         ),
         const SizedBox(height: 16),
          _buildTextField('Owner Name / Business', _nameController, AppLocalizations.of(context)!.ownerNameHint),
         const SizedBox(height: 16),
-        _buildTextField(AppLocalizations.of(context)!.brandModel, _brandModelController, 'e.g. John Deere 5310'),
-        const SizedBox(height: 16),
+
+        // MAKE SELECTION
+        if (makes.isNotEmpty) ...[
+          DropdownButtonFormField<String>(
+            value: _selectedMake,
+            decoration: _inputDecoration('Select Make'),
+            items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+            onChanged: (v) {
+              setState(() {
+                _selectedMake = v;
+                _selectedModel = null;
+                _brandModelController.clear();
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // MODEL SELECTION
+        if (models.isNotEmpty) ...[
+          DropdownButtonFormField<String>(
+            value: _selectedModel,
+            decoration: _inputDecoration('Select Model'),
+            items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+            onChanged: (v) {
+              setState(() {
+                _selectedModel = v;
+                if (v != 'Other') {
+                   // If not other, we set the manual controller to this value for submission logic compatibility
+                   _brandModelController.text = "${_selectedMake} $v"; 
+                } else {
+                   _brandModelController.clear();
+                }
+              });
+            },
+          ),
+           const SizedBox(height: 16),
+        ],
+        
+        // Manual Entry Fallback
+        if (showManualMake || showManualModel) 
+           _buildTextField(AppLocalizations.of(context)!.brandModel, _brandModelController, 'e.g. John Deere 5310'),
+
+        if (showManualMake || showManualModel) 
+           const SizedBox(height: 16),
+
         _buildTextField(AppLocalizations.of(context)!.yearManufacture, _yearController, 'e.g. 2021', keyboardType: TextInputType.number),
         const SizedBox(height: 16),
         _buildTextField(AppLocalizations.of(context)!.rentalPrice, _priceController, 'e.g. ₹500 / hour'),

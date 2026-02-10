@@ -9,7 +9,9 @@ import 'book_service_detail_screen.dart';
 import '../utils/provider_manager.dart';
 import '../utils/booking_manager.dart';
 
-class ServiceProvidersScreen extends StatelessWidget {
+import '../data/vehicle_data.dart'; // Import VehicleData
+
+class ServiceProvidersScreen extends StatefulWidget {
   final String serviceKey; // Internal key for data fetching (e.g., 'Ploughing')
   final String title;      // Localized title for display
   final String? userRole;
@@ -22,6 +24,14 @@ class ServiceProvidersScreen extends StatelessWidget {
   });
 
   @override
+  State<ServiceProvidersScreen> createState() => _ServiceProvidersScreenState();
+}
+
+class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
+  String? _selectedMake;
+  String? _selectedLocation;
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -31,14 +41,14 @@ class ServiceProvidersScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          title,
+          widget.title,
           style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.white,
         actions: [
-          if (['Owner', 'Provider'].contains(userRole))
+          if (['Owner', 'Provider'].contains(widget.userRole))
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: _buildAddButton(context),
@@ -48,64 +58,239 @@ class ServiceProvidersScreen extends StatelessWidget {
       body: AnimatedBuilder(
         animation: ProviderManager(),
         builder: (context, _) {
-          final providers = ProviderManager().getProvidersByService(serviceKey);
+          final allProviders = ProviderManager().getProvidersByService(widget.serviceKey);
+          
+          // --- Filter Logic ---
+          // 1. Get Unique Locations from current providers
+          final uniqueLocations = allProviders
+              .map((p) => p.location)
+              .where((loc) => loc.isNotEmpty)
+              .toSet()
+              .toList();
+          uniqueLocations.sort();
 
-          if (providers.isEmpty) {
-             return Center(
-               child: Column(
-                 mainAxisAlignment: MainAxisAlignment.center,
-                 children: [
-                   Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
-                   const SizedBox(height: 16),
-                   Text(AppLocalizations.of(context)!.noMatchFound, style: TextStyle(color: Colors.grey[600])),
-                 ],
-               ),
-             );
+          // 2. Get Makes/Brands from VehicleData
+          // Determine the category for VehicleData based on serviceKey or service type.
+          String dataCategory = widget.serviceKey;
+          if (widget.serviceKey == 'Ploughing') dataCategory = 'Tractors';
+          if (widget.serviceKey == 'Harvesting') dataCategory = 'Harvesters';
+          if (widget.serviceKey == 'Tractor Trolley') dataCategory = 'Trolleys';
+          
+          final availableMakes = VehicleData.getMakes(dataCategory);
+
+          // 3. Apply Filters
+          final filteredProviders = allProviders.where((provider) {
+            bool matchesMake = true;
+            bool matchesLocation = true;
+
+            if (_selectedMake != null && _selectedMake != 'All') {
+               // Check appropriate field based on type
+               if (provider is EquipmentListing) {
+                 matchesMake = provider.brandModel.contains(_selectedMake!); 
+               } else if (provider is TransportListing) {
+                 matchesMake = provider.vehicleType.contains(_selectedMake!) || provider.name.contains(_selectedMake!); // Loose matching
+               } else if (provider is ServiceListing) {
+                 matchesMake = provider.equipmentUsed.contains(_selectedMake!);
+               }
+               // Farm Workers don't typically have "Makes" unless we filter by skills? Skipping for now.
+            }
+
+            if (_selectedLocation != null && _selectedLocation != 'All') {
+              matchesLocation = provider.location == _selectedLocation;
+            }
+
+            return matchesMake && matchesLocation;
+          }).toList();
+
+
+          // Helper to get hint text
+          String getMakeHint(String key) {
+             if (key == 'Tractors' || key == 'Harvesters') return AppLocalizations.of(context)!.chooseMake;
+             if (key == 'Sprayers' || key == 'Trolleys' || key == 'Rotavators') return AppLocalizations.of(context)!.chooseMake;
+             if (['Mini Truck', 'Full Truck', 'Tractor Trolley', 'Pickup Van', 'Tempo', 'Container'].contains(key)) return AppLocalizations.of(context)!.chooseVehicle;
+             return AppLocalizations.of(context)!.chooseEquipment; // Default
           }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: providers.length,
-            itemBuilder: (context, index) {
-              final provider = providers[index];
-              
-              if (provider is FarmWorkerListing) {
-                return Column(
-                  children: [
-                    _buildWorkerProviderCard(
-                      context,
-                      provider: provider,
+          
+          return Column(
+            children: [
+               // --- Filter Section ---
+               Container(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12), // Increased padding
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2)),
+                    ],
+                  ),
+                 child: Row(
+                   children: [
+                     // Make Filter (Only show if we have makes available)
+                     if (availableMakes.isNotEmpty && availableMakes.length > 1) ...[
+                       Expanded(
+                         flex: 3,
+                         child: _buildDropdown(
+                           hint: getMakeHint(widget.serviceKey),
+                           value: _selectedMake,
+                           items: ['All', ...availableMakes],
+                           onChanged: (val) {
+                             setState(() {
+                               _selectedMake = val == 'All' ? null : val;
+                             });
+                           },
+                         ),
+                       ),
+                       const SizedBox(width: 12),
+                     ],
+                     
+                     // Location Filter
+                     Expanded(
+                       flex: 3, // Give equal or more space
+                       child: _buildLocationDropdown( // New method for distinct style
+                         hint: AppLocalizations.of(context)!.selectLocation,
+                         value: _selectedLocation,
+                         items: ['All', ...uniqueLocations],
+                         onChanged: (val) {
+                           setState(() {
+                             _selectedLocation = val == 'All' ? null : val;
+                           });
+                         },
+                       ),
+                     ),
+                   ],
+                 ),
+               ),
+               
+               // --- List Section ---
+               Expanded(
+                 child: filteredProviders.isEmpty
+                 ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(AppLocalizations.of(context)!.noMatchFound, style: TextStyle(color: Colors.grey[600])),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                  ],
-                );
-              } else if (provider is ServiceListing) {
-                 return Column(
-                   children: [
-                     _buildServiceListingCard(context, provider),
-                     const SizedBox(height: 16),
-                   ],
-                 );
-              } else if (provider is TransportListing) {
-                 return Column(
-                   children: [
-                     _buildTransportListingCard(context, provider),
-                     const SizedBox(height: 16),
-                   ],
-                 );
-              } else if (provider is EquipmentListing) {
-                 return Column(
-                   children: [
-                     _buildEquipmentListingCard(context, provider),
-                     const SizedBox(height: 16),
-                   ],
-                 );
-              } else {
-                 return const SizedBox(); // Fallback
-              }
-            },
+                  )
+                 : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredProviders.length,
+                    itemBuilder: (context, index) {
+                      final provider = filteredProviders[index];
+                      
+                      if (provider is FarmWorkerListing) {
+                        return Column(
+                          children: [
+                            _buildWorkerProviderCard(
+                              context,
+                              provider: provider,
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        );
+                      } else if (provider is ServiceListing) {
+                         return Column(
+                           children: [
+                             _buildServiceListingCard(context, provider),
+                             const SizedBox(height: 16),
+                           ],
+                         );
+                      } else if (provider is TransportListing) {
+                         return Column(
+                           children: [
+                             _buildTransportListingCard(context, provider),
+                             const SizedBox(height: 16),
+                           ],
+                         );
+                      } else if (provider is EquipmentListing) {
+                         return Column(
+                           children: [
+                             _buildEquipmentListingCard(context, provider),
+                             const SizedBox(height: 16),
+                           ],
+                         );
+                      } else {
+                         return const SizedBox(); // Fallback
+                      }
+                    },
+                  ),
+               ),
+            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildDropdown({
+    required String hint, 
+    required String? value, 
+    required List<String> items, 
+    required Function(String?) onChanged
+  }) {
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!)
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          hint: Text(hint, style: TextStyle(color: Colors.grey[600], fontSize: 13), overflow: TextOverflow.ellipsis),
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey, size: 20),
+          items: items.map((String item) {
+            return DropdownMenuItem<String>(
+              value: item,
+              child: Text(item, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
+            );
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationDropdown({
+    required String hint, 
+    required String? value, 
+    required List<String> items, 
+    required Function(String?) onChanged
+  }) {
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6), // Slight grey background
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.transparent) // No border, just background or different style
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.location_on, size: 16, color: Color(0xFF00AA55)), // Location Icon
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: value,
+                hint: Text(hint, style: TextStyle(color: Colors.black87, fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                isExpanded: true,
+                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.black54, size: 20),
+                items: items.map((String item) {
+                  return DropdownMenuItem<String>(
+                    value: item,
+                    child: Text(item, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                  );
+                }).toList(),
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -636,18 +821,18 @@ class ServiceProvidersScreen extends StatelessWidget {
     const transportKeys = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
     const equipmentKeys = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys'];
 
-    if (serviceKey == 'Farm Workers') {
+    if (widget.serviceKey == 'Farm Workers') {
       label = AppLocalizations.of(context)!.addGroup;
       category = 'Farm Workers';
-    } else if (transportKeys.contains(serviceKey)) {
+    } else if (transportKeys.contains(widget.serviceKey)) {
       label = AppLocalizations.of(context)!.addVehicle;
       category = 'Transport';
-    } else if (equipmentKeys.contains(serviceKey)) {
+    } else if (equipmentKeys.contains(widget.serviceKey)) {
       label = AppLocalizations.of(context)!.addEquipment;
       category = 'Equipment';
     } else {
       label = AppLocalizations.of(context)!.addService;
-      category = serviceKey;
+      category = widget.serviceKey;
     }
 
     return ElevatedButton.icon(

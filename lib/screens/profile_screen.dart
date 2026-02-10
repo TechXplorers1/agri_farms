@@ -11,7 +11,7 @@ import 'my_services_screen.dart';
 import 'generic_history_screen.dart';
 import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
-import 'admin/admin_dashboard_screen.dart';
+
 import 'provider/provider_requests_screen.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -192,16 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               decoration: _boxDecoration(),
               child: Column(
                 children: [
-                  _buildListTile(
-                    Icons.admin_panel_settings,
-                    AppLocalizations.of(context)!.adminPanel,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const AdminDashboard()),
-                      );
-                    }
-                  ),
-                  _buildDividerLine(),
+
                   _buildListTile(
                     Icons.person_outline, 
                     AppLocalizations.of(context)!.editProfile,
