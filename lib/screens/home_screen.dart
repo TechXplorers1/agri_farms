@@ -73,7 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
       HomeServiceItem(l10n.farmWorkers, Icons.groups, const Color(0xFFF3E5F5), Colors.purple, 'Services', ServiceProvidersScreen(serviceKey: 'Farm Workers', title: l10n.farmWorkers, userRole: widget.userRole)),
       HomeServiceItem(l10n.droneSpraying, Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services', ServiceProvidersScreen(serviceKey: 'Drone Spraying', title: l10n.droneSpraying, userRole: widget.userRole)),
       HomeServiceItem(l10n.irrigation, Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, 'Services', ServiceProvidersScreen(serviceKey: 'Irrigation', title: l10n.irrigation, userRole: widget.userRole)),
-      HomeServiceItem(l10n.soilTesting, Icons.science, const Color(0xFFF3E5F5), Colors.purple, 'Services', ServiceProvidersScreen(serviceKey: 'Soil Testing', title: l10n.soilTesting, userRole: widget.userRole)),
       HomeServiceItem(l10n.vetCare, Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services', ServiceProvidersScreen(serviceKey: 'Vet Care', title: l10n.vetCare, userRole: widget.userRole)),
       
       // Transport
@@ -394,6 +393,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (_getFilteredItems(context, 'Rentals').isNotEmpty) ...[
                          _buildSectionHeader(AppLocalizations.of(context)!.rentEquipment, () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
+                         }, onAdd: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
                          }),
                          const SizedBox(height: 12),
                           _buildSectionContainer(
@@ -415,6 +416,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (_getFilteredItems(context, 'Services').isNotEmpty) ...[
                          _buildSectionHeader(AppLocalizations.of(context)!.bookServices, () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => AgriServicesScreen(userRole: widget.userRole)));
+                         }, onAdd: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Services')));
                          }),
                          const SizedBox(height: 12),
                           _buildSectionContainer(
@@ -437,6 +440,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (_getFilteredItems(context, 'Transport').isNotEmpty) ...[
                          _buildSectionHeader(AppLocalizations.of(context)!.bookTransport, () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
+                         }, onAdd: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
                          }),
                          const SizedBox(height: 12),
                           _buildSectionContainer(
@@ -461,6 +466,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   // 1. Rent Equipment Section
                   _buildSectionHeader(AppLocalizations.of(context)!.rentEquipment, () {
                      Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
+                  }, onAdd: () {
+                     Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
                   }),
                   const SizedBox(height: 12),
                    _buildSectionContainer(
@@ -490,6 +497,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   // 2. Book Services Section
                   _buildSectionHeader(AppLocalizations.of(context)!.bookServices, () {
                     Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
+                  }, onAdd: () {
+                     Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Services')));
                   }),
                   const SizedBox(height: 12),
                      _buildSectionContainer(
@@ -519,6 +528,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   // 3. Book Transport Section
                   _buildSectionHeader(AppLocalizations.of(context)!.bookTransport, () {
                      Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
+                  }, onAdd: () {
+                     Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
                   }),
                   const SizedBox(height: 12),
                    _buildSectionContainer(
@@ -610,9 +621,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 24),
                   
                   // Banners
-                  _buildBanner(AppLocalizations.of(context)!.freeSoilTesting, AppLocalizations.of(context)!.bookNow, const Color(0xFFE3F2FD)), // Light Blue
-                  const SizedBox(height: 12),
-                  _buildBanner(AppLocalizations.of(context)!.newTractorsAvailable, AppLocalizations.of(context)!.lowRentalRates, const Color(0xFFFFF3E0)), // Light Orange
+
                   
                   const SizedBox(height: 24),
                    
@@ -728,13 +737,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, VoidCallback onViewMore) {
+  Widget _buildSectionHeader(String title, VoidCallback onViewMore, {VoidCallback? onAdd}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Row(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+             if (['Owner', 'Provider'].contains(_userRole) && onAdd != null) ...[
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: onAdd,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00AA55).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.add, size: 20, color: Color(0xFF00AA55)), // Add Icon
+                  ),
+                ),
+             ],
+          ],
         ),
         TextButton(
           onPressed: onViewMore,
@@ -852,77 +879,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBanner(String title, String subtitle, Color color) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25), // Increased padding height
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12), // Slightly customized radius
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(color: Colors.black54, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildInfoCard(String title, String content, String action, IconData icon, Color iconBg, Color iconColor) {
-    return Container(
-      // height: 180, // Removed fixed height to let parent control it
-
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-         border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-           Row(
-             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-             children: [
-               Container(
-                 padding: const EdgeInsets.all(6),
-                 decoration: BoxDecoration(
-                   color: iconBg,
-                   borderRadius: BorderRadius.circular(8),
-                 ),
-                 child: Icon(icon, color: iconColor, size: 20),
-               ),
-               Text(
-                 title,
-                 style: const TextStyle(fontSize: 14, color: Colors.grey),
-               )
-             ],
-           ),
-           const Spacer(),
-           Text(
-             content,
-             style: const TextStyle(fontSize: 14, color: Colors.grey, height: 1.5),
-           ),
-           if (action.isNotEmpty) ...[
-             const SizedBox(height: 12),
-             Text(
-               action,
-               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-             ),
-           ]
-        ],
-      ),
-    );
-  }
 
   Widget _buildCommunityQuestion(String question, String meta) {
     return Column(

@@ -51,6 +51,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   // Service Specific (Ploughing, etc.)
   final TextEditingController _equipmentUsedController = TextEditingController(); // e.g., "John Deere 5310"
   bool _operatorIncludedService = true;
+  String? _selectedServiceType; // New for generic Services category
 
   // Mock Lists
   final List<String> _transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
@@ -370,7 +371,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     final newProvider = ServiceListing(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameController.text, // Provider Name
-      serviceName: widget.category, // e.g. 'Ploughing' passed from home screen
+      serviceName: _selectedServiceType ?? widget.category, // e.g. 'Ploughing' passed from home screen or selected
       distance: '1 km',
       rating: 5.0,
       approvalStatus: 'Pending',
@@ -396,8 +397,29 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       children: [
         _buildSectionTitle('Service Details'),
         const SizedBox(height: 12),
-        // If category is generic 'Services', show dropdown? For now assuming fixed category passed
-        Text('Service Type: ${widget.category}', style: const TextStyle(fontSize: 14, color: Colors.grey)), 
+        // If category is generic 'Services', show dropdown
+        if (widget.category == 'Services') 
+           DropdownButtonFormField<String>(
+             value: null, 
+             // We need a local state variable for selected service if it's generic, 
+             // BUT simpler is just use the passed category if not 'Services'. 
+             // Since we need to save the specific service name (e.g. 'Ploughing'), 
+             // let's just reuse the _selectedTransportType logic but for services or add a new variable.
+             // For simplicity in this iteration, I'll add a new Dropdown and update the 'serviceName' in submit.
+             decoration: _inputDecoration('Select Service Type'),
+             items: _serviceCategories.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+             onChanged: (val) {
+                // We'll treat the widget.category as the *group* but we need to store the specific type.
+                // However, the submit logic currently uses widget.category. 
+                // Let's rely on _nameController or add a specific type controller.
+                // Actually, let's just update a local variable that _submitService uses.
+                // To do this cleanly without massive refactor, I'll add a member variable `_selectedServiceType` 
+                // and use it in _submitService if widget.category == 'Services'.
+                setState(() => _selectedServiceType = val);
+             },
+           )
+        else
+           Text('Service Type: ${widget.category}', style: const TextStyle(fontSize: 14, color: Colors.grey)), 
         const SizedBox(height: 16),
         _buildTextField('Provider Name / Business Name', _nameController, 'e.g. Ramesh Services'),
         const SizedBox(height: 16),
