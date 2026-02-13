@@ -132,6 +132,41 @@ class VehicleData {
         'Sonalika': ['Challenger', 'Smart', 'Other'],
         'Mahindra': ['Gyrovator ZLX', 'Gyrovator SLX', 'Other'],
         'Other': []
+    },
+    'Tractor Trolley': {
+      'Mahindra': ['Trolley', 'Other'],
+      'Swaraj': ['Trolley', 'Other'],
+      'Local': ['2 Wheel', '4 Wheel', 'Other'],
+      'Other': []
+    },
+    'Full Truck': {
+      'Tata Motors': ['LPT 1918', 'Signa 2823.K', 'Prima 2825.K', 'LPT 4225', 'Other'],
+      'Ashok Leyland': ['Ecomet 1615', 'Boss 1920', 'Captain 2823', 'U-Truck 2518', 'Other'],
+      'Eicher': ['Pro 3019', 'Pro 6028', 'Pro 2049', 'Other'],
+      'Mahindra': ['Blazo X 28', 'Furio 17', 'Other'],
+      'BharatBenz': ['1923C', '2823C', '3528C', 'Other'],
+      'Other': []
+    },
+    'Tempo': {
+      'Force Motors': ['Traveller', 'Trax Cruiser', 'Other'],
+      'Bajaj': ['Maxima C', 'RE', 'Other'],
+      'Piaggio': ['Ape Xtra LDX', 'Porter 700', 'Other'],
+      'Mahindra': ['Alfa Plus', 'Supro', 'Other'],
+      'Other': []
+    },
+    'Pickup Van': {
+      'Mahindra': ['Bolero Pik-Up', 'Bolero Camper', 'Bolero Maxitruck', 'Other'],
+      'Tata Motors': ['Yodha', 'Xenon', 'Ace', 'Other'],
+      'Isuzu': ['D-Max', 'S-Cab', 'Other'],
+      'Toyota': ['Hilux', 'Other'],
+       'Ashok Leyland': ['Dost+', 'Bada Dost', 'Other'],
+       'Other': []
+    },
+    'Container': {
+      'Tata Motors': ['LPT 1918 Container', 'Prima 4025.S', 'Other'],
+      'Ashok Leyland': ['Ecomet 1615 Container', 'Boss 1415', 'Other'],
+      'Eicher': ['Pro 3015 Container', 'Other'],
+      'Other': []
     }
   };
 

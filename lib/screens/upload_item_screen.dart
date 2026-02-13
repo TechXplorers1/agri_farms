@@ -22,6 +22,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   // Transport Specific
   String? _selectedTransportType;
+  String? _selectedVehicleMake; // New
+  String? _selectedVehicleModel; // New
   final TextEditingController _capacityController = TextEditingController();
   final TextEditingController _vehicleNumberController = TextEditingController(); // New
   final TextEditingController _serviceAreaController = TextEditingController(); // New
@@ -305,9 +307,67 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           value: _selectedTransportType,
           decoration: _inputDecoration(AppLocalizations.of(context)!.vehicleType),
           items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-          onChanged: (v) => setState(() => _selectedTransportType = v),
+          onChanged: (v) {
+            setState(() {
+              _selectedTransportType = v;
+              _selectedVehicleMake = null;
+              _selectedVehicleModel = null;
+              // we don't clear name as user might have typed custom title
+            });
+          },
         ),
         const SizedBox(height: 16),
+        
+        // MAKE & MODEL SELECTION
+        Builder(
+          builder: (context) {
+             List<String> makes = [];
+             if (_selectedTransportType != null) {
+               makes = VehicleData.getMakes(_selectedTransportType!);
+             }
+             
+             List<String> models = [];
+             if (_selectedTransportType != null && _selectedVehicleMake != null) {
+               models = VehicleData.getModels(_selectedTransportType!, _selectedVehicleMake!);
+             }
+             
+             return Column(
+               children: [
+                 if (makes.isNotEmpty) ...[
+                    DropdownButtonFormField<String>(
+                      value: _selectedVehicleMake,
+                      decoration: _inputDecoration('Select Make'),
+                      items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedVehicleMake = v;
+                          _selectedVehicleModel = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                 ],
+                 if (models.isNotEmpty) ...[
+                    DropdownButtonFormField<String>(
+                      value: _selectedVehicleModel,
+                      decoration: _inputDecoration('Select Model'),
+                      items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedVehicleModel = v;
+                          if (v != 'Other' && _selectedVehicleMake != null) {
+                             _nameController.text = "${_selectedVehicleMake} $v";
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                 ],
+               ],
+             );
+          }
+        ),
+
         _buildTextField('Vehicle Name / Title', _nameController, AppLocalizations.of(context)!.vehicleNameHint),
         const SizedBox(height: 16),
         _buildTextField(AppLocalizations.of(context)!.vehicleNumber, _vehicleNumberController, 'e.g. MH 40 AB 1234'),
