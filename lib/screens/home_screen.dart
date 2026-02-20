@@ -15,6 +15,9 @@ import 'provider/provider_requests_screen.dart'; // Import for header action
 import 'community_screen.dart';
 import 'upload_item_screen.dart';
 
+import 'upload_item_screen.dart';
+import '../../services/api_service.dart'; // Import ApiService
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeServiceItem {
@@ -89,6 +92,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    
+    // TEMPORARY: Verify API Connection
+    _verifyApiConnection();
+
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
@@ -100,6 +107,28 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  // TEMPORARY: Verification method
+  void _verifyApiConnection() async {
+    try {
+      final apiService = ApiService();
+      print('Attempting to fetch equipment from API...');
+      final equipment = await apiService.getEquipment();
+      print('API Success! Fetched equipment: $equipment');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('API Connection Successful! Check Console.')),
+        );
+      }
+    } catch (e) {
+      print('API Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('API Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _loadUserData() async {
