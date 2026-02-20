@@ -175,8 +175,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       );
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
-      if (_selectedDate == null) msg = 'Select a start date';
-      else if (_addressController.text.isEmpty) msg = 'Please enter delivery address';
+      if (_selectedDate == null) {
+        msg = 'Select a start date';
+      } else if (_addressController.text.isEmpty) msg = 'Please enter delivery address';
       else if (_selectedSlots.isEmpty) msg = 'Select at least one time slot';
 
       ScaffoldMessenger.of(context).showSnackBar(

@@ -180,8 +180,9 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       );
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
-      if (!hasWorkers) msg = AppLocalizations.of(context)!.selectAtLeastOneWorker;
-      else if (_addressController.text.isEmpty) msg = 'Please enter work location address';
+      if (!hasWorkers) {
+        msg = AppLocalizations.of(context)!.selectAtLeastOneWorker;
+      } else if (_addressController.text.isEmpty) msg = 'Please enter work location address';
       else if (_selectedDate == null) msg = AppLocalizations.of(context)!.selectDateError;
       else if (_startTime == null || _endTime == null) msg = AppLocalizations.of(context)!.selectTimeError;
 
@@ -284,7 +285,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                      }
                    ),
                  );
-               }).toList(),
+               }),
             ] else ...[
                // Classic Counter Selection
                _buildCounter(AppLocalizations.of(context)!.maleWorkers, _maleCount, widget.maxMale, widget.priceMale, (val) {

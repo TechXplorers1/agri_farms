@@ -182,8 +182,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       );
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
-      if (_quantityController.text.isEmpty) msg = widget.serviceName == 'Harvesting' ? 'Please enter duration (Hours)' : 'Please enter quantity (Acres/Hours)';
-      else if (_addressController.text.isEmpty) msg = 'Please enter service address';
+      if (_quantityController.text.isEmpty) {
+        msg = widget.serviceName == 'Harvesting' ? 'Please enter duration (Hours)' : 'Please enter quantity (Acres/Hours)';
+      } else if (_addressController.text.isEmpty) msg = 'Please enter service address';
       else if (_selectedDate == null) msg = 'Please select a date';
       else if (_selectedSlots.isEmpty) msg = 'Please select at least one time slot';
 

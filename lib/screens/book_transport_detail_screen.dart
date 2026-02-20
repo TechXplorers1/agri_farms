@@ -189,8 +189,9 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       );
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
-      if (_selectedGoodsType == null) msg = AppLocalizations.of(context)!.selectGoodsTypeError;
-      else if (_addressController.text.isEmpty) msg = 'Please enter address';
+      if (_selectedGoodsType == null) {
+        msg = AppLocalizations.of(context)!.selectGoodsTypeError;
+      } else if (_addressController.text.isEmpty) msg = 'Please enter address';
       else if (_selectedDate == null) msg = AppLocalizations.of(context)!.selectDateError;
       else if (_selectedSlots.isEmpty) msg = 'Please select at least one time slot';
 

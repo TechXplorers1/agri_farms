@@ -6,9 +6,6 @@ import 'agri_services_screen.dart';
 import 'book_transport_screen.dart';
 import 'equipment_rentals_screen.dart';
 import 'service_providers_screen.dart';
-import 'tools/fertilizer_calculator_screen.dart';
-import 'tools/pesticide_calculator_screen.dart';
-import 'tools/farming_calculator_screen.dart';
 import 'tools/farming_calculator_screen.dart';
 import 'tools/crop_advisory_screen.dart';
 import 'provider/provider_requests_screen.dart'; // Import for header action

@@ -37,7 +37,7 @@ class ServiceListing extends ServiceProvider {
     required super.serviceName,
     required super.distance,
     required super.rating,
-    String approvalStatus = 'Approved',
+    super.approvalStatus = 'Approved',
     super.location,
     super.isAvailable,
     super.jobsCompleted,
@@ -45,7 +45,7 @@ class ServiceListing extends ServiceProvider {
     required this.price,
     required this.operatorIncluded,
     super.image,
-  }) : super(approvalStatus: approvalStatus);
+  });
 }
 
 class FarmWorkerListing extends ServiceProvider {
@@ -62,7 +62,7 @@ class FarmWorkerListing extends ServiceProvider {
     required super.serviceName, // 'Farm Workers'
     required super.distance,
     required super.rating,
-    String approvalStatus = 'Approved',
+    super.approvalStatus = 'Approved',
     super.location,
     super.isAvailable,
     super.jobsCompleted,
@@ -73,7 +73,7 @@ class FarmWorkerListing extends ServiceProvider {
     required this.skills,
     this.roleDistribution = const [],
     super.image,
-  }) : super(approvalStatus: approvalStatus);
+  });
 }
 
 class TransportListing extends ServiceProvider {
@@ -90,7 +90,7 @@ class TransportListing extends ServiceProvider {
     required super.serviceName,
     required super.distance,
     required super.rating,
-    String approvalStatus = 'Approved',
+    super.approvalStatus = 'Approved',
     super.location,
     super.isAvailable,
     super.jobsCompleted,
@@ -101,7 +101,7 @@ class TransportListing extends ServiceProvider {
     this.vehicleNumber,
     this.serviceArea,
     super.image,
-  }) : super(approvalStatus: approvalStatus);
+  });
 }
 
 class EquipmentListing extends ServiceProvider {
@@ -117,7 +117,7 @@ class EquipmentListing extends ServiceProvider {
     required super.serviceName,
     required super.distance,
     required super.rating,
-    String approvalStatus = 'Approved',
+    super.approvalStatus = 'Approved',
     super.location,
     super.isAvailable,
     super.jobsCompleted,
@@ -127,7 +127,7 @@ class EquipmentListing extends ServiceProvider {
     this.condition = 'Good',
     this.yearOfManufacture,
     super.image,
-  }) : super(approvalStatus: approvalStatus);
+  });
 }
 
 class ProviderManager extends ChangeNotifier {

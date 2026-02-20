@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'upload_item_screen.dart';
-import 'generic_history_screen.dart';
 import 'service_providers_screen.dart';
-import '../utils/booking_manager.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class EquipmentRentalsScreen extends StatelessWidget {

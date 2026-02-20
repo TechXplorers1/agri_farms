@@ -7,7 +7,6 @@ import 'book_transport_detail_screen.dart';
 import 'book_equipment_detail_screen.dart';
 import 'book_service_detail_screen.dart';
 import '../utils/provider_manager.dart';
-import '../utils/booking_manager.dart';
 
 class ServiceProvidersScreen extends StatelessWidget {
   final String serviceKey; // Internal key for data fetching (e.g., 'Ploughing')
