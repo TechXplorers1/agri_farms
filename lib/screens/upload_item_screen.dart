@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/provider_manager.dart';
+import '../data/vehicle_data.dart';
 
 class UploadItemScreen extends StatefulWidget {
   final String category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
@@ -21,6 +22,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   // Transport Specific
   String? _selectedTransportType;
+  String? _selectedVehicleMake; // New
+  String? _selectedVehicleModel; // New
   final TextEditingController _capacityController = TextEditingController();
   final TextEditingController _vehicleNumberController = TextEditingController(); // New
   final TextEditingController _serviceAreaController = TextEditingController(); // New
@@ -28,6 +31,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   // Equipment Specific
   String? _selectedEquipmentType; 
+  String? _selectedMake; // New
+  String? _selectedModel; // New
   final TextEditingController _brandModelController = TextEditingController();
   final TextEditingController _yearController = TextEditingController(); // New
   bool _operatorAvailable = false;
@@ -48,6 +53,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   // Service Specific (Ploughing, etc.)
   final TextEditingController _equipmentUsedController = TextEditingController(); // e.g., "John Deere 5310"
   bool _operatorIncludedService = true;
+  String? _selectedServiceType; // New for generic Services category
 
   // Mock Lists
   final List<String> _transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
@@ -301,9 +307,67 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           value: _selectedTransportType,
           decoration: _inputDecoration(AppLocalizations.of(context)!.vehicleType),
           items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-          onChanged: (v) => setState(() => _selectedTransportType = v),
+          onChanged: (v) {
+            setState(() {
+              _selectedTransportType = v;
+              _selectedVehicleMake = null;
+              _selectedVehicleModel = null;
+              // we don't clear name as user might have typed custom title
+            });
+          },
         ),
         const SizedBox(height: 16),
+        
+        // MAKE & MODEL SELECTION
+        Builder(
+          builder: (context) {
+             List<String> makes = [];
+             if (_selectedTransportType != null) {
+               makes = VehicleData.getMakes(_selectedTransportType!);
+             }
+             
+             List<String> models = [];
+             if (_selectedTransportType != null && _selectedVehicleMake != null) {
+               models = VehicleData.getModels(_selectedTransportType!, _selectedVehicleMake!);
+             }
+             
+             return Column(
+               children: [
+                 if (makes.isNotEmpty) ...[
+                    DropdownButtonFormField<String>(
+                      value: _selectedVehicleMake,
+                      decoration: _inputDecoration('Select Make'),
+                      items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedVehicleMake = v;
+                          _selectedVehicleModel = null;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                 ],
+                 if (models.isNotEmpty) ...[
+                    DropdownButtonFormField<String>(
+                      value: _selectedVehicleModel,
+                      decoration: _inputDecoration('Select Model'),
+                      items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      onChanged: (v) {
+                        setState(() {
+                          _selectedVehicleModel = v;
+                          if (v != 'Other' && _selectedVehicleMake != null) {
+                             _nameController.text = "${_selectedVehicleMake} $v";
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                 ],
+               ],
+             );
+          }
+        ),
+
         _buildTextField('Vehicle Name / Title', _nameController, AppLocalizations.of(context)!.vehicleNameHint),
         const SizedBox(height: 16),
         _buildTextField(AppLocalizations.of(context)!.vehicleNumber, _vehicleNumberController, 'e.g. MH 40 AB 1234'),
@@ -367,7 +431,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     final newProvider = ServiceListing(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameController.text, // Provider Name
-      serviceName: widget.category, // e.g. 'Ploughing' passed from home screen
+      serviceName: _selectedServiceType ?? widget.category, // e.g. 'Ploughing' passed from home screen or selected
       distance: '1 km',
       rating: 5.0,
       approvalStatus: 'Pending',
@@ -393,8 +457,29 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       children: [
         _buildSectionTitle('Service Details'),
         const SizedBox(height: 12),
-        // If category is generic 'Services', show dropdown? For now assuming fixed category passed
-        Text('Service Type: ${widget.category}', style: const TextStyle(fontSize: 14, color: Colors.grey)), 
+        // If category is generic 'Services', show dropdown
+        if (widget.category == 'Services') 
+           DropdownButtonFormField<String>(
+             value: null, 
+             // We need a local state variable for selected service if it's generic, 
+             // BUT simpler is just use the passed category if not 'Services'. 
+             // Since we need to save the specific service name (e.g. 'Ploughing'), 
+             // let's just reuse the _selectedTransportType logic but for services or add a new variable.
+             // For simplicity in this iteration, I'll add a new Dropdown and update the 'serviceName' in submit.
+             decoration: _inputDecoration('Select Service Type'),
+             items: _serviceCategories.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+             onChanged: (val) {
+                // We'll treat the widget.category as the *group* but we need to store the specific type.
+                // However, the submit logic currently uses widget.category. 
+                // Let's rely on _nameController or add a specific type controller.
+                // Actually, let's just update a local variable that _submitService uses.
+                // To do this cleanly without massive refactor, I'll add a member variable `_selectedServiceType` 
+                // and use it in _submitService if widget.category == 'Services'.
+                setState(() => _selectedServiceType = val);
+             },
+           )
+        else
+           Text('Service Type: ${widget.category}', style: const TextStyle(fontSize: 14, color: Colors.grey)), 
         const SizedBox(height: 16),
         _buildTextField('Provider Name / Business Name', _nameController, 'e.g. Ramesh Services'),
         const SizedBox(height: 16),
@@ -418,6 +503,19 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   Widget _buildEquipmentForm() {
+    List<String> makes = [];
+    if (_selectedEquipmentType != null) {
+      makes = VehicleData.getMakes(_selectedEquipmentType!);
+    }
+
+    List<String> models = [];
+    if (_selectedEquipmentType != null && _selectedMake != null) {
+      models = VehicleData.getModels(_selectedEquipmentType!, _selectedMake!);
+    }
+
+    bool showManualMake = makes.isEmpty || _selectedMake == 'Other';
+    bool showManualModel = models.isEmpty || _selectedModel == 'Other';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -427,13 +525,64 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           value: _selectedEquipmentType,
           decoration: _inputDecoration('Category'),
           items: _equipmentCategories.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-          onChanged: (v) => setState(() => _selectedEquipmentType = v),
+          onChanged: (v) {
+            setState(() {
+              _selectedEquipmentType = v;
+              _selectedMake = null;
+              _selectedModel = null;
+              _brandModelController.clear();
+            });
+          },
         ),
         const SizedBox(height: 16),
          _buildTextField('Owner Name / Business', _nameController, AppLocalizations.of(context)!.ownerNameHint),
         const SizedBox(height: 16),
-        _buildTextField(AppLocalizations.of(context)!.brandModel, _brandModelController, 'e.g. John Deere 5310'),
-        const SizedBox(height: 16),
+
+        // MAKE SELECTION
+        if (makes.isNotEmpty) ...[
+          DropdownButtonFormField<String>(
+            value: _selectedMake,
+            decoration: _inputDecoration('Select Make'),
+            items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+            onChanged: (v) {
+              setState(() {
+                _selectedMake = v;
+                _selectedModel = null;
+                _brandModelController.clear();
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // MODEL SELECTION
+        if (models.isNotEmpty) ...[
+          DropdownButtonFormField<String>(
+            value: _selectedModel,
+            decoration: _inputDecoration('Select Model'),
+            items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+            onChanged: (v) {
+              setState(() {
+                _selectedModel = v;
+                if (v != 'Other') {
+                   // If not other, we set the manual controller to this value for submission logic compatibility
+                   _brandModelController.text = "${_selectedMake} $v"; 
+                } else {
+                   _brandModelController.clear();
+                }
+              });
+            },
+          ),
+           const SizedBox(height: 16),
+        ],
+        
+        // Manual Entry Fallback
+        if (showManualMake || showManualModel) 
+           _buildTextField(AppLocalizations.of(context)!.brandModel, _brandModelController, 'e.g. John Deere 5310'),
+
+        if (showManualMake || showManualModel) 
+           const SizedBox(height: 16),
+
         _buildTextField(AppLocalizations.of(context)!.yearManufacture, _yearController, 'e.g. 2021', keyboardType: TextInputType.number),
         const SizedBox(height: 16),
         _buildTextField(AppLocalizations.of(context)!.rentalPrice, _priceController, 'e.g. ₹500 / hour'),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
+import '../../services/api_service.dart'; // Import ApiService
 
 class VerifyOtpScreen extends StatefulWidget {
   final String mobileNumber;
@@ -24,6 +25,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   final List<TextEditingController> _controllers = List.generate(6, (index) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (index) => FocusNode());
   bool _isButtonEnabled = false;
+  bool _isLoading = false; // Add loading state
   int _secondsRemaining = 60;
   Timer? _timer;
 
@@ -69,18 +71,45 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
 
   Future<void> _verify() async {
     if (_isButtonEnabled) {
-      // Logic would go here to actually verify the OTP - Mock success
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Logic would go here to actually verify the OTP - Mock success assuming OTP is correct for now
       
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_name', widget.fullName);
-      await prefs.setString('user_mobile', widget.mobileNumber);
-      await prefs.setString('user_role', widget.role); // Important: Save Role
-      
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => HomeScreen(userRole: widget.role)),
-          (route) => false,
-        );
+      try {
+        final apiService = ApiService();
+        // Create user in backend
+        await apiService.createUser({
+          'fullName': widget.fullName,
+          'phoneNumber': widget.mobileNumber,
+          'role': widget.role,
+        });
+
+        // Save local session
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', widget.fullName);
+        await prefs.setString('user_mobile', widget.mobileNumber);
+        await prefs.setString('user_role', widget.role); 
+        
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => HomeScreen(userRole: widget.role)),
+            (route) => false,
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to create account: $e'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -212,7 +241,9 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                     ),
                     disabledBackgroundColor: Colors.grey,
                   ),
-                  child: const Text(
+                  child: _isLoading 
+                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                    : const Text(
                     'Verify',
                     style: TextStyle(
                       color: Colors.white,
