@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/api_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -12,10 +13,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _villageController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
-  final TextEditingController _farmSizeController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
 
+  String? _userId;
   bool _isLoading = true;
 
   @override
@@ -27,29 +27,71 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
+      _userId = prefs.getString('user_id');
       _nameController.text = prefs.getString('user_name') ?? 'User';
       _villageController.text = prefs.getString('user_village') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
-      _farmSizeController.text = prefs.getString('user_farm_size') ?? '';
-      _phoneController.text = prefs.getString('user_phone') ?? '+919188528855'; 
-      _addressController.text = prefs.getString('user_address') ?? '';
+      _phoneController.text = prefs.getString('user_mobile') ?? '+919188528855'; 
       _isLoading = false;
     });
   }
 
   Future<void> _saveProfileData() async {
     setState(() => _isLoading = true);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', _nameController.text);
-    await prefs.setString('user_village', _villageController.text);
-    await prefs.setString('user_district', _districtController.text);
-    await prefs.setString('user_farm_size', _farmSizeController.text);
-    await prefs.setString('user_phone', _phoneController.text);
-    await prefs.setString('user_address', _addressController.text);
     
-    if (mounted) {
-      setState(() => _isLoading = false);
-      Navigator.pop(context, true); // Return true to indicate update
+    try {
+      final apiService = ApiService();
+      if (_userId == null) {
+        final phone = _phoneController.text;
+        // The backend expects the exact number as stored.
+        // We ensure we only search by the numeric part or encode properly.
+        final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+        final encodedPhone = Uri.encodeComponent(cleanPhone);
+        
+        try {
+          final user = await apiService.getUserByPhone(encodedPhone);
+          if (user['userId'] != null) {
+            _userId = user['userId'].toString();
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('user_id', _userId!);
+          } else {
+             throw Exception('User fetched but userId is still null');
+          }
+        } catch (e) {
+             throw Exception('Failed to fetch user by phone ($cleanPhone): $e');
+        }
+      }
+
+      if (_userId != null) {
+        await apiService.updateUser(_userId!, {
+          'fullName': _nameController.text,
+          'village': _villageController.text,
+          'district': _districtController.text,
+        });
+      } else {
+        throw Exception('Could not find user ID to update back-end.');
+      }
+
+      // Update local storage
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_name', _nameController.text);
+      await prefs.setString('user_village', _villageController.text);
+      await prefs.setString('user_district', _districtController.text);
+      
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context, true); // Return true to indicate update
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update profile: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -58,9 +100,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.dispose();
     _villageController.dispose();
     _districtController.dispose();
-    _farmSizeController.dispose();
     _phoneController.dispose();
-    _addressController.dispose();
     super.dispose();
   }
 
@@ -132,11 +172,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   _buildTextField(_nameController, 'Enter User Name'),
                   const SizedBox(height: 20),
 
-                  // Address
-                  _buildLabel('Address'),
-                  _buildTextField(_addressController, 'Enter your full address', maxLines: 3),
-                  const SizedBox(height: 20),
-
                   // Village & District Row
                   Row(
                     children: [
@@ -161,11 +196,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-
-                  // Farm Size
-                  _buildLabel('Farm Size'),
-                  _buildTextField(_farmSizeController, ''),
                   const SizedBox(height: 20),
 
                   // Phone

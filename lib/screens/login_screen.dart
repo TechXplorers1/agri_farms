@@ -56,8 +56,9 @@ class _AuthScreenState extends State<AuthScreen> {
         MaterialPageRoute(
           builder: (context) => VerifyOtpScreen(
             mobileNumber: _phoneController.text,
-            fullName: _isLogin ? 'User' : _nameController.text, // Mock name for login
-            role: _isLogin ? 'Farmer' : _selectedRole!,        // Mock role for login
+            fullName: _isLogin ? '' : _nameController.text, // Empty for login
+            role: _isLogin ? '' : _selectedRole!,        // Empty for login
+            isLogin: _isLogin,
           ),
         ),
       );

@@ -9,12 +9,14 @@ class VerifyOtpScreen extends StatefulWidget {
   final String mobileNumber;
   final String fullName;
   final String role;
+  final bool isLogin;
 
   const VerifyOtpScreen({
     super.key,
     required this.mobileNumber,
     required this.fullName,
     required this.role,
+    this.isLogin = false, // Default false for backward compatibility if needed
   });
 
   @override
@@ -79,22 +81,54 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
       
       try {
         final apiService = ApiService();
-        // Create user in backend
-        await apiService.createUser({
-          'fullName': widget.fullName,
-          'phoneNumber': widget.mobileNumber,
-          'role': widget.role,
-        });
+        dynamic user;
+
+        if (widget.isLogin) {
+          // Attempt to fetch existing user
+          try {
+            user = await apiService.getUserByPhone(widget.mobileNumber);
+          } catch (e) {
+            if (e.toString().contains('404') || e.toString().contains('Not Found')) {
+              throw Exception('User not found. Please Sign Up first.');
+            } else {
+              throw Exception('Failed to authenticate: $e');
+            }
+          }
+        } else {
+          // Sign Up - Create user in backend
+          try {
+            // First check if user already exists
+            user = await apiService.getUserByPhone(widget.mobileNumber);
+            throw Exception('User already exists. Please Login instead.');
+          } catch (e) {
+            if (e.toString().contains('404') || e.toString().contains('Not Found')) {
+              // Create user
+              user = await apiService.createUser({
+                'fullName': widget.fullName,
+                'phoneNumber': widget.mobileNumber,
+                'role': widget.role,
+              });
+            } else {
+              rethrow;
+            }
+          }
+        }
+
+        final String userRole = user['role'] ?? widget.role;
+        final String userName = user['fullName'] ?? widget.fullName;
 
         // Save local session
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_name', widget.fullName);
+        await prefs.setString('user_name', userName);
         await prefs.setString('user_mobile', widget.mobileNumber);
-        await prefs.setString('user_role', widget.role); 
+        await prefs.setString('user_role', userRole); 
+        if (user['userId'] != null) {
+          await prefs.setString('user_id', user['userId'].toString());
+        }
         
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => HomeScreen(userRole: widget.role)),
+            MaterialPageRoute(builder: (context) => HomeScreen(userRole: userRole)),
             (route) => false,
           );
         }

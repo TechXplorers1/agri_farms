@@ -8,6 +8,7 @@ import 'help_support_screen.dart';
 import 'terms_privacy_screen.dart';
 import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
+import '../../services/api_service.dart'; // Import ApiService
 
 import 'provider/provider_requests_screen.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -34,6 +35,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // First load from local storage immediately so UI doesn't look empty
     setState(() {
       _selectedLanguage = prefs.getString('selected_language') ?? 'English';
       _userName = prefs.getString('user_name') ?? 'User';
@@ -41,6 +44,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _userDistrict = prefs.getString('user_district') ?? 'Your District';
       _userRole = prefs.getString('user_role') ?? 'User';
     });
+
+    // Then fetch latest from backend if user_id exists
+    final userId = prefs.getString('user_id');
+    if (userId != null) {
+      try {
+        final apiService = ApiService();
+        final userData = await apiService.getUser(userId);
+        
+        // Update local session to keep it in sync
+        await prefs.setString('user_name', userData['fullName'] ?? _userName);
+        await prefs.setString('user_village', userData['village'] ?? _userVillage);
+        await prefs.setString('user_district', userData['district'] ?? _userDistrict);
+        await prefs.setString('user_role', userData['role'] ?? _userRole);
+
+        if (mounted) {
+          setState(() {
+            _userName = userData['fullName'] ?? _userName;
+            _userVillage = userData['village'] ?? _userVillage;
+            _userDistrict = userData['district'] ?? _userDistrict;
+            _userRole = userData['role'] ?? _userRole;
+          });
+        }
+      } catch (e) {
+        // If it fails, we gracefully fall back to what we already loaded from SharedPreferences
+        print('Error fetching updated profile: $e');
+      }
+    }
   }
 
   @override
@@ -91,7 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const Icon(Icons.location_on_outlined, color: Colors.white70, size: 16),
                           const SizedBox(width: 4),
                           Text(
-                            '${AppLocalizations.of(context)!.yourVillage}, ${AppLocalizations.of(context)!.yourDistrict}',
+                            '$_userVillage, $_userDistrict',
                             style: const TextStyle(color: Colors.white70, fontSize: 14),
                           ),
                         ],
@@ -282,11 +312,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (context) => const AuthScreen()),
-                    (route) => false,
-                  );
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('user_id');
+                  await prefs.remove('user_name');
+                  await prefs.remove('user_mobile');
+                  await prefs.remove('user_role');
+
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => const AuthScreen()),
+                      (route) => false,
+                    );
+                  }
                 },
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Colors.red), // Red border
