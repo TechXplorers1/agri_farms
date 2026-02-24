@@ -8,6 +8,8 @@ import 'book_equipment_detail_screen.dart';
 import 'book_service_detail_screen.dart';
 import '../utils/provider_manager.dart';
 
+import '../services/api_service.dart';
+
 import '../data/vehicle_data.dart'; // Import VehicleData
 
 class ServiceProvidersScreen extends StatefulWidget {
@@ -29,6 +31,47 @@ class ServiceProvidersScreen extends StatefulWidget {
 class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   String? _selectedMake;
   String? _selectedLocation;
+  late Future<List<ServiceProvider>> _providersFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _providersFuture = _fetchProviders();
+  }
+
+  Future<List<ServiceProvider>> _fetchProviders() async {
+    final List<String> transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
+    
+    if (transportTypes.contains(widget.serviceKey)) {
+      try {
+        final apiService = ApiService();
+        // The backend endpoint accepts 'type' param
+        final vehicles = await apiService.getVehicles(type: widget.serviceKey) as List;
+        return vehicles.map((v) => TransportListing(
+          id: v['vehicleId'],
+          name: v['ownerName'] ?? 'Unknown Owner',
+          serviceName: v['vehicleType'],
+          distance: 'Pending', // Fallback, no live location available
+          rating: (v['rating'] ?? 5.0).toDouble(),
+          approvalStatus: v['approvalStatus'] ?? 'Pending',
+          location: v['location'] ?? 'Unknown',
+          vehicleType: v['vehicleType'],
+          loadCapacity: v['loadCapacity'] ?? 'Unknown',
+          price: '₹${v['pricePerKmOrTrip']} / Trip',
+          driverIncluded: v['driverIncluded'] ?? true,
+          vehicleNumber: v['vehicleNumber'],
+          serviceArea: v['serviceArea'],
+          image: v['imageUrl'] ?? 'https://placehold.co/600x400?text=Vehicle',
+        )).toList();
+      } catch (e) {
+        // Fallback to local on error or simply throw
+        return ProviderManager().getProvidersByService(widget.serviceKey);
+      }
+    } else {
+      // Return local mock data for other service types until their APIs are integrated
+      return Future.value(ProviderManager().getProvidersByService(widget.serviceKey));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,10 +97,18 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             ),
         ],
       ),
-      body: AnimatedBuilder(
-        animation: ProviderManager(),
-        builder: (context, _) {
-          final allProviders = ProviderManager().getProvidersByService(widget.serviceKey);
+      body: FutureBuilder<List<ServiceProvider>>(
+        future: _providersFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
+          }
+
+          if (snapshot.hasError) {
+             return Center(child: Text('Error loading providers: ${snapshot.error}'));
+          }
+
+          final allProviders = snapshot.data ?? [];
           
           // --- Filter Logic ---
           // 1. Get Unique Locations from current providers
