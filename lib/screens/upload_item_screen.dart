@@ -447,31 +447,55 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _completeSubmission();
   }
 
-  void _submitService() {
+  Future<void> _submitService() async {
     if (_nameController.text.isEmpty || _priceController.text.isEmpty) {
        _showError('Please provide service details');
        return;
     }
 
-    final newProvider = ServiceListing(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _nameController.text, // Provider Name
-      serviceName: _selectedServiceType ?? widget.category, // e.g. 'Ploughing' passed from home screen or selected
-      distance: '1 km',
-      rating: 5.0,
-      approvalStatus: 'Pending',
-      location: _locationController.text,
-      equipmentUsed: _equipmentUsedController.text.isNotEmpty ? _equipmentUsedController.text : 'Standard Equipment',
-      price: _priceController.text,
-      operatorIncluded: _operatorIncludedService,
-      jobsCompleted: 0,
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
+      double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
 
-      isAvailable: true,
-      image: 'https://placehold.co/600x400?text=Service', 
-    );
+      final Map<String, dynamic> serviceData = {
+        'ownerId': ownerId,
+        'serviceType': _selectedServiceType ?? widget.category,
+        'businessName': _nameController.text,
+        'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : 'No description provided',
+        'equipmentUsed': _equipmentUsedController.text.isNotEmpty ? _equipmentUsedController.text : 'Standard Equipment',
+        'priceRate': parsedPrice,
+        'operatorIncluded': _operatorIncludedService,
+        'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        'isAvailable': true,
+        'rating': 5.0,
+        'approvalStatus': 'Pending',
+        'imageUrl': 'https://placehold.co/600x400?text=Service',
+      };
 
-    ProviderManager().addProvider(newProvider);
-    _completeSubmission();
+      await ApiService().addService(serviceData);
+
+      final newProvider = ServiceListing(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: _nameController.text, // Provider Name
+        serviceName: _selectedServiceType ?? widget.category, // e.g. 'Ploughing' passed from home screen or selected
+        distance: '1 km',
+        rating: 5.0,
+        approvalStatus: 'Pending',
+        location: _locationController.text,
+        equipmentUsed: _equipmentUsedController.text.isNotEmpty ? _equipmentUsedController.text : 'Standard Equipment',
+        price: _priceController.text,
+        operatorIncluded: _operatorIncludedService,
+        jobsCompleted: 0,
+        isAvailable: true,
+        image: 'https://placehold.co/600x400?text=Service', 
+      );
+
+      ProviderManager().addProvider(newProvider);
+      _completeSubmission();
+    } catch (e) {
+      _showError('Failed to save service to server: $e');
+    }
   }
 
   // ... (existing _submitEquipment ...)
