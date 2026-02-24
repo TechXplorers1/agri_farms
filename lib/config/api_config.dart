@@ -3,7 +3,7 @@ class ApiConfig {
   // Use your machine's IP address if testing on a real device.
   // Use 'localhost' ONLY if testing on iOS simulator.
   // UPDATE: Found local IP 192.168.29.196. This works best for physical devices too.
-  static const String baseUrl = 'http://192.168.29.84:8083'; 
+  static const String baseUrl = 'http://localhost:8083'; 
 
   static const String users = '/api/users';
   static const String bookings = '/api/bookings';

@@ -3,6 +3,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/provider_manager.dart';
 import '../data/vehicle_data.dart';
+import '../services/api_service.dart';
 
 class UploadItemScreen extends StatefulWidget {
   final String category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
@@ -57,7 +58,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   // Mock Lists
   final List<String> _transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
-  final List<String> _equipmentCategories = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys']; 
+  final List<String> _equipmentCategories = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB']; 
   final List<String> _serviceCategories = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Soil Testing', 'Vet Care', 'Electricians', 'Mechanics']; // For dropdown if category is generic 'Services' 
   
   final List<String> _conditions = ['New', 'Good', 'Average', 'Poor'];
@@ -143,30 +144,54 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
 
 
-  void _submitEquipment() {
+  Future<void> _submitEquipment() async {
     if (_selectedEquipmentType == null || _brandModelController.text.isEmpty || _priceController.text.isEmpty) {
        _showError(AppLocalizations.of(context)!.fillRequiredFields);
        return;
     }
 
-    final newProvider = EquipmentListing(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _nameController.text.isNotEmpty ? _nameController.text : 'Owner', // Owner name usually
-      serviceName: _selectedEquipmentType!, // 'Tractors', 'Harvesters'
-      distance: '1 km',
-      rating: 5.0,
-      approvalStatus: 'Pending',
-      location: _locationController.text,
-      brandModel: _brandModelController.text,
-      price: _priceController.text,
-      operatorAvailable: _operatorAvailable,
-      condition: _condition,
-      yearOfManufacture: _yearController.text.isNotEmpty ? _yearController.text : null,
-      image: 'https://placehold.co/600x400?text=Equipment',
-    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
+      double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
 
-    ProviderManager().addProvider(newProvider);
-    _completeSubmission();
+      final Map<String, dynamic> equipmentData = {
+        'ownerId': ownerId,
+        'category': _selectedEquipmentType,
+        'brandModel': _brandModelController.text,
+        'conditionStatus': _condition,
+        'pricePerHour': parsedPrice,
+        'operatorAvailable': _operatorAvailable,
+        'location': _locationController.text,
+        'isAvailable': true,
+        'rating': 5.0,
+        'approvalStatus': 'Pending',
+        'imageUrl': 'https://placehold.co/600x400?text=Equipment',
+      };
+
+      await ApiService().addEquipment(equipmentData);
+
+      final newProvider = EquipmentListing(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: _nameController.text.isNotEmpty ? _nameController.text : 'Owner', // Owner name usually
+        serviceName: _selectedEquipmentType!, // 'Tractors', 'Harvesters'
+        distance: '1 km',
+        rating: 5.0,
+        approvalStatus: 'Pending',
+        location: _locationController.text,
+        brandModel: _brandModelController.text,
+        price: _priceController.text,
+        operatorAvailable: _operatorAvailable,
+        condition: _condition,
+        yearOfManufacture: _yearController.text.isNotEmpty ? _yearController.text : null,
+        image: 'https://placehold.co/600x400?text=Equipment',
+      );
+
+      ProviderManager().addProvider(newProvider);
+      _completeSubmission();
+    } catch (e) {
+      _showError('Failed to save equipment to server: $e');
+    }
   }
 
   void _completeSubmission() {
