@@ -59,7 +59,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   // Mock Lists
   final List<String> _transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
   final List<String> _equipmentCategories = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB']; 
-  final List<String> _serviceCategories = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Soil Testing', 'Vet Care', 'Electricians', 'Mechanics']; // For dropdown if category is generic 'Services' 
+  final List<String> _serviceCategories = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Soil Testing', 'Vet Care', 'Electricians', 'Mechanics', 'Farm Workers']; // Added Farm Workers
   
   final List<String> _conditions = ['New', 'Good', 'Average', 'Poor'];
 
@@ -90,7 +90,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   void _submit() {
-    if (widget.category == 'Farm Workers') {
+    // If we are in 'Services' generic category and the selected dropdown item is 'Farm Workers'
+    if (widget.category == 'Farm Workers' || (widget.category == 'Services' && _selectedServiceType == 'Farm Workers')) {
       _submitFarmWorker();
     } else if (widget.category == 'Transport') {
       _submitTransport();
@@ -102,7 +103,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     }
   }
 
-  void _submitFarmWorker() {
+  Future<void> _submitFarmWorker() async {
     if (_nameController.text.isEmpty || (_maleCountController.text.isEmpty && _femaleCountController.text.isEmpty)) {
       _showError(AppLocalizations.of(context)!.fillRequiredFields);
       return;
@@ -113,7 +114,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       return;
     }
 
-
     // Derive skills from the added roles
     final derivedSkills = _roleDistributions
         .map((e) => e.split('-')[1].trim())
@@ -121,25 +121,72 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         .toSet()
         .toList();
 
-    final newProvider = FarmWorkerListing(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _nameController.text, // Group Name
-      serviceName: 'Farm Workers',
-      distance: '0.5 km', // Mock
-      rating: 5.0,
-      approvalStatus: 'Pending',
-      location: _locationController.text.isNotEmpty ? _locationController.text : 'Local',
-      maleCount: int.tryParse(_maleCountController.text) ?? 0,
-      femaleCount: int.tryParse(_femaleCountController.text) ?? 0,
-      malePrice: int.tryParse(_malePriceController.text) ?? 0,
-      femalePrice: int.tryParse(_femalePriceController.text) ?? 0,
-      skills: derivedSkills.join(', '),
-      roleDistribution: _roleDistributions,
-      image: 'https://placehold.co/600x400?text=Workers',
-    );
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
 
-    ProviderManager().addProvider(newProvider);
-    _completeSubmission();
+      // Parse _roleDistributions (e.g. "5 Male - Sowing, Harvesting") into List of maps for DTO
+      List<Map<String, dynamic>> rolesPayload = [];
+      for (String roleStr in _roleDistributions) {
+        // e.g. "5 Male - Sowing, Weeding"
+        final parts = roleStr.split('-');
+        if (parts.length == 2) {
+          final countAndGender = parts[0].trim().split(' '); // ["5", "Male"]
+          final tasks = parts[1].trim(); // "Sowing, Weeding"
+          
+          if (countAndGender.length >= 2) {
+            int count = int.tryParse(countAndGender[0]) ?? 0;
+            String gender = countAndGender[1];
+            rolesPayload.add({
+              'gender': gender,
+              'count': count,
+              'taskName': tasks
+            });
+          }
+        }
+      }
+
+      final Map<String, dynamic> workerGroupData = {
+        'ownerId': ownerId,
+        'groupName': _nameController.text,
+        'maleCount': int.tryParse(_maleCountController.text) ?? 0,
+        'femaleCount': int.tryParse(_femaleCountController.text) ?? 0,
+        'pricePerMale': double.tryParse(_malePriceController.text) ?? 0.0,
+        'pricePerFemale': double.tryParse(_femalePriceController.text) ?? 0.0,
+        'skills': derivedSkills.join(', '),
+        'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        'serviceRangeKm': 50, // default or add field later
+        'isAvailable': true,
+        'rating': 5.0,
+        'approvalStatus': 'Pending',
+        'imageUrl': 'https://placehold.co/600x400?text=Workers',
+        'roles': rolesPayload
+      };
+
+      await ApiService().addWorkerGroup(workerGroupData);
+
+      final newProvider = FarmWorkerListing(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: _nameController.text, // Group Name
+        serviceName: 'Farm Workers',
+        distance: '0.5 km', // Mock
+        rating: 5.0,
+        approvalStatus: 'Pending',
+        location: _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        maleCount: int.tryParse(_maleCountController.text) ?? 0,
+        femaleCount: int.tryParse(_femaleCountController.text) ?? 0,
+        malePrice: int.tryParse(_malePriceController.text) ?? 0,
+        femalePrice: int.tryParse(_femalePriceController.text) ?? 0,
+        skills: derivedSkills.join(', '),
+        roleDistribution: _roleDistributions,
+        image: 'https://placehold.co/600x400?text=Workers',
+      );
+
+      ProviderManager().addProvider(newProvider);
+      _completeSubmission();
+    } catch (e) {
+      _showError('Failed to save worker group to server: $e');
+    }
   }
 
 
@@ -260,10 +307,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             if (widget.category == 'Equipment') _buildEquipmentForm(),
             if (!['Farm Workers', 'Transport', 'Equipment'].contains(widget.category)) _buildServicesForm(),
 
-            const SizedBox(height: 24),
-             _buildTextField(AppLocalizations.of(context)!.locationLabel, _locationController, 'e.g. Rampur, Nagpur'),
-            const SizedBox(height: 16),
-             _buildTextField(AppLocalizations.of(context)!.descriptionLabel, _descriptionController, 'Any extra info...', maxLines: 3),
+            if (!(widget.category == 'Farm Workers' || (widget.category == 'Services' && _selectedServiceType == 'Farm Workers'))) ...[
+              const SizedBox(height: 24),
+               _buildTextField(AppLocalizations.of(context)!.locationLabel, _locationController, 'e.g. Rampur, Nagpur'),
+              const SizedBox(height: 16),
+               _buildTextField(AppLocalizations.of(context)!.descriptionLabel, _descriptionController, 'Any extra info...', maxLines: 3),
+            ],
 
             const SizedBox(height: 40),
             SizedBox(
@@ -510,43 +559,39 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         if (widget.category == 'Services') 
            DropdownButtonFormField<String>(
              value: null, 
-             // We need a local state variable for selected service if it's generic, 
-             // BUT simpler is just use the passed category if not 'Services'. 
-             // Since we need to save the specific service name (e.g. 'Ploughing'), 
-             // let's just reuse the _selectedTransportType logic but for services or add a new variable.
-             // For simplicity in this iteration, I'll add a new Dropdown and update the 'serviceName' in submit.
              decoration: _inputDecoration('Select Service Type'),
              items: _serviceCategories.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
              onChanged: (val) {
-                // We'll treat the widget.category as the *group* but we need to store the specific type.
-                // However, the submit logic currently uses widget.category. 
-                // Let's rely on _nameController or add a specific type controller.
-                // Actually, let's just update a local variable that _submitService uses.
-                // To do this cleanly without massive refactor, I'll add a member variable `_selectedServiceType` 
-                // and use it in _submitService if widget.category == 'Services'.
                 setState(() => _selectedServiceType = val);
              },
            )
         else
            Text('Service Type: ${widget.category}', style: const TextStyle(fontSize: 14, color: Colors.grey)), 
-        const SizedBox(height: 16),
-        _buildTextField('Provider Name / Business Name', _nameController, 'e.g. Ramesh Services'),
-        const SizedBox(height: 16),
-        _buildTextField('Equipment Used', _equipmentUsedController, 'e.g. John Deere Tractor + Plough'),
         
-        const SizedBox(height: 20),
-        _buildSectionTitle('Pricing & Terms'),
-        const SizedBox(height: 12),
-        _buildTextField('Price / Rate', _priceController, widget.category == 'Harvesting' ? 'e.g. ₹2000 / hour' : 'e.g. ₹1200 / acre'),
-        
-        const SizedBox(height: 20),
-        SwitchListTile(
-          title: const Text('Operator Included?'),
-          value: _operatorIncludedService,
-          onChanged: (v) => setState(() => _operatorIncludedService = v),
-          activeColor: const Color(0xFF00AA55),
-          contentPadding: EdgeInsets.zero,
-        ),
+        // If Farm Workers is selected, show Farm Workers form instead of generic service form
+        if (_selectedServiceType == 'Farm Workers') ...[
+           const SizedBox(height: 24),
+           _buildFarmWorkerForm(),
+        ] else ...[
+           const SizedBox(height: 16),
+           _buildTextField('Provider Name / Business Name', _nameController, 'e.g. Ramesh Services'),
+           const SizedBox(height: 16),
+           _buildTextField('Equipment Used', _equipmentUsedController, 'e.g. John Deere Tractor + Plough'),
+           
+           const SizedBox(height: 20),
+           _buildSectionTitle('Pricing & Terms'),
+           const SizedBox(height: 12),
+           _buildTextField('Price / Rate', _priceController, widget.category == 'Harvesting' ? 'e.g. ₹2000 / hour' : 'e.g. ₹1200 / acre'),
+           
+           const SizedBox(height: 20),
+           SwitchListTile(
+             title: const Text('Operator Included?'),
+             value: _operatorIncludedService,
+             onChanged: (v) => setState(() => _operatorIncludedService = v),
+             activeColor: const Color(0xFF00AA55),
+             contentPadding: EdgeInsets.zero,
+           ),
+        ],
       ],
     );
   }
