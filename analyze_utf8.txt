@@ -1,0 +1,6 @@
+﻿Analyzing upload_item_screen.dart...                            
+
+warning - The value of the field '_selectedSkills' isn't used - lib\screens\upload_item_screen.dart:71:22 - unused_field
+   info - Unnecessary braces in a string interpolation - lib\screens\upload_item_screen.dart:384:54 - unnecessary_brace_in_string_interps
+   info - Unnecessary braces in a string interpolation - lib\screens\upload_item_screen.dart:594:50 - unnecessary_brace_in_string_interps
+

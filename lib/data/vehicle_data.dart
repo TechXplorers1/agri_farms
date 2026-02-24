@@ -101,6 +101,12 @@ class VehicleData {
       'Mahindra': ['HarvestMaster H12 4WD', 'Other'],
       'Other': []
     },
+    'JCB': {
+      'JCB': ['3DX', '3DX Super', '3DX Plus', '4DX', 'Other'],
+      'Case': ['770', '851', 'Other'],
+      'CAT': ['424', 'Other'],
+      'Other': []
+    },
     'Mini Truck': {
       'Tata Motors': [
         'Ace Gold',
