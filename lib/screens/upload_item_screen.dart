@@ -469,31 +469,56 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     );
   }
 
-  void _submitTransport() {
+  Future<void> _submitTransport() async {
     if (_selectedTransportType == null || _nameController.text.isEmpty || _priceController.text.isEmpty) {
       _showError('Please select type and fill details');
       return;
     }
 
-    final newProvider = TransportListing(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: _nameController.text,
-      serviceName: _selectedTransportType!, // Use selected type as service name key
-      distance: '1 km',
-      rating: 5.0,
-      approvalStatus: 'Pending',
-      location: _locationController.text,
-      vehicleType: _selectedTransportType!,
-      loadCapacity: _capacityController.text,
-      price: _priceController.text,
-      driverIncluded: _driverIncluded,
-      vehicleNumber: _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
-      serviceArea: _serviceAreaController.text.isNotEmpty ? _serviceAreaController.text : null,
-      image: 'https://placehold.co/600x400?text=Vehicle',
-    );
-    
-    ProviderManager().addProvider(newProvider);
-    _completeSubmission();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id');
+      final userRole = prefs.getString('user_role');
+
+      if (userId == null) {
+        _showError('User ID not found. Please log in again.');
+        return;
+      }
+
+      if (userRole != 'Owner' && userRole != 'Provider') { // Allowing Provider just in case
+        _showError('Only an Owner can upload vehicles.');
+        return;
+      }
+
+      // Parse price to double e.g., '1500 per trip' -> 1500.0
+      double parsedPrice = 0.0;
+      try {
+        parsedPrice = double.parse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), ''));
+      } catch (e) {
+         _showError('Please enter a valid numeric price');
+         return;
+      }
+
+      final apiService = ApiService();
+      await apiService.addVehicle({
+        'ownerId': userId,
+        'vehicleType': _selectedTransportType,
+        'vehicleNumber': _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
+        'loadCapacity': _capacityController.text.isNotEmpty ? _capacityController.text : 'Unknown',
+        'pricePerKmOrTrip': parsedPrice,
+        'driverIncluded': _driverIncluded,
+        'serviceArea': _serviceAreaController.text.isNotEmpty ? _serviceAreaController.text : null,
+        'location': _locationController.text.isNotEmpty ? _locationController.text : 'Unknown',
+        'isAvailable': true,
+        'rating': 5.0, // Default for new
+        'approvalStatus': 'Pending',
+        'imageUrl': 'https://placehold.co/600x400?text=Vehicle', // Mock image
+      });
+
+      _completeSubmission();
+    } catch (e) {
+      _showError('Failed to upload vehicle: $e');
+    }
   }
 
   Future<void> _submitService() async {
