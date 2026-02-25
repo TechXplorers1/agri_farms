@@ -1,5 +1,9 @@
 import 'package:flutter/foundation.dart';
 
+import 'dart:convert';
+import '../models/booking_dto.dart';
+import '../services/api_service.dart';
+
 enum BookingCategory {
   all,
   farmWorkers,
@@ -15,7 +19,7 @@ class BookingDetails {
   final String price;
   final String status;
   final BookingCategory category;
-  final Map<String, dynamic> details; // Extra details like worker counts, slots etc.
+  final Map<String, dynamic> details;
   final String? providerId;
 
   BookingDetails({
@@ -28,91 +32,54 @@ class BookingDetails {
     this.details = const {},
     this.providerId,
   });
+
+  factory BookingDetails.fromDTO(BookingDTO dto) {
+    String priceStr = dto.totalAmount != null ? '₹${dto.totalAmount!.toStringAsFixed(0)}' : 'On Request';
+    BookingCategory cat = BookingCategory.all;
+    if (dto.assetType == 'Transport') cat = BookingCategory.transport;
+    else if (dto.assetType == 'Equipment') cat = BookingCategory.rentals;
+    else if (dto.assetType == 'Service') cat = BookingCategory.services;
+    else if (dto.assetType == 'Workers') cat = BookingCategory.farmWorkers;
+    
+    Map<String, dynamic> parsedDetails = {};
+    if (dto.notes != null && dto.notes!.isNotEmpty) {
+      try {
+        parsedDetails = jsonDecode(dto.notes!);
+      } catch(e) {}
+    }
+    
+    String title = "Booking";
+    if (parsedDetails.containsKey('Service')) title = '${parsedDetails['Service']} Booking';
+    else if (parsedDetails.containsKey('Equipment')) title = '${parsedDetails['Equipment']} Rental';
+    else if (parsedDetails.containsKey('Vehicle Type')) title = '${parsedDetails['Vehicle Type']} Service';
+    else if (parsedDetails.containsKey('Provider')) title = parsedDetails['Provider'];
+    else if (cat == BookingCategory.farmWorkers) title = 'Farm Workers Request';
+    
+    return BookingDetails(
+      id: dto.bookingId ?? '',
+      title: title,
+      date: dto.bookingDate?.toString().split(' ')[0] ?? '',
+      price: priceStr,
+      status: dto.status ?? 'Pending',
+      category: cat,
+      providerId: dto.providerId,
+      details: parsedDetails,
+    );
+  }
 }
 
 class BookingManager extends ChangeNotifier {
   static final BookingManager _instance = BookingManager._internal();
   factory BookingManager() => _instance;
 
+  final ApiService _apiService = ApiService();
+
   BookingManager._internal() {
-      // Add more dummy data mostly targeting provider '2' for testing
-      _bookings.addAll([
-          BookingDetails(
-            id: '101', 
-            title: 'Farm Workers Request', 
-            date: '2025-01-12', 
-            price: '₹2200',  // derived from (5*500ish) roughly
-            status: 'Pending', 
-            category: BookingCategory.farmWorkers,
-            providerId: '2', 
-            details: {
-              'male_count': 2,
-              'female_count': 3,
-              'duration': '8 hours',
-              'task_type': 'Weeding'
-            }
-          ),
-          BookingDetails(
-            id: '102', 
-            title: 'Tractor Rental', 
-            date: '2025-01-15', 
-            price: '₹1200', 
-            status: 'Confirmed', 
-            category: BookingCategory.rentals,
-            providerId: '2'
-          ),
-          BookingDetails(
-            id: '103', 
-            title: 'Harvest Labour', 
-            date: '2025-01-20', 
-            price: '₹5000', 
-            status: 'Pending', 
-            category: BookingCategory.farmWorkers,
-            providerId: '2',
-            details: {
-              'male_count': 5, 
-              'female_count': 5,
-              'duration': 'Full Day'
-            }
-          ),
-          // New Sample Transport Request for Provider 2
-          BookingDetails(
-            id: '104',
-            title: 'Mini Truck Service',
-            date: '2025-01-22',
-            price: '₹2200',
-            status: 'Pending',
-            category: BookingCategory.transport,
-            providerId: '2',
-            details: {
-              'Provider': 'Suresh Workers', // Assuming Suresh is '2'
-              'Vehicle Type': 'Mini Truck',
-              'Vehicle Count': '1',
-              'Goods Type': 'Fertilizers',
-              'Slot': 'Morning (6:00 AM - 10:00 AM)'
-            }
-          ),
-          // New Sample Equipment Request for Provider 2
-          BookingDetails(
-            id: '105',
-            title: 'Tractor Rental',
-            date: '2025-01-25',
-            price: '₹4000',
-            status: 'Pending',
-            category: BookingCategory.rentals,
-            providerId: '2',
-            details: {
-              'Provider': 'Suresh Workers',
-              'Equipment': 'Tractor',
-              'Count': '1',
-              'Duration': '8 Hours (Full Day)',
-              'Operator Required': 'Yes'
-            }
-          ),
-      ]);
+    // Optionally fetch initial bookings if a user ID is known
   }
 
-  final List<BookingDetails> _bookings = [];
+  List<BookingDetails> _bookings = [];
+  bool isLoading = false;
 
   List<BookingDetails> get bookings => List.unmodifiable(_bookings);
 
@@ -127,32 +94,66 @@ class BookingManager extends ChangeNotifier {
     return _bookings.where((b) => b.providerId == providerId).toList();
   }
 
+  Future<void> fetchFarmerBookings(String farmerId) async {
+    isLoading = true;
+    notifyListeners();
+    try {
+      final response = await _apiService.getFarmerBookings(farmerId);
+      List<BookingDTO> fetchedDTOs = (response as List).map((e) => BookingDTO.fromJson(e)).toList();
+      _bookings = fetchedDTOs.map((dto) => BookingDetails.fromDTO(dto)).toList();
+      // Sort newest first
+      _bookings.sort((a, b) => b.date.compareTo(a.date));
+    } catch (e) {
+      print('Error fetching bookings: $e');
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> createBooking(BookingDTO dto) async {
+    try {
+      final response = await _apiService.createBooking(dto.toJson());
+      final newDto = BookingDTO.fromJson(response);
+      _bookings.insert(0, BookingDetails.fromDTO(newDto));
+      notifyListeners();
+    } catch (e) {
+      print('Error creating booking: $e');
+      throw e;
+    }
+  }
+
+  // Fallback for backwards compatibility while migrating screens
   void addBooking(BookingDetails booking) {
-    _bookings.insert(0, booking); // Add to top
+    _bookings.insert(0, booking);
     notifyListeners();
   }
   
-  // Method to clear dummy data or reset
   void clearBookings() {
     _bookings.clear();
     notifyListeners();
   }
 
-  void updateBookingStatus(String id, String newStatus) {
-    final index = _bookings.indexWhere((b) => b.id == id);
-    if (index != -1) {
-      final old = _bookings[index];
-      _bookings[index] = BookingDetails(
-        id: old.id,
-        title: old.title,
-        date: old.date,
-        price: old.price,
-        status: newStatus,
-        category: old.category,
-        details: old.details,
-        providerId: old.providerId,
-      );
-      notifyListeners();
+  Future<void> updateBookingStatus(String id, String newStatus) async {
+    try {
+      await _apiService.updateBookingStatus(id, newStatus);
+      final index = _bookings.indexWhere((b) => b.id == id);
+      if (index != -1) {
+        final old = _bookings[index];
+        _bookings[index] = BookingDetails(
+          id: old.id,
+          title: old.title,
+          date: old.date,
+          price: old.price,
+          status: newStatus,
+          category: old.category,
+          details: old.details,
+          providerId: old.providerId,
+        );
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error updating status: $e');
     }
   }
 }

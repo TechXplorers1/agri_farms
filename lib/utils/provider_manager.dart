@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 abstract class ServiceProvider {
   final String id;
+  final String? providerId;
   final String name;
   final String serviceName; // 'Farm Workers', 'Ploughing', etc.
   final String distance;
@@ -14,6 +15,7 @@ abstract class ServiceProvider {
 
   ServiceProvider({
     required this.id,
+    this.providerId,
     required this.name,
     required this.serviceName,
     required this.distance,
@@ -33,6 +35,7 @@ class ServiceListing extends ServiceProvider {
 
   ServiceListing({
     required super.id,
+    super.providerId,
     required super.name,
     required super.serviceName,
     required super.distance,
@@ -58,6 +61,7 @@ class FarmWorkerListing extends ServiceProvider {
 
   FarmWorkerListing({
     required super.id,
+    super.providerId,
     required super.name,
     required super.serviceName, // 'Farm Workers'
     required super.distance,
@@ -86,6 +90,7 @@ class TransportListing extends ServiceProvider {
 
   TransportListing({
     required super.id,
+    super.providerId,
     required super.name,
     required super.serviceName,
     required super.distance,
@@ -113,6 +118,7 @@ class EquipmentListing extends ServiceProvider {
 
   EquipmentListing({
     required super.id,
+    super.providerId,
     required super.name,
     required super.serviceName,
     required super.distance,
@@ -167,27 +173,27 @@ class ProviderManager extends ChangeNotifier {
       
       if (old is ServiceListing) {
          updated = ServiceListing(
-           id: old.id, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
+           id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, equipmentUsed: old.equipmentUsed, price: old.price,
            operatorIncluded: old.operatorIncluded, isAvailable: old.isAvailable, jobsCompleted: old.jobsCompleted
          );
       } else if (old is FarmWorkerListing) {
          updated = FarmWorkerListing(
-           id: old.id, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
+           id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, maleCount: old.maleCount, femaleCount: old.femaleCount,
            malePrice: old.malePrice, femalePrice: old.femalePrice, skills: old.skills, isAvailable: old.isAvailable,
            jobsCompleted: old.jobsCompleted, roleDistribution: old.roleDistribution
          );
       } else if (old is TransportListing) {
          updated = TransportListing(
-           id: old.id, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
+           id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, vehicleType: old.vehicleType, loadCapacity: old.loadCapacity,
            price: old.price, driverIncluded: old.driverIncluded, isAvailable: old.isAvailable,
            jobsCompleted: old.jobsCompleted, vehicleNumber: old.vehicleNumber, serviceArea: old.serviceArea
          );
       } else if (old is EquipmentListing) {
          updated = EquipmentListing(
-           id: old.id, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
+           id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, brandModel: old.brandModel, price: old.price,
            operatorAvailable: old.operatorAvailable, condition: old.condition, isAvailable: old.isAvailable,
            jobsCompleted: old.jobsCompleted, yearOfManufacture: old.yearOfManufacture

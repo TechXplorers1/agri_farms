@@ -9,6 +9,7 @@ import 'book_service_detail_screen.dart';
 import '../utils/provider_manager.dart';
 
 import '../services/api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/vehicle_data.dart'; // Import VehicleData
 
@@ -48,7 +49,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         // The backend endpoint accepts 'type' param
         final vehicles = await apiService.getVehicles(type: widget.serviceKey) as List;
         return vehicles.map((v) => TransportListing(
-          id: v['vehicleId'],
+          id: v['vehicleId'].toString(),
+          providerId: v['ownerId']?.toString(), // Handle API responses correctly
           name: v['ownerName'] ?? 'Unknown Owner',
           serviceName: v['vehicleType'],
           distance: 'Pending', // Fallback, no live location available
@@ -445,9 +447,15 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            SizedBox(
              width: double.infinity,
              child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
+                   final prefs = await SharedPreferences.getInstance();
+                   final currentUserId = prefs.getString('user_id');
+                   final actualProviderId = provider.providerId ?? currentUserId ?? '1';
+                   if (!context.mounted) return;
+
                    Navigator.push(context, MaterialPageRoute(builder: (context) => BookWorkersScreen(
                      providerName: provider.name,
+                     providerId: actualProviderId,
                      maxMale: provider.maleCount,
                      maxFemale: provider.femaleCount,
                      priceMale: provider.malePrice,
@@ -823,7 +831,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
 
   // --- NAVIGATION ---
 
-  void _navigateToBooking(BuildContext context, ServiceProvider provider) {
+  void _navigateToBooking(BuildContext context, ServiceProvider provider) async {
       double rate = 0;
       // Extract numeric rate
       String priceString = '';
@@ -837,18 +845,24 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         rate = 0;
       }
 
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = prefs.getString('user_id');
+      final actualProviderId = provider.providerId ?? currentUserId ?? '1';
+
+      if (!context.mounted) return;
+
       if (provider is TransportListing) {
          Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportDetailScreen(
            providerName: provider.name,
            vehicleType: provider.vehicleType,
-           providerId: provider.id,
+           providerId: actualProviderId,
            rate: rate > 0 ? rate : 1500, 
          )));
       } else if (provider is EquipmentListing) {
          Navigator.push(context, MaterialPageRoute(builder: (context) => BookEquipmentDetailScreen(
            providerName: provider.name,
            equipmentType: provider.serviceName, // Or Brand Model
-           providerId: provider.id,
+           providerId: actualProviderId,
            rate: rate > 0 ? rate : 500, 
          )));
       } else {
@@ -856,7 +870,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
          Navigator.push(context, MaterialPageRoute(builder: (context) => BookServiceDetailScreen(
            providerName: provider.name,
            serviceName: provider.serviceName,
-           providerId: provider.id,
+           providerId: actualProviderId,
            priceInfo: priceString,
          )));
       }

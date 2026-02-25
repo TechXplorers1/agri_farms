@@ -3,6 +3,8 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../models/booking_dto.dart';
 
 class BookEquipmentDetailScreen extends StatefulWidget {
   final String providerName;
@@ -142,37 +144,53 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
          durationText = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})';
       }
 
-      BookingManager().addBooking(BookingDetails(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: '${widget.equipmentType} Rental',
-        date: _selectedDate.toString().split(' ')[0], 
-        price: '₹${_totalPrice.toStringAsFixed(0)}',
-        status: 'Pending',
-        category: BookingCategory.rentals,
-        providerId: widget.providerId,
-        details: {
-          'Provider': widget.providerName,
-          'Equipment': widget.equipmentType,
-          'Count': _equipmentCount,
-          'Duration': durationText,
-          'Operator Required': _includeOperator ? 'Yes' : 'No',
-          'Date': _selectedDate.toString().split(' ')[0],
-          'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
-          'Address': _addressController.text,
-        }
-      ));
-      
-      if (!mounted) return;
+      final String? userId = prefs.getString('user_id');
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BookingConfirmationScreen(
-            bookingId: DateTime.now().millisecondsSinceEpoch.toString(),
-            bookingTitle: '${widget.equipmentType} Rental',
-          ),
-        ),
+      final Map<String, dynamic> notesMap = {
+        'Provider': widget.providerName,
+        'Equipment': widget.equipmentType,
+        'Count': _equipmentCount,
+        'Duration': durationText,
+        'Operator Required': _includeOperator ? 'Yes' : 'No',
+        'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
+      };
+
+      DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first);
+      DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1);
+
+      BookingDTO dto = BookingDTO(
+        farmerId: userId,
+        providerId: widget.providerId,
+        assetType: 'Equipment',
+        bookingDate: DateTime.now(),
+        scheduledStartTime: start,
+        scheduledEndTime: end,
+        status: 'PENDING',
+        totalAmount: _totalPrice,
+        addressText: _addressController.text,
+        notes: jsonEncode(notesMap),
       );
+      
+      try {
+        await BookingManager().createBooking(dto);
+        
+        if (!mounted) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BookingConfirmationScreen(
+              bookingId: "Created Successfully",
+              bookingTitle: '${widget.equipmentType} Rental',
+            ),
+          ),
+        );
+      } catch(e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
+        );
+      }
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
       if (_selectedDate == null) {

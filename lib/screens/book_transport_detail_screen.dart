@@ -3,6 +3,8 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../models/booking_dto.dart';
 
 class BookTransportDetailScreen extends StatefulWidget {
   final String providerName;
@@ -147,6 +149,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       // Save address
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
+      final String? userId = prefs.getString('user_id');
 
       // Format time slots
       String formattedTime;
@@ -156,37 +159,51 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
          formattedTime = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})'; // Simplified range display
       }
 
-      BookingManager().addBooking(BookingDetails(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: '${widget.vehicleType} Service',
-        date: _selectedDate.toString().split(' ')[0], 
-        price: '₹${_totalPrice.toStringAsFixed(0)}',
-        status: 'Pending',
-        category: BookingCategory.transport,
-        providerId: widget.providerId, // Link to provider
-        details: {
-          'Provider': widget.providerName,
-          'Vehicle Type': widget.vehicleType,
-          'Vehicle Count': 1,
-          'Goods Type': _selectedGoodsType,
-          'Time': formattedTime,
-          'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
-          'Date': _selectedDate.toString().split(' ')[0],
-          'Address': _addressController.text,
-        }
-      ));
-      
-      if (!mounted) return;
+      final Map<String, dynamic> notesMap = {
+        'Provider': widget.providerName,
+        'Vehicle Type': widget.vehicleType,
+        'Vehicle Count': 1,
+        'Goods Type': _selectedGoodsType,
+        'Time': formattedTime,
+        'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
+      };
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BookingConfirmationScreen(
-            bookingId: DateTime.now().millisecondsSinceEpoch.toString(),
-            bookingTitle: '${widget.vehicleType} Service',
-          ),
-        ),
+      DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first);
+      DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1);
+
+      BookingDTO dto = BookingDTO(
+        farmerId: userId,
+        providerId: widget.providerId,
+        assetType: 'Transport',
+        bookingDate: DateTime.now(),
+        scheduledStartTime: start,
+        scheduledEndTime: end,
+        status: 'PENDING',
+        totalAmount: _totalPrice,
+        addressText: _addressController.text,
+        notes: jsonEncode(notesMap),
       );
+      
+      try {
+        await BookingManager().createBooking(dto);
+        
+        if (!mounted) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BookingConfirmationScreen(
+              bookingId: "Created Successfully",
+              bookingTitle: '${widget.vehicleType} Service',
+            ),
+          ),
+        );
+      } catch(e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
+        );
+      }
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
       if (_selectedGoodsType == null) {

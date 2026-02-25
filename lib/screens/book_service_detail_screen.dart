@@ -3,6 +3,8 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../models/booking_dto.dart';
 
 class BookServiceDetailScreen extends StatefulWidget {
   final String providerName;
@@ -149,37 +151,53 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
          timeStr = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})'; // Simplified range display
       }
 
-      BookingManager().addBooking(BookingDetails(
-        id: bookingId,
-        title: '${widget.serviceName} Booking',
-        date: dateStr,
-        price: 'On Request', // usually depends on acres/hours negotiation
-        status: 'Pending',
-        category: BookingCategory.services,
-        providerId: widget.providerId,
-        details: {
-          'Provider': widget.providerName,
-          'Service': widget.serviceName,
-          'Quantity': _quantityController.text, // e.g., 5 Acres
-          'Date': dateStr,
-          'Preferred Time': timeStr,
-          'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
-          'Address': _addressController.text,
-          'Notes': _notesController.text,
-        }
-      ));
-      
-      if (!mounted) return;
+      final String? userId = prefs.getString('user_id');
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BookingConfirmationScreen(
-            bookingId: bookingId,
-            bookingTitle: widget.serviceName,
-          ),
-        ),
+      final Map<String, dynamic> notesMap = {
+        'Provider': widget.providerName,
+        'Service': widget.serviceName,
+        'Quantity': _quantityController.text,
+        'Preferred Time': timeStr,
+        'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
+        'Notes': _notesController.text,
+      };
+
+      DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first);
+      DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1);
+
+      BookingDTO dto = BookingDTO(
+        farmerId: userId,
+        providerId: widget.providerId,
+        assetType: 'Service',
+        bookingDate: DateTime.now(),
+        scheduledStartTime: start,
+        scheduledEndTime: end,
+        status: 'PENDING',
+        totalAmount: 0.0, // On Request
+        addressText: _addressController.text,
+        notes: jsonEncode(notesMap),
       );
+      
+      try {
+        await BookingManager().createBooking(dto);
+        
+        if (!mounted) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BookingConfirmationScreen(
+              bookingId: "Created Successfully",
+              bookingTitle: widget.serviceName,
+            ),
+          ),
+        );
+      } catch(e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
+        );
+      }
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
       if (_quantityController.text.isEmpty) {

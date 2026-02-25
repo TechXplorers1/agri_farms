@@ -3,9 +3,12 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart'; // Import BookingManager
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../models/booking_dto.dart';
 
 class BookWorkersScreen extends StatefulWidget {
   final String providerName;
+  final String providerId;
   final int maxMale;
   final int maxFemale;
   final int priceMale;
@@ -15,6 +18,7 @@ class BookWorkersScreen extends StatefulWidget {
   const BookWorkersScreen({
     super.key,
     required this.providerName,
+    required this.providerId,
     required this.maxMale,
     required this.maxFemale,
     required this.priceMale,
@@ -134,11 +138,12 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
 
+      final String? userId = prefs.getString('user_id');
+
       String formattedTime = '${_startTime!.format(context)} - ${_endTime!.format(context)}';
       
       String detailsStr = '';
       if (widget.roleDistribution.isNotEmpty) {
-         // ... (existing logic)
          detailsStr = _selectedRoleCounts.entries.map((e) {
            String label = e.key;
            try {
@@ -152,32 +157,48 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         detailsStr = 'Male: $_maleCount, Female: $_femaleCount';
       }
 
-      BookingManager().addBooking(BookingDetails(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        title: widget.providerName,
-        date: _selectedDate.toString().split(' ')[0],
-        price: '₹$_totalPrice',
-        status: 'Scheduled',
-        category: BookingCategory.farmWorkers,
-        details: {
-          'Details': detailsStr,
-          'Time': formattedTime,
-          'Date': _selectedDate.toString().split(' ')[0],
-          'Address': _addressController.text,
-        }
-      ));
-      
-      if (!mounted) return;
+      final Map<String, dynamic> notesMap = {
+        'Provider': widget.providerName,
+        'Details': detailsStr,
+        'Time': formattedTime,
+      };
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BookingConfirmationScreen(
-            bookingId: DateTime.now().millisecondsSinceEpoch.toString(), // Ideally reuse the ID
-            bookingTitle: widget.providerName,
-          ),
-        ),
+      DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _startTime!.hour, _startTime!.minute);
+      DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _endTime!.hour, _endTime!.minute);
+
+      BookingDTO dto = BookingDTO(
+        farmerId: userId,
+        providerId: widget.providerId,
+        assetType: 'Workers',
+        bookingDate: DateTime.now(),
+        scheduledStartTime: start,
+        scheduledEndTime: end,
+        status: 'PENDING',
+        totalAmount: _totalPrice.toDouble(),
+        addressText: _addressController.text,
+        notes: jsonEncode(notesMap),
       );
+      
+      try {
+        await BookingManager().createBooking(dto);
+        
+        if (!mounted) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BookingConfirmationScreen(
+              bookingId: "Created Successfully",
+              bookingTitle: widget.providerName,
+            ),
+          ),
+        );
+      } catch(e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
+        );
+      }
     } else {
       String msg = AppLocalizations.of(context)!.fillAllDetails;
       if (!hasWorkers) {
