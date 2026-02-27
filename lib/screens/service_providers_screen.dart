@@ -42,18 +42,20 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
 
   Future<List<ServiceProvider>> _fetchProviders() async {
     final List<String> transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
-    
-    if (transportTypes.contains(widget.serviceKey)) {
-      try {
-        final apiService = ApiService();
-        // The backend endpoint accepts 'type' param
+    final List<String> equipmentTypes = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB', 'Rotavators', 'Cultivators', 'Seed Drills'];
+    final List<String> serviceTypes = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Vet Care', 'Crop Advisory'];
+
+    try {
+      final apiService = ApiService();
+
+      if (transportTypes.contains(widget.serviceKey)) {
         final vehicles = await apiService.getVehicles(type: widget.serviceKey) as List;
-        return vehicles.map((v) => TransportListing(
+        return vehicles.map<ServiceProvider>((v) => TransportListing(
           id: v['vehicleId'].toString(),
-          providerId: v['ownerId']?.toString(), // Handle API responses correctly
+          providerId: v['ownerId']?.toString(),
           name: v['ownerName'] ?? 'Unknown Owner',
           serviceName: v['vehicleType'],
-          distance: 'Pending', // Fallback, no live location available
+          distance: 'Pending',
           rating: (v['rating'] ?? 5.0).toDouble(),
           approvalStatus: v['approvalStatus'] ?? 'Pending',
           location: v['location'] ?? 'Unknown',
@@ -63,15 +65,68 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           driverIncluded: v['driverIncluded'] ?? true,
           vehicleNumber: v['vehicleNumber'],
           serviceArea: v['serviceArea'],
-          image: v['imageUrl'] ?? 'https://placehold.co/600x400?text=Vehicle',
+          image: v['imageUrl'],
         )).toList();
-      } catch (e) {
-        // Fallback to local on error or simply throw
-        return ProviderManager().getProvidersByService(widget.serviceKey);
+      } else if (equipmentTypes.contains(widget.serviceKey)) {
+        final equipment = await apiService.getEquipment(category: widget.serviceKey) as List;
+        return equipment.map<ServiceProvider>((e) => EquipmentListing(
+          id: e['equipmentId'].toString(),
+          providerId: e['ownerId']?.toString(),
+          name: e['ownerName'] ?? 'Unknown Owner',
+          serviceName: e['category'],
+          distance: 'Pending',
+          rating: (e['rating'] ?? 5.0).toDouble(),
+          approvalStatus: e['approvalStatus'] ?? 'Pending',
+          location: e['location'] ?? 'Unknown',
+          brandModel: e['brandModel'] ?? 'Unknown',
+          condition: e['condition'] ?? 'Good',
+          price: '₹${e['pricePerHour']} / hr',
+          operatorAvailable: e['operatorAvailable'] ?? false,
+          image: e['imageUrl'],
+        )).toList();
+      } else if (serviceTypes.contains(widget.serviceKey)) {
+         final services = await apiService.getServices(type: widget.serviceKey) as List;
+         return services.map<ServiceProvider>((s) => ServiceListing(
+           id: s['serviceId'].toString(),
+           providerId: s['ownerId']?.toString(),
+           name: s['ownerName'] ?? s['businessName'] ?? 'Unknown Owner',
+           serviceName: s['serviceType'],
+           distance: 'Pending',
+           rating: (s['rating'] ?? 5.0).toDouble(),
+           approvalStatus: s['approvalStatus'] ?? 'Pending',
+           location: s['location'] ?? 'Unknown',
+           equipmentUsed: s['equipmentUsed'] ?? 'Standard Tools',
+           price: '₹${s['priceRate']}', // API just has priceRate, assume formatted by UI or string
+           operatorIncluded: true, // Typical for services
+           jobsCompleted: s['jobsCompleted'] ?? 0,
+           image: s['imageUrl'],
+         )).toList();
+      } else if (widget.serviceKey == 'Farm Workers') {
+         final workers = await apiService.getWorkerGroups() as List;
+         return workers.map<ServiceProvider>((w) => FarmWorkerListing(
+             id: w['groupId'].toString(),
+             providerId: w['ownerId']?.toString(),
+             name: w['ownerName'] ?? w['groupName'] ?? 'Unknown Leader',
+             serviceName: 'Farm Workers',
+             distance: 'Pending',
+             rating: (w['rating'] ?? 5.0).toDouble(),
+             approvalStatus: w['approvalStatus'] ?? 'Pending',
+             location: w['location'] ?? 'Unknown',
+             maleCount: w['maleCount'] ?? 0,
+             femaleCount: w['femaleCount'] ?? 0,
+             malePrice: (w['malePricePerDay'] ?? 0).toDouble(),
+             femalePrice: (w['femalePricePerDay'] ?? 0).toDouble(),
+             skills: w['skills'] ?? 'General Labor',
+             roleDistribution: (w['roleDistribution'] as String?)?.split(',') ?? ['General Farming'],
+             image: w['imageUrl']
+         )).toList();
+      } else {
+         return ProviderManager().getProvidersByService(widget.serviceKey);
       }
-    } else {
-      // Return local mock data for other service types until their APIs are integrated
-      return Future.value(ProviderManager().getProvidersByService(widget.serviceKey));
+    } catch (e) {
+      print('Error fetching providers for ${widget.serviceKey}: $e');
+      // Fallback to local on error
+      return ProviderManager().getProvidersByService(widget.serviceKey);
     }
   }
 

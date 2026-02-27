@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/booking_manager.dart';
 
 class ProviderRequestsScreen extends StatefulWidget {
@@ -9,12 +10,47 @@ class ProviderRequestsScreen extends StatefulWidget {
 }
 
 class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
-  // Assuming the current signed-in user is Provider with ID '2'
-  final String _currentProviderId = '2'; 
+  String? _currentProviderId; 
   final BookingManager _bookingManager = BookingManager();
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProviderIdAndBookings();
+  }
+
+  Future<void> _loadProviderIdAndBookings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id');
+    setState(() {
+      _currentProviderId = userId;
+    });
+
+    if (_currentProviderId != null) {
+      await _bookingManager.fetchProviderBookings(_currentProviderId!);
+    }
+    
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: Colors.grey[50],
+        appBar: AppBar(
+          title: const Text('Service Requests'),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+        ),
+        body: const Center(child: CircularProgressIndicator(color: Colors.green)),
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.grey[50], // Consistent background
       appBar: AppBar(
@@ -27,8 +63,9 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
         builder: (context, _) {
           // Filter for my bookings that are pending
           // Removed category filter to show Transport/Rentals too
-          final allMyBookings = _bookingManager.getBookingsForProvider(_currentProviderId)
-              .toList(); 
+          final allMyBookings = (_currentProviderId != null 
+              ? _bookingManager.getBookingsForProvider(_currentProviderId!)
+              : <BookingDetails>[]).toList(); 
           final pendingBookings = allMyBookings.where((b) => b.status == 'Pending').toList();
           final historyBookings = allMyBookings.where((b) => b.status != 'Pending').toList();
 

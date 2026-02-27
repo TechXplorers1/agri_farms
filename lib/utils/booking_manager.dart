@@ -111,6 +111,23 @@ class BookingManager extends ChangeNotifier {
     }
   }
 
+  Future<void> fetchProviderBookings(String providerId) async {
+    isLoading = true;
+    notifyListeners();
+    try {
+      final response = await _apiService.getProviderBookings(providerId);
+      List<BookingDTO> fetchedDTOs = (response as List).map((e) => BookingDTO.fromJson(e)).toList();
+      _bookings = fetchedDTOs.map((dto) => BookingDetails.fromDTO(dto)).toList();
+      // Sort newest first
+      _bookings.sort((a, b) => b.date.compareTo(a.date));
+    } catch (e) {
+      print('Error fetching provider bookings: $e');
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> createBooking(BookingDTO dto) async {
     try {
       final response = await _apiService.createBooking(dto.toJson());

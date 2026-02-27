@@ -11,6 +11,7 @@ import '../utils/booking_manager.dart';
 import '../../services/api_service.dart'; // Import ApiService
 
 import 'provider/provider_requests_screen.dart';
+import 'manage_items_screen.dart'; // Import ManageItemsScreen
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -233,6 +234,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     },
                   ),
                   if (['Owner', 'Provider'].contains(_userRole)) ...[
+                    _buildListTile(
+                      Icons.inventory_2_outlined,
+                      'My Registered Items',
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (context) => const ManageItemsScreen()),
+                        );
+                      },
+                    ),
+                    _buildDividerLine(),
                     _buildListTile(
                       Icons.work_outline,
                       AppLocalizations.of(context)!.serviceRequests, // Generalized for providers

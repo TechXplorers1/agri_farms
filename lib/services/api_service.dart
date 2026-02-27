@@ -61,6 +61,21 @@ class ApiService {
     }
   }
 
+  // Generic DELETE method
+  Future<dynamic> delete(String endpoint) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    try {
+      final response = await http.delete(url);
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return response.body.isNotEmpty ? json.decode(response.body) : {};
+      } else {
+        throw Exception('Failed to delete data: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting data: $e');
+    }
+  }
+
   // Specific API methods (examples based on identified endpoints)
 
   // Users
@@ -98,10 +113,17 @@ class ApiService {
   }
 
   // Inventory - Equipment
-  Future<dynamic> getEquipment({String? category}) async {
+  Future<dynamic> getEquipment({String? category, String? ownerId}) async {
     String endpoint = ApiConfig.inventoryEquipment;
+    List<String> queryParams = [];
     if (category != null && category.isNotEmpty) {
-      endpoint += '?category=$category';
+      queryParams.add('category=$category');
+    }
+    if (ownerId != null && ownerId.isNotEmpty) {
+      queryParams.add('ownerId=$ownerId');
+    }
+    if (queryParams.isNotEmpty) {
+      endpoint += '?${queryParams.join('&')}';
     }
     return await get(endpoint);
   }
@@ -110,11 +132,26 @@ class ApiService {
     return await post(ApiConfig.inventoryEquipment, equipmentData);
   }
 
+  Future<dynamic> updateEquipment(String id, Map<String, dynamic> equipmentData) async {
+    return await put('${ApiConfig.inventoryEquipment}/$id', equipmentData);
+  }
+
+  Future<dynamic> deleteEquipment(String id) async {
+    return await delete('${ApiConfig.inventoryEquipment}/$id');
+  }
+
   // Inventory - Vehicles
-  Future<dynamic> getVehicles({String? type}) async {
+  Future<dynamic> getVehicles({String? type, String? ownerId}) async {
     String endpoint = ApiConfig.inventoryVehicles;
+    List<String> queryParams = [];
     if (type != null && type.isNotEmpty) {
-      endpoint += '?type=$type';
+      queryParams.add('type=$type');
+    }
+    if (ownerId != null && ownerId.isNotEmpty) {
+      queryParams.add('ownerId=$ownerId');
+    }
+    if (queryParams.isNotEmpty) {
+      endpoint += '?${queryParams.join('&')}';
     }
     return await get(endpoint);
   }
@@ -123,11 +160,26 @@ class ApiService {
     return await post(ApiConfig.inventoryVehicles, vehicleData);
   }
 
+  Future<dynamic> updateVehicle(String id, Map<String, dynamic> vehicleData) async {
+    return await put('${ApiConfig.inventoryVehicles}/$id', vehicleData);
+  }
+
+  Future<dynamic> deleteVehicle(String id) async {
+    return await delete('${ApiConfig.inventoryVehicles}/$id');
+  }
+
   // Inventory - Services
-  Future<dynamic> getServices({String? type}) async {
+  Future<dynamic> getServices({String? type, String? ownerId}) async {
     String endpoint = ApiConfig.inventoryServices;
+    List<String> queryParams = [];
     if (type != null && type.isNotEmpty) {
-      endpoint += '?type=$type';
+      queryParams.add('type=$type');
+    }
+    if (ownerId != null && ownerId.isNotEmpty) {
+      queryParams.add('ownerId=$ownerId');
+    }
+    if (queryParams.isNotEmpty) {
+      endpoint += '?${queryParams.join('&')}';
     }
     return await get(endpoint);
   }
@@ -136,16 +188,39 @@ class ApiService {
     return await post(ApiConfig.inventoryServices, serviceData);
   }
 
+  Future<dynamic> updateService(String id, Map<String, dynamic> serviceData) async {
+    return await put('${ApiConfig.inventoryServices}/$id', serviceData);
+  }
+
+  Future<dynamic> deleteService(String id) async {
+    return await delete('${ApiConfig.inventoryServices}/$id');
+  }
+
   // Inventory - Worker Groups
-  Future<dynamic> getWorkerGroups({String? location}) async {
+  Future<dynamic> getWorkerGroups({String? location, String? ownerId}) async {
     String endpoint = ApiConfig.inventoryWorkerGroups;
+    List<String> queryParams = [];
     if (location != null && location.isNotEmpty) {
-      endpoint += '?location=$location';
+      queryParams.add('location=$location');
+    }
+    if (ownerId != null && ownerId.isNotEmpty) {
+      queryParams.add('ownerId=$ownerId');
+    }
+    if (queryParams.isNotEmpty) {
+      endpoint += '?${queryParams.join('&')}';
     }
     return await get(endpoint);
   }
 
   Future<dynamic> addWorkerGroup(Map<String, dynamic> workerGroupData) async {
     return await post(ApiConfig.inventoryWorkerGroups, workerGroupData);
+  }
+
+  Future<dynamic> updateWorkerGroup(String id, Map<String, dynamic> workerGroupData) async {
+    return await put('${ApiConfig.inventoryWorkerGroups}/$id', workerGroupData);
+  }
+
+  Future<dynamic> deleteWorkerGroup(String id) async {
+    return await delete('${ApiConfig.inventoryWorkerGroups}/$id');
   }
 }
