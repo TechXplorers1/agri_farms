@@ -104,10 +104,11 @@ class _MyServicesScreenState extends State<MyServicesScreen> with SingleTickerPr
     Color statusColor = Colors.grey[200]!;
     Color statusTextColor = Colors.black87;
 
-    if (booking.status == 'Scheduled' || booking.status == 'Active') {
+    final statusLower = booking.status.toLowerCase();
+    if (statusLower == 'scheduled' || statusLower == 'active' || statusLower == 'confirmed') {
       statusColor = const Color(0xFFE8F5E9);
       statusTextColor = const Color(0xFF00AA55);
-    } else if (booking.status == 'Completed') {
+    } else if (statusLower == 'completed') {
       statusColor = Colors.grey[100]!;
       statusTextColor = Colors.grey[600]!;
     }

@@ -66,8 +66,8 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
           final allMyBookings = (_currentProviderId != null 
               ? _bookingManager.getBookingsForProvider(_currentProviderId!)
               : <BookingDetails>[]).toList(); 
-          final pendingBookings = allMyBookings.where((b) => b.status == 'Pending' || b.status == 'Confirmed').toList();
-          final historyBookings = allMyBookings.where((b) => b.status != 'Pending' && b.status != 'Confirmed').toList();
+          final pendingBookings = allMyBookings.where((b) => b.status.toLowerCase() == 'pending' || b.status.toLowerCase() == 'confirmed').toList();
+          final historyBookings = allMyBookings.where((b) => b.status.toLowerCase() != 'pending' && b.status.toLowerCase() != 'confirmed').toList();
 
           return DefaultTabController(
             length: 2,
@@ -204,7 +204,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                 ],
                 if (isPending) ...[
                   const SizedBox(height: 16),
-                  if (booking.status == 'Pending')
+                  if (booking.status.toLowerCase() == 'pending')
                     Row(
                       children: [
                         Expanded(
@@ -230,7 +230,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                         ),
                       ],
                     )
-                  else if (booking.status == 'Confirmed')
+                  else if (booking.status.toLowerCase() == 'confirmed')
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -266,8 +266,10 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
     
     Color snackColor;
     String message = 'Request $status';
-    if (status == 'Confirmed') snackColor = Colors.green;
-    else if (status == 'Completed') {
+    final lowerStatus = status.toLowerCase();
+    
+    if (lowerStatus == 'confirmed') snackColor = Colors.green;
+    else if (lowerStatus == 'completed') {
       snackColor = Colors.blue;
       message = 'Request Finished';
     }
