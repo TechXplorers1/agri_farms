@@ -66,8 +66,8 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
           final allMyBookings = (_currentProviderId != null 
               ? _bookingManager.getBookingsForProvider(_currentProviderId!)
               : <BookingDetails>[]).toList(); 
-          final pendingBookings = allMyBookings.where((b) => b.status == 'Pending').toList();
-          final historyBookings = allMyBookings.where((b) => b.status != 'Pending').toList();
+          final pendingBookings = allMyBookings.where((b) => b.status == 'Pending' || b.status == 'Confirmed').toList();
+          final historyBookings = allMyBookings.where((b) => b.status != 'Pending' && b.status != 'Confirmed').toList();
 
           return DefaultTabController(
             length: 2,
@@ -79,7 +79,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                     labelColor: Colors.green,
                     indicatorColor: Colors.green,
                     tabs: [
-                      Tab(text: 'New Requests'),
+                      Tab(text: 'Active Requests'),
                       Tab(text: 'History'),
                     ],
                   ),
@@ -109,7 +109,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
             Icon(Icons.inbox, size: 64, color: Colors.grey[300]),
             const SizedBox(height: 16),
             Text(
-              isPending ? 'No new requests' : 'No history yet',
+              isPending ? 'No active requests' : 'No history yet',
               style: TextStyle(color: Colors.grey[500], fontSize: 16),
             ),
           ],
@@ -204,31 +204,44 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                 ],
                 if (isPending) ...[
                   const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _updateStatus(booking.id, 'Rejected'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.red,
-                            side: const BorderSide(color: Colors.red),
+                  if (booking.status == 'Pending')
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => _updateStatus(booking.id, 'Rejected'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                            ),
+                            child: const Text('Reject'),
                           ),
-                          child: const Text('Reject'),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => _updateStatus(booking.id, 'Confirmed'), // Using 'Confirmed' as accepted
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () => _updateStatus(booking.id, 'Confirmed'), // Using 'Confirmed' as accepted
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Accept'),
                           ),
-                          child: const Text('Accept'),
                         ),
+                      ],
+                    )
+                  else if (booking.status == 'Confirmed')
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _updateStatus(booking.id, 'Completed'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Mark as Finished'),
                       ),
-                    ],
-                  ),
+                    ),
                 ],
               ],
             ),
@@ -243,16 +256,27 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
       case 'confirmed': return Colors.green;
       case 'pending': return Colors.orange;
       case 'rejected': return Colors.red;
+      case 'completed': return Colors.blue;
       default: return Colors.grey;
     }
   }
 
   void _updateStatus(String id, String status) {
     _bookingManager.updateBookingStatus(id, status);
+    
+    Color snackColor;
+    String message = 'Request $status';
+    if (status == 'Confirmed') snackColor = Colors.green;
+    else if (status == 'Completed') {
+      snackColor = Colors.blue;
+      message = 'Request Finished';
+    }
+    else snackColor = Colors.red;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Request $status'),
-        backgroundColor: status == 'Confirmed' ? Colors.green : Colors.red,
+        content: Text(message),
+        backgroundColor: snackColor,
         duration: const Duration(seconds: 1),
       )
     );
