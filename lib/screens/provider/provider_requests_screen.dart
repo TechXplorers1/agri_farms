@@ -66,11 +66,12 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
           final allMyBookings = (_currentProviderId != null 
               ? _bookingManager.getBookingsForProvider(_currentProviderId!)
               : <BookingDetails>[]).toList(); 
-          final pendingBookings = allMyBookings.where((b) => b.status.toLowerCase() == 'pending' || b.status.toLowerCase() == 'confirmed').toList();
+          final pendingBookings = allMyBookings.where((b) => b.status.toLowerCase() == 'pending').toList();
+          final activeBookings = allMyBookings.where((b) => b.status.toLowerCase() == 'confirmed').toList();
           final historyBookings = allMyBookings.where((b) => b.status.toLowerCase() != 'pending' && b.status.toLowerCase() != 'confirmed').toList();
 
           return DefaultTabController(
-            length: 2,
+            length: 3,
             child: Column(
               children: [
                 Container(
@@ -79,7 +80,8 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                     labelColor: Colors.green,
                     indicatorColor: Colors.green,
                     tabs: [
-                      Tab(text: 'Active Requests'),
+                      Tab(text: 'New Requests'),
+                      Tab(text: 'Active Bookings'),
                       Tab(text: 'History'),
                     ],
                   ),
@@ -87,8 +89,9 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                 Expanded(
                   child: TabBarView(
                     children: [
-                      _buildRequestsList(pendingBookings, isPending: true),
-                      _buildRequestsList(historyBookings, isPending: false),
+                      _buildRequestsList(pendingBookings, tabType: 'new'),
+                      _buildRequestsList(activeBookings, tabType: 'active'),
+                      _buildRequestsList(historyBookings, tabType: 'history'),
                     ],
                   ),
                 ),
@@ -100,8 +103,12 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
     );
   }
 
-  Widget _buildRequestsList(List<BookingDetails> bookings, {required bool isPending}) {
+  Widget _buildRequestsList(List<BookingDetails> bookings, {required String tabType}) {
     if (bookings.isEmpty) {
+      String emptyMessage = 'No history yet';
+      if (tabType == 'new') emptyMessage = 'No new requests';
+      else if (tabType == 'active') emptyMessage = 'No active bookings';
+
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -109,7 +116,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
             Icon(Icons.inbox, size: 64, color: Colors.grey[300]),
             const SizedBox(height: 16),
             Text(
-              isPending ? 'No active requests' : 'No history yet',
+              emptyMessage,
               style: TextStyle(color: Colors.grey[500], fontSize: 16),
             ),
           ],
@@ -202,46 +209,47 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                     )
                   ),
                 ],
-                if (isPending) ...[
+                if (tabType == 'new') ...[
                   const SizedBox(height: 16),
-                  if (booking.status.toLowerCase() == 'pending')
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => _updateStatus(booking.id, 'Rejected'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.red,
-                              side: const BorderSide(color: Colors.red),
-                            ),
-                            child: const Text('Reject'),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => _updateStatus(booking.id, 'Rejected'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
                           ),
+                          child: const Text('Reject'),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => _updateStatus(booking.id, 'Confirmed'), // Using 'Confirmed' as accepted
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                            ),
-                            child: const Text('Accept'),
-                          ),
-                        ),
-                      ],
-                    )
-                  else if (booking.status.toLowerCase() == 'confirmed')
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => _updateStatus(booking.id, 'Completed'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Mark as Finished'),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _updateStatus(booking.id, 'Confirmed'), // Using 'Confirmed' as accepted
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Accept'),
+                        ),
+                      ),
+                    ],
+                  )
+                ],
+                if (tabType == 'active') ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _updateStatus(booking.id, 'Completed'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      ),
+                      child: const Text('Mark as Finished'),
                     ),
+                  ),
                 ],
               ],
             ),
