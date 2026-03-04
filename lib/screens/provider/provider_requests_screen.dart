@@ -262,7 +262,11 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
   }
 
   void _updateStatus(String id, String status) {
-    _bookingManager.updateBookingStatus(id, status);
+    if (_currentProviderId != null) {
+      _bookingManager.updateBookingStatus(id, status, providerId: _currentProviderId);
+    } else {
+      _bookingManager.updateBookingStatus(id, status);
+    }
     
     Color snackColor;
     String message = 'Request $status';

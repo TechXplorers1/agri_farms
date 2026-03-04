@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/booking_manager.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 
 class GenericHistoryScreen extends StatefulWidget {
   final String title;
@@ -17,6 +20,61 @@ class GenericHistoryScreen extends StatefulWidget {
 
 class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   final BookingManager _bookingManager = BookingManager();
+  bool _isLoadingContact = false;
+
+  Future<void> _contactUser(BookingDetails booking, bool isCall) async {
+    if (_isLoadingContact) return;
+    setState(() => _isLoadingContact = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = prefs.getString('user_id');
+      
+      String? targetUserId;
+      if (currentUserId == booking.farmerId) {
+        targetUserId = booking.providerId;
+      } else {
+        targetUserId = booking.farmerId;
+      }
+
+      if (targetUserId == null || targetUserId.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contact details not available.')));
+        }
+        return;
+      }
+
+      final apiService = ApiService();
+      final userData = await apiService.getUser(targetUserId);
+      final phone = userData['phoneNumber'] ?? userData['mobile'];
+
+      if (phone == null || phone.toString().isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone number not found.')));
+        }
+        return;
+      }
+
+      final uri = isCall 
+        ? Uri.parse('tel:$phone')
+        : Uri.parse('https://wa.me/$phone');
+
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not launch app.')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error fetching contact info.')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingContact = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,6 +222,36 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
           const SizedBox(height: 16),
           Divider(color: Colors.grey[200], height: 1),
           const SizedBox(height: 16),
+          if (statusLower == 'scheduled' || statusLower == 'active' || statusLower == 'confirmed') ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoadingContact ? null : () => _contactUser(booking, true),
+                    icon: const Icon(Icons.call, size: 18),
+                    label: const Text('Call'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.green,
+                      side: const BorderSide(color: Colors.green),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isLoadingContact ? null : () => _contactUser(booking, false),
+                    icon: const Icon(Icons.chat, size: 18),
+                    label: const Text('Chat'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

@@ -108,8 +108,22 @@ class ApiService {
     return await get('${ApiConfig.bookings}/provider/$providerId');
   }
 
+  Future<dynamic> putStatus(String endpoint) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    try {
+      final response = await http.put(url);
+      if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
+        return response.body.isNotEmpty ? json.decode(response.body) : {};
+      } else {
+        throw Exception('Failed to update data: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error updating data: $e');
+    }
+  }
+
   Future<dynamic> updateBookingStatus(String bookingId, String status) async {
-    return await get('${ApiConfig.bookings}/$bookingId/status?status=$status');
+    return await putStatus('${ApiConfig.bookings}/$bookingId/status?status=$status');
   }
 
   // Inventory - Equipment

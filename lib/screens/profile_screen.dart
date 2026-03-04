@@ -169,38 +169,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildListTile(
                     Icons.history, 
-                    appLocalizations.myServices,
+                    'Activity Bookings', // Generic Activity
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-                          title: 'My Services',
-                          categories: [BookingCategory.services, BookingCategory.farmWorkers],
-                        )),
-                      );
-                    },
-                  ),
-                  _buildDividerLine(),
-                  _buildListTile(
-                    Icons.local_shipping_outlined, 
-                    appLocalizations.myTransports,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-                          title: 'My Transports',
-                          categories: [BookingCategory.transport],
-                        )),
-                      );
-                    },
-                  ),
-                  _buildDividerLine(),
-                  _buildListTile(
-                    Icons.build_outlined, 
-                    appLocalizations.myRentals,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-                          title: 'My Rentals',
-                          categories: [BookingCategory.rentals],
+                          title: 'Activity Bookings',
+                          categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
                         )),
                       );
                     },

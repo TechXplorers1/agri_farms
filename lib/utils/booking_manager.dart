@@ -21,6 +21,7 @@ class BookingDetails {
   final BookingCategory category;
   final Map<String, dynamic> details;
   final String? providerId;
+  final String? farmerId;
 
   BookingDetails({
     required this.id,
@@ -31,6 +32,7 @@ class BookingDetails {
     required this.category,
     this.details = const {},
     this.providerId,
+    this.farmerId,
   });
 
   factory BookingDetails.fromDTO(BookingDTO dto) {
@@ -63,6 +65,7 @@ class BookingDetails {
       status: dto.status ?? 'Pending',
       category: cat,
       providerId: dto.providerId,
+      farmerId: dto.farmerId,
       details: parsedDetails,
     );
   }
@@ -151,9 +154,10 @@ class BookingManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateBookingStatus(String id, String newStatus) async {
+  Future<void> updateBookingStatus(String id, String newStatus, {String? providerId}) async {
     try {
       await _apiService.updateBookingStatus(id, newStatus);
+      // Immediately update local state for faster perceived performance
       final index = _bookings.indexWhere((b) => b.id == id);
       if (index != -1) {
         final old = _bookings[index];
@@ -166,8 +170,14 @@ class BookingManager extends ChangeNotifier {
           category: old.category,
           details: old.details,
           providerId: old.providerId,
+          farmerId: old.farmerId,
         );
         notifyListeners();
+      }
+      
+      // Also fetch from server to guarantee sync
+      if (providerId != null) {
+        await fetchProviderBookings(providerId);
       }
     } catch (e) {
       print('Error updating status: $e');
