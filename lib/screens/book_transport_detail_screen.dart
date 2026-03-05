@@ -5,11 +5,13 @@ import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/booking_dto.dart';
+import '../services/api_service.dart';
 
 class BookTransportDetailScreen extends StatefulWidget {
   final String providerName;
   final String vehicleType;
   final String providerId;
+  final String assetId;
   final double rate; // Rate per trip or per km usually, simplifying to 'per trip' for now
 
   const BookTransportDetailScreen({
@@ -17,6 +19,7 @@ class BookTransportDetailScreen extends StatefulWidget {
     required this.providerName,
     required this.vehicleType,
     required this.providerId,
+    required this.assetId,
     required this.rate,
   });
 
@@ -30,20 +33,31 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
   DateTime? _selectedDate;
   final TextEditingController _addressController = TextEditingController();
+  List<BookingDTO> _existingBookings = [];
+  bool _isLoadingBookings = false;
 
   // Time Slot Configuration
   final int _startHour = 6; // 6:00 AM
   final int _endHour = 20;  // 8:00 PM (Last slot starts at 8)
   final List<int> _selectedSlots = [];
 
-  // Mock Logic: Check if a slot is blocked
+  // Real Logic: Check if a slot is blocked
   bool _isSlotBlocked(int hour) {
     if (_selectedDate == null) return false;
-    // Deterministic blocking based on date and hour hash
-    String dateKey = "${_selectedDate!.year}-${_selectedDate!.month}-${_selectedDate!.day}";
-    int hash = dateKey.hashCode + hour;
-    // Block roughly 20% of slots for demonstration
-    return (hash % 5) == 0;
+    
+    DateTime slotStart = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, hour);
+    DateTime slotEnd = slotStart.add(const Duration(hours: 1)); 
+
+    for (var booking in _existingBookings) {
+      if (booking.scheduledStartTime != null && booking.scheduledEndTime != null) {
+        if (slotStart.isBefore(booking.scheduledEndTime!) && slotEnd.isAfter(booking.scheduledStartTime!)) {
+           if (booking.status != 'CANCELLED' && booking.status != 'REJECTED') {
+             return true;
+           }
+        }
+      }
+    }
+    return false;
   }
 
   void _onSlotTap(int hour) {
@@ -85,6 +99,28 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   void initState() {
     super.initState();
     _loadAddress();
+    _fetchAssetBookings();
+  }
+
+  Future<void> _fetchAssetBookings() async {
+    setState(() {
+      _isLoadingBookings = true;
+    });
+    try {
+      final response = await ApiService().getAssetBookings(widget.assetId);
+      final List<dynamic> data = response as List<dynamic>;
+      setState(() {
+        _existingBookings = data.map((json) => BookingDTO.fromJson(json)).toList();
+      });
+    } catch (e) {
+      debugPrint("Error fetching bookings: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingBookings = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadAddress() async {
@@ -174,6 +210,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       BookingDTO dto = BookingDTO(
         farmerId: userId,
         providerId: widget.providerId,
+        assetId: widget.assetId,
         assetType: 'Transport',
         bookingDate: DateTime.now(),
         scheduledStartTime: start,

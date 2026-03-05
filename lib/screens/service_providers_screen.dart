@@ -911,6 +911,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            providerName: provider.name,
            vehicleType: provider.vehicleType,
            providerId: actualProviderId,
+           assetId: provider.id,
            rate: rate > 0 ? rate : 1500, 
          )));
       } else if (provider is EquipmentListing) {
@@ -918,6 +919,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            providerName: provider.name,
            equipmentType: provider.serviceName, // Or Brand Model
            providerId: actualProviderId,
+           assetId: provider.id,
            rate: rate > 0 ? rate : 500, 
          )));
       } else {
@@ -926,6 +928,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            providerName: provider.name,
            serviceName: provider.serviceName,
            providerId: actualProviderId,
+           assetId: provider.id,
            priceInfo: priceString,
          )));
       }

@@ -108,6 +108,10 @@ class ApiService {
     return await get('${ApiConfig.bookings}/provider/$providerId');
   }
 
+  Future<dynamic> getAssetBookings(String assetId) async {
+    return await get('${ApiConfig.bookings}/asset/$assetId');
+  }
+
   Future<dynamic> putStatus(String endpoint) async {
     final url = Uri.parse('$baseUrl$endpoint');
     try {
