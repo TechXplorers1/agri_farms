@@ -5,9 +5,20 @@ import 'utils/language_provider.dart';
 import 'screens/splash_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase and Notifications
+  try {
+    await Firebase.initializeApp();
+    await NotificationService().init();
+  } catch (e) {
+    debugPrint('Firebase/Notifications initialization failed: $e');
+  }
+  
   final prefs = await SharedPreferences.getInstance();
   final savedLanguage = prefs.getString('selected_language');
   
