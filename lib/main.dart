@@ -6,6 +6,8 @@ import 'screens/splash_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+import 'firebase_options.dart';
 import 'services/notification_service.dart';
 
 Future<void> main() async {
@@ -13,7 +15,11 @@ Future<void> main() async {
   
   // Initialize Firebase and Notifications
   try {
-    await Firebase.initializeApp();
+    if (kIsWeb) {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
+    } else {
+      await Firebase.initializeApp();
+    }
     await NotificationService().init();
   } catch (e) {
     debugPrint('Firebase/Notifications initialization failed: $e');

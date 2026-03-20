@@ -47,6 +47,11 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     DateTime slotStart = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, hour);
     DateTime slotEnd = slotStart.add(const Duration(hours: 1)); 
 
+    // Block past time slots for today
+    if (slotStart.isBefore(DateTime.now())) {
+      return true;
+    }
+
     for (var booking in _existingBookings) {
       if (booking.scheduledStartTime != null && booking.scheduledEndTime != null) {
         if (slotStart.isBefore(booking.scheduledEndTime!) && slotEnd.isAfter(booking.scheduledStartTime!)) {
