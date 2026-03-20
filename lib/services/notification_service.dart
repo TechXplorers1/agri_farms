@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -21,8 +22,8 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
   
-  // Replace with your backend URL
-  final String _backendUrl = 'http://10.0.2.2:8080/api/users';
+  // Dynamic URL from config
+  final String _backendUrl = ApiConfig.baseUrl + ApiConfig.users;
 
   Future<void> init() async {
     // Request permission for iOS/Android
@@ -110,9 +111,9 @@ class NotificationService {
   Future<void> _saveTokenToBackend(String token) async {
     // Only send if we have a logged-in user
     final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId');
+    final userId = prefs.getString('user_id'); // FIXED KEY
     
-    if (userId == null) {
+    if (userId == null || userId.isEmpty) {
       print('No user logged in, postponing FCM token save.');
       return;
     }
@@ -125,7 +126,7 @@ class NotificationService {
       );
       
       if (response.statusCode == 200) {
-        print('Successfully saved FCM token to backend');
+        print('Successfully saved FCM token to backend for user $userId');
       } else {
         print('Failed to save FCM token: ${response.statusCode}');
       }

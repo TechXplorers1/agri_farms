@@ -18,7 +18,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         actions: [
-          if (userRole != null && userRole != 'General User')
+          if (userRole != null && ['Owner', 'Provider'].contains(userRole))
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: ElevatedButton.icon(

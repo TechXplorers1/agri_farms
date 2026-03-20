@@ -241,4 +241,17 @@ class ApiService {
   Future<dynamic> deleteWorkerGroup(String id) async {
     return await delete('${ApiConfig.inventoryWorkerGroups}/$id');
   }
+
+  // Notifications
+  Future<dynamic> getUserNotifications(String userId) async {
+    return await get('${ApiConfig.notifications}/user/$userId');
+  }
+
+  Future<dynamic> markNotificationAsRead(String notificationId) async {
+    return await putStatus('${ApiConfig.notifications}/$notificationId/read');
+  }
+
+  Future<dynamic> markAllNotificationsAsRead(String userId) async {
+    return await putStatus('${ApiConfig.notifications}/user/$userId/read-all');
+  }
 }

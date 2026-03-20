@@ -20,7 +20,7 @@ class BookTransportScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         actions: [
-          if (userRole != null && userRole != 'General User')
+          if (userRole != null && ['Owner', 'Provider'].contains(userRole))
              Padding(
               padding: const EdgeInsets.only(right: 8.0),
               child: ElevatedButton.icon(

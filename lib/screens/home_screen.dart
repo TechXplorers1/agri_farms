@@ -14,7 +14,7 @@ import 'upload_item_screen.dart';
 
 import 'upload_item_screen.dart';
 import '../../services/api_service.dart'; // Import ApiService
-
+import '../../services/notification_service.dart'; // Import NotificationService
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeServiceItem {
@@ -44,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _userName = 'User';
   String _userLocation = 'Your Village, Your District';
   String _userRole = 'User';
+  int _unreadNotificationCount = 0;
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -93,6 +94,9 @@ class _HomeScreenState extends State<HomeScreen> {
     // TEMPORARY: Verify API Connection
     _verifyApiConnection();
 
+    // Sync FCM Token
+    NotificationService().updateFCMToken();
+
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
@@ -113,17 +117,29 @@ class _HomeScreenState extends State<HomeScreen> {
       print('Attempting to fetch equipment from API...');
       final equipment = await apiService.getEquipment();
       print('API Success! Fetched equipment: $equipment');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('API Connection Successful! Check Console.')),
-        );
-      }
     } catch (e) {
       print('API Error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('API Error: $e'), backgroundColor: Colors.red),
-        );
+    }
+  }
+
+  Future<void> _fetchUnreadCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id');
+    if (userId != null) {
+      try {
+        final apiService = ApiService();
+        final notifications = await apiService.getUserNotifications(userId);
+        int count = 0;
+        for (var n in notifications) {
+          if (n['read'] == false) count++;
+        }
+        if (mounted) {
+          setState(() {
+            _unreadNotificationCount = count;
+          });
+        }
+      } catch (e) {
+        print('Error fetching notifications count: $e');
       }
     }
   }
@@ -137,6 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _userLocation = '$village, $district';
       _userRole = prefs.getString('user_role') ?? 'User';
     });
+    _fetchUnreadCount();
   }
 
   void _onItemTapped(int index) {
@@ -299,35 +316,57 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                                onPressed: () {
+                                onPressed: () async {
+                                  // 1. Locally clear the unread badge
+                                  if (_unreadNotificationCount > 0) {
+                                    setState(() {
+                                      _unreadNotificationCount = 0;
+                                    });
+                                    // 2. Alert backend to mark all as read
+                                    final prefs = await SharedPreferences.getInstance();
+                                    final userId = prefs.getString('user_id');
+                                    if (userId != null) {
+                                      try {
+                                        await ApiService().markAllNotificationsAsRead(userId);
+                                      } catch (e) {
+                                        print('Failed to mark all as read: $e');
+                                      }
+                                    }
+                                  }
+
+                                  // 3. Navigate to notifications screen
                                   Navigator.of(context).push(
                                     MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-                                  );
+                                  ).then((_) {
+                                    // 4. Optionally refresh on pop back
+                                    _fetchUnreadCount();
+                                  });
                                 },
                               ),
-                              Positioned(
-                                right: 8,
-                                top: 8,
-                                child: Container(
-                                  padding: const EdgeInsets.all(2),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 16,
-                                    minHeight: 16,
-                                  ),
-                                  child: const Text(
-                                    '2',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
+                              if (_unreadNotificationCount > 0)
+                                Positioned(
+                                  right: 8,
+                                  top: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
                                     ),
-                                    textAlign: TextAlign.center,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      '$_unreadNotificationCount',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                         ],
@@ -583,27 +622,29 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 24),
                   const SizedBox(height: 24),
 
-                  // List Your Assets Section (For Providers/Farmers)
-                   Text(
-                    AppLocalizations.of(context)!.listYourAssets,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSectionContainer(
-                     Row(
-                      children: [
-                        Expanded(child: _buildServiceItem(Icons.local_shipping, AppLocalizations.of(context)!.listTransport, const Color(0xFFE8F5E9), Colors.green, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
-                        })),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.listEquipment, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
-                        })),
-                      ],
+                  // List Your Assets Section (For Providers/Owners)
+                  if (['Owner', 'Provider'].contains(_userRole)) ...[
+                    Text(
+                      AppLocalizations.of(context)!.listYourAssets,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    _buildSectionContainer(
+                       Row(
+                        children: [
+                          Expanded(child: _buildServiceItem(Icons.local_shipping, AppLocalizations.of(context)!.listTransport, const Color(0xFFE8F5E9), Colors.green, onTap: () {
+                             Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
+                          })),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.listEquipment, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
+                             Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
+                          })),
+                        ],
+                      ),
+                    ),
 
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 24),
+                  ],
                    Text(
                     AppLocalizations.of(context)!.tools,
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),

@@ -11,4 +11,5 @@ class ApiConfig {
   static const String inventoryVehicles = '/api/inventory/vehicles';
   static const String inventoryServices = '/api/inventory/services';
   static const String inventoryWorkerGroups = '/api/inventory/worker-groups';
+  static const String notifications = '/api/notifications';
 }

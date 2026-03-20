@@ -1,7 +1,71 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
+import 'package:intl/intl.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  final ApiService _apiService = ApiService();
+  List<dynamic> _notifications = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+  }
+
+  Future<void> _loadNotifications() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id');
+      
+      if (userId != null) {
+        final notifications = await _apiService.getUserNotifications(userId);
+        setState(() {
+          _notifications = notifications;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading notifications: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _markAsRead(String id, int index) async {
+    if (_notifications[index]['read'] == true) return;
+    try {
+      await _apiService.markNotificationAsRead(id);
+      setState(() {
+        _notifications[index]['read'] = true;
+      });
+    } catch (e) {
+      print('Error marking as read: $e');
+    }
+  }
+
+  String _formatTime(String? dateString) {
+    if (dateString == null) return '';
+    try {
+      final dateTime = DateTime.parse(dateString);
+      return DateFormat('MMM dd, yyyy - hh:mm a').format(dateTime);
+    } catch (e) {
+      return '';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,7 +76,7 @@ class NotificationsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const [
             Text(
-              'Weather Alerts',
+              'Notifications',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -20,7 +84,7 @@ class NotificationsScreen extends StatelessWidget {
               ),
             ),
             Text(
-              'Farmer-specific notifications',
+              'Your alerts and updates',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey,
@@ -33,23 +97,52 @@ class NotificationsScreen extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.green))
+          : _notifications.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _notifications.length,
+                  itemBuilder: (context, index) {
+                    final notification = _notifications[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: GestureDetector(
+                        onTap: () {
+                          if (notification['id'] != null) {
+                            _markAsRead(notification['id'], index);
+                          }
+                        },
+                        child: _buildNotificationCard(
+                          type: notification['type'] ?? 'general',
+                          title: notification['title'] ?? 'Notification',
+                          description: notification['message'] ?? '',
+                          time: _formatTime(notification['createdAt']),
+                          isRead: notification['read'] == true,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          _buildNotificationCard(
-            type: 'rain',
-            title: 'Heavy Rain Expected',
-            description: 'Moderate to heavy rainfall expected in next 48 hours. Total rainfall: 50-70mm.',
-            advice: 'Postpone pesticide spraying. Ensure proper drainage in fields. Cover harvested produce.',
-            time: '2 hours ago',
-          ),
+          Icon(Icons.notifications_off_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
-          _buildNotificationCard(
-            type: 'heat',
-            title: 'High Temperature Alert',
-            description: 'Temperature will rise to 38-40°C in next 3 days.',
-            advice: 'Increase irrigation frequency. Apply mulch to retain moisture. Avoid working in fields during peak afternoon hours.',
-            time: '5 hours ago',
+          Text(
+            'No notifications yet',
+            style: TextStyle(fontSize: 18, color: Colors.grey[800], fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'We\'ll notify you when something arrives.',
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -60,13 +153,31 @@ class NotificationsScreen extends StatelessWidget {
     required String type,
     required String title,
     required String description,
-    required String advice,
     required String time,
+    required bool isRead,
   }) {
-    final bool isRain = type == 'rain';
-    final Color bgColor = isRain ? const Color(0xFFE3F2FD) : const Color(0xFFFFF8E1); // Light Blue / Light Orange
-    final Color iconBg = isRain ? const Color(0xFFFFF9C4) : const Color(0xFFFFF9C4); // Yellowish for icon bg in both (from image)
-    final IconData icon = isRain ? Icons.thunderstorm_outlined : Icons.wb_sunny_outlined;
+    // Determine visuals based on type
+    Color bgColor = Colors.white;
+    Color iconBg = const Color(0xFFF1F8E9); // Light Green
+    IconData icon = Icons.notifications_active;
+    Color iconColor = const Color(0xFF2E7D32); // Dark Green
+
+    if (type == 'booking_request') {
+      bgColor = isRead ? Colors.white : const Color(0xFFE8F5E9);
+      iconBg = const Color(0xFFC8E6C9);
+      icon = Icons.handshake_outlined;
+      iconColor = const Color(0xFF2E7D32);
+    } else if (type == 'booking_status_update') {
+      bgColor = isRead ? Colors.white : const Color(0xFFFFF8E1);
+      iconBg = const Color(0xFFFFECB3);
+      icon = Icons.info_outline;
+      iconColor = const Color(0xFFF57F17);
+    } else {
+      bgColor = isRead ? Colors.white : const Color(0xFFF3E5F5);
+      iconBg = const Color(0xFFE1BEE7);
+      icon = Icons.campaign_outlined;
+      iconColor = const Color(0xFF6A1B9A);
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -94,30 +205,31 @@ class NotificationsScreen extends StatelessWidget {
                   color: iconBg,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: Colors.brown[700], size: 20),
+                child: Icon(icon, color: iconColor, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
                     color: Colors.black87,
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF00C853),
-                  borderRadius: BorderRadius.circular(4),
+              if (!isRead)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00C853),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'New',
+                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
                 ),
-                child: const Text(
-                  'New',
-                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -128,44 +240,6 @@ class NotificationsScreen extends StatelessWidget {
               fontSize: 14,
               color: Colors.grey[800],
               height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Advice Box
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFC8E6C9)), // Light Green Border
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: const [
-                    Icon(Icons.warning_amber_rounded, color: Color(0xFF2E7D32), size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Farming Advice',
-                      style: TextStyle(
-                        color: Color(0xFF2E7D32),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  advice,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[700],
-                    height: 1.4,
-                  ),
-                ),
-              ],
             ),
           ),
           const SizedBox(height: 12),
