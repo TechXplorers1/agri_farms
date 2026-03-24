@@ -41,6 +41,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   @override
   void initState() {
     super.initState();
+    _maleCount = widget.maxMale;
+    _femaleCount = widget.maxFemale;
     _loadAddress();
   }
 
@@ -260,63 +262,34 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Worker Selection
-            Text(
-              AppLocalizations.of(context)!.selectWorkers,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            // Worker selection removed as per user request
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Included in this Booking:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  const SizedBox(height: 8),
+                  if (widget.roleDistribution.isNotEmpty)
+                    ...widget.roleDistribution.map((role) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text('• $role', style: const TextStyle(fontSize: 14)),
+                    ))
+                  else ...[
+                    Text('• ${widget.maxMale} Male Workers', style: const TextStyle(fontSize: 14)),
+                    Text('• ${widget.maxFemale} Female Workers', style: const TextStyle(fontSize: 14)),
+                  ],
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            
-            if (widget.roleDistribution.isNotEmpty) ...[
-              // Role Based Selection
-               ...widget.roleDistribution.map((role) {
-                 // Parse max count and label
-                 // Format: "12 Men - Sowing"
-                 int maxCount = 0;
-                 String label = role;
-                 try {
-                   final parts = role.split(' ');
-                   maxCount = int.parse(parts[0]);
-                   label = parts.sublist(1).join(' '); // "Men - Sowing"
-                   if (label.startsWith('- ')) label = label.substring(2); // Cleanup if "- " remains
-                 } catch (e) {
-                   maxCount = 99; // Fallback
-                 }
-
-                 int currentCount = _selectedRoleCounts[role] ?? 0;
-                 int price = role.toLowerCase().contains('men') && !role.toLowerCase().contains('women') 
-                            ? widget.priceMale 
-                            : widget.priceFemale;
-
-                 return Container(
-                   margin: const EdgeInsets.only(bottom: 12),
-                   child: _buildCounter(
-                     label, 
-                     currentCount, 
-                     maxCount, 
-                     price, 
-                     (val) {
-                       setState(() {
-                         if (val > 0) {
-                           _selectedRoleCounts[role] = val;
-                         } else {
-                           _selectedRoleCounts.remove(role);
-                         }
-                       });
-                     }
-                   ),
-                 );
-               }),
-            ] else ...[
-               // Classic Counter Selection
-               _buildCounter(AppLocalizations.of(context)!.maleWorkers, _maleCount, widget.maxMale, widget.priceMale, (val) {
-                setState(() => _maleCount = val);
-              }),
-              const SizedBox(height: 16),
-              _buildCounter(AppLocalizations.of(context)!.femaleWorkers, _femaleCount, widget.maxFemale, widget.priceFemale, (val) {
-                setState(() => _femaleCount = val);
-              }),
-            ],
 
             const SizedBox(height: 32),
 
@@ -496,43 +469,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     );
   }
 
-  Widget _buildCounter(String label, int count, int max, int price, Function(int) onChanged) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              Text('₹$price / person', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-            ],
-          ),
-          Row(
-            children: [
-              _buildIconButton(Icons.remove, () {
-                if (count > 0) onChanged(count - 1);
-              }),
-              Container(
-                width: 40,
-                alignment: Alignment.center,
-                child: Text('$count', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              _buildIconButton(Icons.add, () {
-                if (count < max) onChanged(count + 1);
-              }, isDisabled: count >= max),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+   // Removed _buildCounter and _buildIconButton as they were only used for multi-asset booking
+  
 
   Widget _buildIconButton(IconData icon, VoidCallback onPressed, {bool isDisabled = false}) {
     return Container(

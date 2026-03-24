@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 
@@ -253,5 +254,25 @@ class ApiService {
 
   Future<dynamic> markAllNotificationsAsRead(String userId) async {
     return await putStatus('${ApiConfig.notifications}/user/$userId/read-all');
+  }
+
+  // Media Upload
+  Future<Map<String, String>> uploadImage(File imageFile) async {
+    final url = Uri.parse('$baseUrl/api/media/upload');
+    try {
+      var request = http.MultipartRequest('POST', url);
+      request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+      
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+      
+      if (response.statusCode == 200) {
+        return Map<String, String>.from(json.decode(response.body));
+      } else {
+        throw Exception('Failed to upload image: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error uploading image: $e');
+    }
   }
 }

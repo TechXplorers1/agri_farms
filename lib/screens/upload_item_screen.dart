@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../utils/provider_manager.dart';
 import '../data/vehicle_data.dart';
 import '../services/api_service.dart';
+import '../config/api_config.dart';
 
 class UploadItemScreen extends StatefulWidget {
   final String category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
@@ -15,6 +18,37 @@ class UploadItemScreen extends StatefulWidget {
 }
 
 class _UploadItemScreenState extends State<UploadItemScreen> {
+  XFile? _selectedImage;
+  bool _isUploading = false;
+  
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _selectedImage = image;
+      });
+    }
+  }
+
+  Future<String?> _uploadSelectedImage() async {
+    if (_selectedImage == null) return null;
+    setState(() => _isUploading = true);
+    try {
+      final response = await ApiService().uploadImage(File(_selectedImage!.path));
+      final String? relativeUrl = response['url'];
+      if (relativeUrl != null) {
+        return ApiConfig.baseUrl + relativeUrl;
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Upload error: $e");
+      return null;
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
   // Common Controllers
   final TextEditingController _nameController = TextEditingController(); // Name / Title
   final TextEditingController _priceController = TextEditingController();
@@ -159,7 +193,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'isAvailable': true,
         'rating': 5.0,
         'approvalStatus': 'Pending',
-        'imageUrl': 'https://placehold.co/600x400?text=Workers',
+        'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Workers',
         'roles': rolesPayload
       };
 
@@ -213,7 +247,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'isAvailable': true,
         'rating': 5.0,
         'approvalStatus': 'Pending',
-        'imageUrl': 'https://placehold.co/600x400?text=Equipment',
+        'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Equipment',
       };
 
       await ApiService().addEquipment(equipmentData);
@@ -283,21 +317,37 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Photo Upload Placeholder
-            Container(
-              height: 180,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[300]!, style: BorderStyle.solid),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                   Icon(Icons.add_a_photo, size: 40, color: Colors.grey[400]),
-                   const SizedBox(height: 8),
-                   Text(AppLocalizations.of(context)!.addPhotos, style: TextStyle(color: Colors.grey[600])),
-                ],
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                height: 180,
+                width: double.infinity,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[300]!, style: BorderStyle.solid),
+                ),
+                child: _selectedImage != null 
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.file(File(_selectedImage!.path), fit: BoxFit.cover),
+                        Container(
+                           color: Colors.black26,
+                           alignment: Alignment.center,
+                           child: const Icon(Icons.edit, color: Colors.white, size: 30),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                         Icon(Icons.add_a_photo, size: 40, color: Colors.grey[400]),
+                         const SizedBox(height: 8),
+                         Text(AppLocalizations.of(context)!.addPhotos, style: TextStyle(color: Colors.grey[600])),
+                      ],
+                    ),
               ),
             ),
             const SizedBox(height: 24),
@@ -324,7 +374,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   backgroundColor: const Color(0xFF00AA55),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                child: Text(AppLocalizations.of(context)!.submitListing, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: _isUploading 
+                  ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                  : Text(AppLocalizations.of(context)!.submitListing, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             ),
           ],
@@ -512,7 +564,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'isAvailable': true,
         'rating': 5.0, // Default for new
         'approvalStatus': 'Pending',
-        'imageUrl': 'https://placehold.co/600x400?text=Vehicle', // Mock image
+        'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Vehicle', // Mock image
       });
 
       _completeSubmission();
@@ -544,7 +596,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'isAvailable': true,
         'rating': 5.0,
         'approvalStatus': 'Pending',
-        'imageUrl': 'https://placehold.co/600x400?text=Service',
+        'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Service',
       };
 
       await ApiService().addService(serviceData);

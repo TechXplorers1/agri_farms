@@ -22,6 +22,20 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   final BookingManager _bookingManager = BookingManager();
   bool _isLoadingContact = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadBookings();
+  }
+
+  Future<void> _loadBookings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id');
+    if (userId != null) {
+      await _bookingManager.fetchFarmerBookings(userId);
+    }
+  }
+
   Future<void> _contactUser(BookingDetails booking, bool isCall) async {
     if (_isLoadingContact) return;
     setState(() => _isLoadingContact = true);
@@ -78,59 +92,77 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          widget.title,
-          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1.0),
-          child: Container(
-            color: Colors.grey[200],
-            height: 1.0,
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        appBar: AppBar(
+          title: Text(
+            widget.title,
+            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () => Navigator.pop(context),
+          ),
+          elevation: 0,
+          bottom: const TabBar(
+            labelColor: Color(0xFF00AA55),
+            indicatorColor: Color(0xFF00AA55),
+            unselectedLabelColor: Colors.grey,
+            tabs: [
+              Tab(text: 'My Booking'),
+              Tab(text: 'Accepted'),
+              Tab(text: 'History'),
+            ],
           ),
         ),
-      ),
-      body: AnimatedBuilder(
-        animation: _bookingManager,
-        builder: (context, _) {
-          final allBookings = widget.categories.expand((cat) => _bookingManager.getBookingsByCategory(cat)).toList();
-          // Sort by date or id if needed, for now just list them
-          
-          if (allBookings.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.history, size: 60, color: Colors.grey[300]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No ${widget.title.toLowerCase()} yet',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 16),
-                  ),
-                ],
-              ),
+        body: AnimatedBuilder(
+          animation: _bookingManager,
+          builder: (context, _) {
+            if (_bookingManager.isLoading) {
+              return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
+            }
+            
+            final allBookings = widget.categories.expand((cat) => _bookingManager.getBookingsByCategory(cat)).toList();
+            
+            return TabBarView(
+              children: [
+                _buildBookingList(allBookings, ['pending', 'requested'], 'No pending bookings'),
+                _buildBookingList(allBookings, ['confirmed', 'scheduled', 'accepted', 'active'], 'No active bookings'),
+                _buildBookingList(allBookings, ['completed', 'cancelled', 'rejected'], 'No past bookings'),
+              ],
             );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: allBookings.length,
-            itemBuilder: (context, index) {
-              return _buildServiceCard(allBookings[index]);
-            },
-          );
-        },
+          },
+        ),
       ),
+    );
+  }
+
+  Widget _buildBookingList(List<BookingDetails> bookings, List<String> statuses, String emptyMessage) {
+    final filtered = bookings.where((b) => statuses.contains(b.status.toLowerCase())).toList();
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.history, size: 60, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(emptyMessage, style: TextStyle(color: Colors.grey[500], fontSize: 16)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: filtered.length,
+      itemBuilder: (context, index) {
+        return _buildServiceCard(filtered[index]);
+      },
     );
   }
 

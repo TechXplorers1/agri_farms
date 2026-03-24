@@ -28,7 +28,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
 }
 
 class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
-  int _equipmentCount = 1;
+  final int _equipmentCount = 1; // Fixed to 1 as per user request
   final List<int> _selectedSlots = []; // Stores selected hours (24h format, e.g., 9, 10, 11)
   bool _includeOperator = false; // "With Driver"
   DateTime? _selectedDate;
@@ -303,15 +303,8 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Count
-            const Text(
-              'Quantity',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 16),
-            _buildCounter('Number of Machines', _equipmentCount, 3, widget.rate.toInt(), (val) {
-              setState(() => _equipmentCount = val);
-            }),
+            // Removed Quantity section as per user request
+            const SizedBox(height: 8),
 
             const SizedBox(height: 24),
 
@@ -488,58 +481,8 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     );
   }
 
-  Widget _buildCounter(String label, int count, int max, int price, Function(int) onChanged) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              Text('at ₹$price / hr', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
-            ],
-          ),
-          Row(
-            children: [
-              _buildIconButton(Icons.remove, () {
-                if (count > 1) onChanged(count - 1);
-              }, isDisabled: count <= 1),
-              Container(
-                width: 40,
-                alignment: Alignment.center,
-                child: Text('$count', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ),
-              _buildIconButton(Icons.add, () {
-                if (count < max) onChanged(count + 1);
-              }, isDisabled: count >= max),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-   Widget _buildIconButton(IconData icon, VoidCallback onPressed, {bool isDisabled = false}) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: isDisabled ? Colors.grey[200] : Colors.green[50],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        icon: Icon(icon, size: 18, color: isDisabled ? Colors.grey : Colors.green),
-        onPressed: isDisabled ? null : onPressed,
-      ),
-    );
-  }
+   // Removed _buildCounter and _buildIconButton as they were only used for multi-asset booking
+  
   
   String _formatTime(int hour) {
       if (hour == 12) return '12 PM';
