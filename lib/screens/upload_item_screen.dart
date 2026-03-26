@@ -24,7 +24,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
     if (image != null) {
       setState(() {
         _selectedImage = image;
@@ -39,7 +44,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final response = await ApiService().uploadImage(File(_selectedImage!.path));
       final String? relativeUrl = response['url'];
       if (relativeUrl != null) {
-        return ApiConfig.baseUrl + relativeUrl;
+        return relativeUrl;
       }
       return null;
     } catch (e) {

@@ -9,6 +9,7 @@ import 'book_service_detail_screen.dart';
 import '../utils/provider_manager.dart';
 
 import '../services/api_service.dart';
+import '../config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/vehicle_data.dart'; // Import VehicleData
@@ -402,6 +403,21 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     );
   }
 
+  void _showAssetDetails(BuildContext context, ServiceProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _AssetDetailModal(
+        provider: provider,
+        onBookNow: () {
+          Navigator.pop(context);
+          _navigateToBooking(context, provider);
+        },
+      ),
+    );
+  }
+
   // --- CARDS ---
 
   Widget _buildWorkerProviderCard(BuildContext context, {required FarmWorkerListing provider}) {
@@ -427,17 +443,20 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           ],
           if (provider.image != null) ...[
             const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                provider.image!,
-                height: 150,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
+            GestureDetector(
+              onTap: () => _showAssetDetails(context, provider),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  ApiConfig.getFullImageUrl(provider.image),
                   height: 150,
-                  color: Colors.grey[200],
-                  child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 150,
+                    color: Colors.grey[200],
+                    child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                  ),
                 ),
               ),
             ),
@@ -558,17 +577,20 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           ),
           if (provider.image != null) ...[
             const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                provider.image!,
-                height: 150,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
+            GestureDetector(
+              onTap: () => _showAssetDetails(context, provider),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  ApiConfig.getFullImageUrl(provider.image),
                   height: 150,
-                  color: Colors.grey[200],
-                  child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 150,
+                    color: Colors.grey[200],
+                    child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                  ),
                 ),
               ),
             ),
@@ -648,17 +670,20 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           ),
           if (provider.image != null) ...[
             const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                provider.image!,
-                height: 150,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
+            GestureDetector(
+              onTap: () => _showAssetDetails(context, provider),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  ApiConfig.getFullImageUrl(provider.image),
                   height: 150,
-                  color: Colors.grey[200],
-                  child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 150,
+                    color: Colors.grey[200],
+                    child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                  ),
                 ),
               ),
             ),
@@ -735,17 +760,20 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           ),
           if (provider.image != null) ...[
             const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                provider.image!,
-                height: 150,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
+            GestureDetector(
+              onTap: () => _showAssetDetails(context, provider),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  ApiConfig.getFullImageUrl(provider.image),
                   height: 150,
-                  color: Colors.grey[200],
-                  child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    height: 150,
+                    color: Colors.grey[200],
+                    child: const Center(child: Icon(Icons.image_not_supported, color: Colors.grey)),
+                  ),
                 ),
               ),
             ),
@@ -968,6 +996,218 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         backgroundColor: const Color(0xFF00AA55),
         padding: const EdgeInsets.symmetric(horizontal: 12),
         minimumSize: const Size(0, 32),
+      ),
+    );
+  }
+}
+
+class _AssetDetailModal extends StatelessWidget {
+  final ServiceProvider provider;
+  final VoidCallback onBookNow;
+
+  const _AssetDetailModal({required this.provider, required this.onBookNow});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(top: 12),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Image
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      ApiConfig.getFullImageUrl(provider.image),
+                      height: 220,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 220,
+                        color: Colors.grey[100],
+                        child: const Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              provider.name,
+                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              provider.serviceName,
+                              style: TextStyle(fontSize: 16, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.amber[50],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.star, size: 18, color: Colors.amber),
+                            const SizedBox(width: 4),
+                            Text(provider.rating.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 20),
+                  
+                  // Specific Details Based on Type
+                  if (provider is EquipmentListing) _buildEquipmentDetails(context, provider as EquipmentListing),
+                  if (provider is TransportListing) _buildTransportDetails(context, provider as TransportListing),
+                  if (provider is FarmWorkerListing) _buildWorkerDetails(context, provider as FarmWorkerListing),
+                  if (provider is ServiceListing) _buildServiceDetails(context, provider as ServiceListing),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // General Info
+                  _buildDetailRow(Icons.location_on_outlined, AppLocalizations.of(context)!.locationLabel, provider.location.isNotEmpty ? provider.location : 'Village Area'),
+                  _buildDetailRow(Icons.history, 'Experience', '${provider.jobsCompleted} ${AppLocalizations.of(context)!.jobsCompleted}'),
+                  _buildDetailRow(Icons.social_distance_outlined, 'Distance', provider.distance),
+                  
+                  const SizedBox(height: 30),
+                  
+                  // Close Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: onBookNow,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00AA55),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        (provider is FarmWorkerListing) 
+                          ? AppLocalizations.of(context)!.bookNow 
+                          : AppLocalizations.of(context)!.rentNow, 
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEquipmentDetails(BuildContext context, EquipmentListing item) {
+    return Column(
+      children: [
+        _buildDetailRow(Icons.construction, 'Brand & Model', item.brandModel),
+        _buildDetailRow(Icons.info_outline, 'Condition', item.condition),
+        if (item.yearOfManufacture != null)
+           _buildDetailRow(Icons.calendar_today, 'Year', item.yearOfManufacture!),
+        _buildDetailRow(Icons.person_outline, 'Operator', item.operatorAvailable ? 'Available (Included/Extra)' : 'Not Provided'),
+        _buildDetailRow(Icons.payments_outlined, 'Price Rate', item.price),
+      ],
+    );
+  }
+
+  Widget _buildTransportDetails(BuildContext context, TransportListing item) {
+    return Column(
+      children: [
+        _buildDetailRow(Icons.local_shipping_outlined, 'Vehicle Type', item.vehicleType),
+        _buildDetailRow(Icons.fitness_center, 'Load Capacity', item.loadCapacity),
+        _buildDetailRow(Icons.person_pin_circle_outlined, 'Driver', item.driverIncluded ? 'Included in Price' : 'Customer Must Provide'),
+        if (item.serviceArea != null)
+           _buildDetailRow(Icons.map_outlined, 'Service Area', item.serviceArea!),
+        _buildDetailRow(Icons.payments_outlined, 'Rental Rate', item.price),
+      ],
+    );
+  }
+
+  Widget _buildWorkerDetails(BuildContext context, FarmWorkerListing item) {
+    return Column(
+      children: [
+        _buildDetailRow(Icons.people_outline, 'Total Group', '${item.maleCount + item.femaleCount} Workers'),
+        _buildDetailRow(Icons.male, 'Male Workers', '${item.maleCount} Staff (₹${item.malePrice}/day)'),
+        _buildDetailRow(Icons.female, 'Female Workers', '${item.femaleCount} Staff (₹${item.femalePrice}/day)'),
+        _buildDetailRow(Icons.psychology_outlined, 'Skills Offered', item.skills),
+        const SizedBox(height: 12),
+        const Text('Role Breakdown', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: item.roleDistribution.map((role) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+            child: Text(role, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+          )).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildServiceDetails(BuildContext context, ServiceListing item) {
+    return Column(
+      children: [
+        _buildDetailRow(Icons.settings_outlined, 'Tools Used', item.equipmentUsed),
+        _buildDetailRow(Icons.person_outline, 'Operator', item.operatorIncluded ? 'Expert Provided' : 'Only Machine'),
+        _buildDetailRow(Icons.check_circle_outline, 'Track Record', '${item.jobsCompleted} Successful Jobs'),
+        _buildDetailRow(Icons.payments_outlined, 'Service Charge', item.price),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 22, color: const Color(0xFF00AA55)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.normal, color: Colors.black87)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
