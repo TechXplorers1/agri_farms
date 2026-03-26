@@ -43,14 +43,18 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
 
   Future<List<ServiceProvider>> _fetchProviders() async {
     final List<String> transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
-    final List<String> equipmentTypes = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB', 'Rotavators', 'Cultivators', 'Seed Drills'];
+    final List<String> equipmentTypes = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB', 'Rotavators', 'Cultivators', 'Seed Drills', 'Power Tillers'];
     final List<String> serviceTypes = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Vet Care', 'Crop Advisory'];
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserId = prefs.getString('user_id');
       final apiService = ApiService();
 
       if (transportTypes.contains(widget.serviceKey)) {
-        final vehicles = await apiService.getVehicles(type: widget.serviceKey) as List;
+        final vehiclesRaw = await apiService.getVehicles(type: widget.serviceKey) as List;
+        final vehicles = vehiclesRaw.where((v) => v['ownerId']?.toString() != currentUserId).toList();
+        
         return vehicles.map<ServiceProvider>((v) => TransportListing(
           id: v['vehicleId'].toString(),
           providerId: v['ownerId']?.toString(),
@@ -69,7 +73,9 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           image: v['imageUrl'],
         )).toList();
       } else if (equipmentTypes.contains(widget.serviceKey)) {
-        final equipment = await apiService.getEquipment(category: widget.serviceKey) as List;
+        final equipmentRaw = await apiService.getEquipment(category: widget.serviceKey) as List;
+        final equipment = equipmentRaw.where((e) => e['ownerId']?.toString() != currentUserId).toList();
+
         return equipment.map<ServiceProvider>((e) => EquipmentListing(
           id: e['equipmentId'].toString(),
           providerId: e['ownerId']?.toString(),
@@ -86,7 +92,9 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           image: e['imageUrl'],
         )).toList();
       } else if (serviceTypes.contains(widget.serviceKey)) {
-         final services = await apiService.getServices(type: widget.serviceKey) as List;
+         final servicesRaw = await apiService.getServices(type: widget.serviceKey) as List;
+         final services = servicesRaw.where((s) => s['ownerId']?.toString() != currentUserId).toList();
+
          return services.map<ServiceProvider>((s) => ServiceListing(
            id: s['serviceId'].toString(),
            providerId: s['ownerId']?.toString(),
@@ -103,7 +111,9 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            image: s['imageUrl'],
          )).toList();
       } else if (widget.serviceKey == 'Farm Workers') {
-         final workers = await apiService.getWorkerGroups() as List;
+         final workersRaw = await apiService.getWorkerGroups() as List;
+         final workers = workersRaw.where((w) => w['ownerId']?.toString() != currentUserId).toList();
+
          return workers.map<ServiceProvider>((w) => FarmWorkerListing(
              id: w['groupId'].toString(),
              providerId: w['ownerId']?.toString(),

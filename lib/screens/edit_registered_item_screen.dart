@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
+import '../config/api_config.dart';
 
 class EditRegisteredItemScreen extends StatefulWidget {
   final String category; // 'Vehicle', 'Equipment', 'Service', 'WorkerGroup'
@@ -18,6 +21,7 @@ class EditRegisteredItemScreen extends StatefulWidget {
 
 class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   final ApiService _apiService = ApiService();
+  final ImagePicker _picker = ImagePicker();
 
   // Controllers
   late TextEditingController _nameController;
@@ -29,6 +33,9 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   bool _boolFlag = false; // operatorAvailable, driverIncluded
   String? _condition; // Equipment
   late TextEditingController _capacityController; // Vehicle
+
+  File? _imageFile;
+  String? _imageUrl;
 
   @override
   void initState() {
@@ -42,6 +49,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _locationController = TextEditingController(text: widget.itemData['location']?.toString() ?? '');
     _secondaryController = TextEditingController();
     _capacityController = TextEditingController();
+    _imageUrl = widget.itemData['imageUrl']?.toString();
 
     if (widget.category == 'Vehicle') {
       _nameController.text = widget.itemData['vehicleNumber']?.toString() ?? '';
@@ -78,9 +86,23 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
+    if (pickedFile != null) {
+      setState(() {
+        _imageFile = File(pickedFile.path);
+      });
+    }
+  }
+
   Future<void> _submit() async {
     try {
       final updatedData = Map<String, dynamic>.from(widget.itemData);
+
+      if (_imageFile != null) {
+        final uploadResult = await _apiService.uploadImage(_imageFile!);
+        updatedData['imageUrl'] = uploadResult['url'];
+      }
 
       if (widget.category == 'Vehicle') {
         updatedData['vehicleNumber'] = _nameController.text;
@@ -134,6 +156,42 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                height: 200,
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                  image: _imageFile != null
+                      ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover)
+                      : (_imageUrl != null && _imageUrl!.isNotEmpty
+                          ? DecorationImage(image: NetworkImage(ApiConfig.getFullImageUrl(_imageUrl)), fit: BoxFit.cover)
+                          : null),
+                ),
+                child: (_imageFile == null && (_imageUrl == null || _imageUrl!.isEmpty))
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.add_a_photo, size: 50, color: Colors.grey),
+                          const SizedBox(height: 8),
+                          Text('Add Photo', style: TextStyle(color: Colors.grey[600])),
+                        ],
+                      )
+                    : Align(
+                        alignment: Alignment.bottomRight,
+                        child: Container(
+                          margin: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), shape: BoxShape.circle),
+                          child: const Icon(Icons.edit, color: Colors.white, size: 20),
+                        ),
+                      ),
+              ),
+            ),
             if (widget.category == 'Vehicle') ...[
               _buildTextField('Vehicle Type', _secondaryController),
               _buildTextField('Vehicle Number', _nameController),
@@ -183,10 +241,14 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
               height: 50,
               child: ElevatedButton(
                 onPressed: _submit,
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55)),
-                child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontSize: 16)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00AA55),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Save Changes', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
               ),
-            )
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -202,6 +264,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
     );

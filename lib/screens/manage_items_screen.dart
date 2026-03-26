@@ -4,6 +4,8 @@ import '../services/api_service.dart';
 // If your models are located somewhere, import them too. Or we can just use maps for now.
 import 'edit_registered_item_screen.dart';
 
+import '../config/api_config.dart';
+
 class ManageItemsScreen extends StatefulWidget {
   const ManageItemsScreen({Key? key}) : super(key: key);
 
@@ -151,10 +153,27 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index] as Map<String, dynamic>;
+        String? imgPath = item['imageUrl'];
+
         return Card(
           elevation: 2,
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                ApiConfig.getFullImageUrl(imgPath),
+                width: 50,
+                height: 50,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 50,
+                  height: 50,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.image, color: Colors.grey, size: 24),
+                ),
+              ),
+            ),
             title: Text(titleGetter(item), style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(subtitleGetter(item)),
             trailing: Row(
