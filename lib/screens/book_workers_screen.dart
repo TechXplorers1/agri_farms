@@ -5,10 +5,12 @@ import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/booking_dto.dart';
+import '../services/api_service.dart';
 
 class BookWorkersScreen extends StatefulWidget {
   final String providerName;
   final String providerId;
+  final String assetId;
   final int maxMale;
   final int maxFemale;
   final int priceMale;
@@ -19,6 +21,7 @@ class BookWorkersScreen extends StatefulWidget {
     super.key,
     required this.providerName,
     required this.providerId,
+    required this.assetId,
     required this.maxMale,
     required this.maxFemale,
     required this.priceMale,
@@ -34,8 +37,12 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   int _maleCount = 0;
   int _femaleCount = 0;
   DateTime? _selectedDate;
-  TimeOfDay? _startTime;
-  TimeOfDay? _endTime;
+  final List<int> _selectedSlots = [];
+  List<dynamic> _existingBookings = [];
+  bool _isLoadingBookings = false;
+  final int _startHour = 6;
+  final int _endHour = 20;
+
   final TextEditingController _addressController = TextEditingController(); // Add controller
 
   @override
@@ -44,6 +51,90 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     _maleCount = widget.maxMale;
     _femaleCount = widget.maxFemale;
     _loadAddress();
+    // No default date, matching assets style
+    _selectedDate = null;
+  }
+
+  String _formatTime(int hour) {
+    if (hour == 0) return '12:00 AM';
+    if (hour == 12) return '12:00 PM';
+    if (hour < 12) return '$hour:00 AM';
+    return '${hour - 12}:00 PM';
+  }
+
+  String _formatTimeRange(int hour) {
+    return '${_formatTime(hour)} - ${_formatTime(hour + 1)}';
+  }
+
+  Future<void> _fetchAssetBookings() async {
+    if (_selectedDate == null) return;
+    
+    setState(() => _isLoadingBookings = true);
+    try {
+      final bookings = await ApiService().getAssetBookings(widget.assetId);
+      setState(() {
+        _existingBookings = bookings;
+        _isLoadingBookings = false;
+        _selectedSlots.clear(); // Clear selection when date or data changes
+      });
+    } catch (e) {
+      setState(() => _isLoadingBookings = false);
+      print('Error fetching bookings: $e');
+    }
+  }
+
+  bool _isSlotBlocked(int hour) {
+    if (_selectedDate == null) return true;
+
+    // Check past time if selected date is today
+    final now = DateTime.now();
+    if (_selectedDate!.year == now.year &&
+        _selectedDate!.month == now.month &&
+        _selectedDate!.day == now.day) {
+      if (hour <= now.hour) return true;
+    }
+
+    // Check existing bookings
+    for (var booking in _existingBookings) {
+      if (booking['status'] == 'CANCELLED') continue;
+
+      DateTime start = DateTime.parse(booking['scheduledStartTime']);
+      DateTime end = DateTime.parse(booking['scheduledEndTime']);
+
+      // Check if this hour overlaps with booking
+      // A booking from 9:00 to 11:00 blocks slots 9 and 10.
+      if (_selectedDate!.year == start.year &&
+          _selectedDate!.month == start.month &&
+          _selectedDate!.day == start.day) {
+        if (hour >= start.hour && hour < end.hour) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  void _onSlotTap(int hour) {
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a date first')),
+      );
+      return;
+    }
+    if (_isSlotBlocked(hour)) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This slot is already booked')),
+      );
+      return;
+    }
+    setState(() {
+      if (_selectedSlots.contains(hour)) {
+        _selectedSlots.remove(hour);
+      } else {
+        _selectedSlots.add(hour);
+        _selectedSlots.sort();
+      }
+    });
   }
 
   Future<void> _loadAddress() async {
@@ -62,15 +153,18 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   final Map<String, int> _selectedRoleCounts = {};
 
   int get _totalPrice {
+    double hours = _selectedSlots.length.toDouble();
+    if (hours == 0) hours = 1.0; // Default to 1 hour if no slots selected yet for estimate
+
     if (widget.roleDistribution.isNotEmpty) {
       int total = 0;
       _selectedRoleCounts.forEach((role, count) {
          bool isMale = role.toLowerCase().contains('men') && !role.toLowerCase().contains('women');
          total += count * (isMale ? widget.priceMale : widget.priceFemale);
       });
-      return total;
+      return (total * hours).toInt();
     } else {
-      return (_maleCount * widget.priceMale) + (_femaleCount * widget.priceFemale);
+      return (((_maleCount * widget.priceMale) + (_femaleCount * widget.priceFemale)) * hours).toInt();
     }
   }
 
@@ -93,48 +187,19 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         );
       },
     );
-    if (picked != null && picked != _selectedDate) {
+    if (picked != null && (picked.year != _selectedDate?.year || picked.month != _selectedDate?.month || picked.day != _selectedDate?.day)) {
       setState(() {
         _selectedDate = picked;
       });
+      _fetchAssetBookings();
     }
   }
 
-  Future<void> _selectTime(BuildContext context, bool isStartTime) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: isStartTime 
-          ? const TimeOfDay(hour: 9, minute: 0) 
-          : const TimeOfDay(hour: 17, minute: 0),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF00AA55),
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      setState(() {
-        if (isStartTime) {
-          _startTime = picked;
-        } else {
-          _endTime = picked;
-        }
-      });
-    }
-  }
 
   void _confirmBooking() async {
     bool hasWorkers = widget.roleDistribution.isNotEmpty ? _selectedRoleCounts.isNotEmpty : (_maleCount > 0 || _femaleCount > 0);
 
-    if (hasWorkers && _startTime != null && _endTime != null && _selectedDate != null && _addressController.text.isNotEmpty) {
+    if (hasWorkers && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty) {
       
       // Save address
       final prefs = await SharedPreferences.getInstance();
@@ -142,7 +207,13 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
       final String? userId = prefs.getString('user_id');
 
-      String formattedTime = '${_startTime!.format(context)} - ${_endTime!.format(context)}';
+      // Format duration text
+      String durationText;
+      if (_selectedSlots.length == 1) {
+        durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.first + 1)}';
+      } else {
+         durationText = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})';
+      }
       
       String detailsStr = '';
       if (widget.roleDistribution.isNotEmpty) {
@@ -154,7 +225,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               if (label.startsWith('- ')) label = label.substring(2);
            } catch (_) {}
            return '${e.value} $label';
-        }).join(', ');
+         }).join(', ');
       } else {
         detailsStr = 'Male: $_maleCount, Female: $_femaleCount';
       }
@@ -162,16 +233,18 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       final Map<String, dynamic> notesMap = {
         'Provider': widget.providerName,
         'Details': detailsStr,
-        'Time': formattedTime,
+        'Duration': durationText,
+        'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
       };
 
-      DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _startTime!.hour, _startTime!.minute);
-      DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _endTime!.hour, _endTime!.minute);
+      DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first, 0);
+      DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1, 0);
 
       BookingDTO dto = BookingDTO(
         farmerId: userId,
         providerId: widget.providerId,
-        assetType: 'Workers',
+        assetId: widget.assetId,
+        assetType: 'worker_group',
         bookingDate: DateTime.now(),
         scheduledStartTime: start,
         scheduledEndTime: end,
@@ -207,7 +280,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         msg = AppLocalizations.of(context)!.selectAtLeastOneWorker;
       } else if (_addressController.text.isEmpty) msg = 'Please enter work location address';
       else if (_selectedDate == null) msg = AppLocalizations.of(context)!.selectDateError;
-      else if (_startTime == null || _endTime == null) msg = AppLocalizations.of(context)!.selectTimeError;
+      else if (_selectedSlots.isEmpty) msg = 'Please select at least one time slot';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(msg)),
@@ -346,39 +419,69 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               ),
             ),
             const SizedBox(height: 32),
-
-            // Time Selection
-            Text(
-              AppLocalizations.of(context)!.preferredTime,
+            // Time Selection Slots
+            const Text(
+              'Select Duration (Time Slots)',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
-            const SizedBox(height: 8),
-            Text(
-              AppLocalizations.of(context)!.chooseWorkDuration,
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-            ),
+            if (_selectedDate == null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text('Select a date to view available time slots', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+              ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTimePicker(
-                    context: context, 
-                    label: AppLocalizations.of(context)!.startTime, 
-                    time: _startTime, 
-                    onTap: () => _selectTime(context, true)
-                  ),
+            
+            if (_isLoadingBookings)
+              const Center(child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+              ))
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 2.5,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                   child: _buildTimePicker(
-                    context: context, 
-                    label: AppLocalizations.of(context)!.endTime, 
-                    time: _endTime, 
-                    onTap: () => _selectTime(context, false)
-                  ),
-                ),
-              ],
-            ),
+                itemCount: _endHour - _startHour,
+                itemBuilder: (context, index) {
+                  final hour = _startHour + index;
+                  final isBlocked = _isSlotBlocked(hour);
+                  final isSelected = _selectedSlots.contains(hour);
+
+                  return GestureDetector(
+                    onTap: () => _onSlotTap(hour),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isBlocked 
+                            ? Colors.grey[200] 
+                            : isSelected ? const Color(0xFF00AA55) : Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isBlocked 
+                              ? Colors.grey[300]! 
+                              : isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _formatTimeRange(hour),
+                        style: TextStyle(
+                          color: isBlocked 
+                              ? Colors.grey[400] 
+                              : isSelected ? Colors.white : Colors.black87,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 12,
+                          decoration: isBlocked ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
 
             const SizedBox(height: 40),
 
@@ -429,45 +532,6 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     );
   }
 
-  Widget _buildTimePicker({
-    required BuildContext context, 
-    required String label, 
-    required TimeOfDay? time, 
-    required VoidCallback onTap
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 18, color: time == null ? Colors.grey[400] : const Color(0xFF00AA55)),
-                const SizedBox(width: 8),
-                Text(
-                  time == null ? '-- : --' : time.format(context),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: time == null ? Colors.grey[400] : Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
    // Removed _buildCounter and _buildIconButton as they were only used for multi-asset booking
   

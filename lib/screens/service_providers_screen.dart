@@ -511,6 +511,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                    Navigator.push(context, MaterialPageRoute(builder: (context) => BookWorkersScreen(
                      providerName: provider.name,
                      providerId: actualProviderId,
+                     assetId: provider.id,
                      maxMale: provider.maleCount,
                      maxFemale: provider.femaleCount,
                      priceMale: provider.malePrice,
