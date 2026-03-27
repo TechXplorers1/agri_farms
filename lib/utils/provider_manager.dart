@@ -12,6 +12,7 @@ abstract class ServiceProvider {
   final bool isAvailable;
   final int jobsCompleted;
   final String? image; // New image field
+  final String? ownerProfileImage; // New field for owner's profile image
 
   ServiceProvider({
     required this.id,
@@ -25,6 +26,7 @@ abstract class ServiceProvider {
     this.isAvailable = true,
     this.jobsCompleted = 0,
     this.image,
+    this.ownerProfileImage,
   });
 }
 
@@ -48,6 +50,7 @@ class ServiceListing extends ServiceProvider {
     required this.price,
     required this.operatorIncluded,
     super.image,
+    super.ownerProfileImage,
   });
 }
 
@@ -77,6 +80,7 @@ class FarmWorkerListing extends ServiceProvider {
     required this.skills,
     this.roleDistribution = const [],
     super.image,
+    super.ownerProfileImage,
   });
 }
 
@@ -106,6 +110,7 @@ class TransportListing extends ServiceProvider {
     this.vehicleNumber,
     this.serviceArea,
     super.image,
+    super.ownerProfileImage,
   });
 }
 
@@ -133,6 +138,7 @@ class EquipmentListing extends ServiceProvider {
     this.condition = 'Good',
     this.yearOfManufacture,
     super.image,
+    super.ownerProfileImage,
   });
 }
 

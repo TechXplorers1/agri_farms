@@ -71,6 +71,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           vehicleNumber: v['vehicleNumber'],
           serviceArea: v['serviceArea'],
           image: v['imageUrl'],
+          ownerProfileImage: v['ownerProfileImageUrl'],
         )).toList();
       } else if (equipmentTypes.contains(widget.serviceKey)) {
         final equipmentRaw = await apiService.getEquipment(category: widget.serviceKey) as List;
@@ -90,6 +91,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           price: '₹${e['pricePerHour']} / hr',
           operatorAvailable: e['operatorAvailable'] ?? false,
           image: e['imageUrl'],
+          ownerProfileImage: e['ownerProfileImageUrl'],
         )).toList();
       } else if (serviceTypes.contains(widget.serviceKey)) {
          final servicesRaw = await apiService.getServices(type: widget.serviceKey) as List;
@@ -109,6 +111,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            operatorIncluded: true, // Typical for services
            jobsCompleted: s['jobsCompleted'] ?? 0,
            image: s['imageUrl'],
+           ownerProfileImage: s['ownerProfileImageUrl'],
          )).toList();
       } else if (widget.serviceKey == 'Farm Workers') {
          final workersRaw = await apiService.getWorkerGroups() as List;
@@ -129,7 +132,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
              femalePrice: (w['femalePricePerDay'] ?? 0).toDouble(),
              skills: w['skills'] ?? 'General Labor',
              roleDistribution: (w['roleDistribution'] as String?)?.split(',') ?? ['General Farming'],
-             image: w['imageUrl']
+             image: w['imageUrl'],
+             ownerProfileImage: w['ownerProfileImageUrl']
          )).toList();
       } else {
          return ProviderManager().getProvidersByService(widget.serviceKey);
@@ -438,11 +442,34 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                provider.name,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+              Expanded(
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _showFullImage(context, provider.ownerProfileImage, provider.name),
+                      child: CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.blue[100],
+                        backgroundImage: provider.ownerProfileImage != null
+                            ? NetworkImage(ApiConfig.getFullImageUrl(provider.ownerProfileImage))
+                            : null,
+                        child: provider.ownerProfileImage == null
+                            ? const Icon(Icons.person, size: 28, color: Colors.blue)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        provider.name,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-               _buildRatingBadge(provider.rating),
+              _buildRatingBadge(provider.rating),
             ],
           ),
           const SizedBox(height: 8),
@@ -567,17 +594,39 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      provider.name,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    GestureDetector(
+                      onTap: () => _showFullImage(context, provider.ownerProfileImage, provider.name),
+                      child: CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.green[50],
+                        backgroundImage: provider.ownerProfileImage != null
+                            ? NetworkImage(ApiConfig.getFullImageUrl(provider.ownerProfileImage))
+                            : null,
+                        child: provider.ownerProfileImage == null
+                            ? const Icon(Icons.person, size: 28, color: Colors.green)
+                            : null,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      provider.equipmentUsed, // e.g., Tractor Model
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            provider.name,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            provider.equipmentUsed, // e.g., Tractor Model
+                            style: TextStyle(fontSize: 13, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -661,19 +710,43 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    provider.name,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${provider.vehicleType} • ${provider.loadCapacity}',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[800], fontWeight: FontWeight.w500),
-                  ),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _showFullImage(context, provider.ownerProfileImage, provider.name),
+                      child: CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.blue[50],
+                        backgroundImage: provider.ownerProfileImage != null
+                            ? NetworkImage(ApiConfig.getFullImageUrl(provider.ownerProfileImage))
+                            : null,
+                        child: provider.ownerProfileImage == null
+                            ? const Icon(Icons.person, size: 28, color: Colors.blue)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            provider.name,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${provider.vehicleType} • ${provider.loadCapacity}',
+                            style: TextStyle(fontSize: 13, color: Colors.grey[800], fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (provider.isAvailable) _buildAvailableBadge(context),
             ],
@@ -750,17 +823,39 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    Text(
-                      provider.name, // Owner Name
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    GestureDetector(
+                      onTap: () => _showFullImage(context, provider.ownerProfileImage, provider.name),
+                      child: CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.orange[50],
+                        backgroundImage: provider.ownerProfileImage != null
+                            ? NetworkImage(ApiConfig.getFullImageUrl(provider.ownerProfileImage))
+                            : null,
+                        child: provider.ownerProfileImage == null
+                            ? const Icon(Icons.person, size: 28, color: Colors.orange)
+                            : null,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      provider.brandModel,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[800], fontWeight: FontWeight.w500),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            provider.name, // Owner Name
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            provider.brandModel,
+                            style: TextStyle(fontSize: 13, color: Colors.grey[800], fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -922,7 +1017,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       minimumSize: const Size(0, 40),
     );
   }
-
+  
   // --- NAVIGATION ---
 
   void _navigateToBooking(BuildContext context, ServiceProvider provider) async {
@@ -951,7 +1046,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            vehicleType: provider.vehicleType,
            providerId: actualProviderId,
            assetId: provider.id,
-           rate: rate > 0 ? rate : 1500, 
+           rate: rate > 0 ? rate : 1500,
+           ownerProfileImage: provider.ownerProfileImage,
          )));
       } else if (provider is EquipmentListing) {
          Navigator.push(context, MaterialPageRoute(builder: (context) => BookEquipmentDetailScreen(
@@ -959,7 +1055,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            equipmentType: provider.serviceName, // Or Brand Model
            providerId: actualProviderId,
            assetId: provider.id,
-           rate: rate > 0 ? rate : 500, 
+           rate: rate > 0 ? rate : 500,
+           ownerProfileImage: provider.ownerProfileImage,
          )));
       } else {
          // Service Listing (Ploughing, Harvesting...)
@@ -969,6 +1066,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            providerId: actualProviderId,
            assetId: provider.id,
            priceInfo: priceString,
+           ownerProfileImage: provider.ownerProfileImage,
          )));
       }
   }
@@ -1011,6 +1109,46 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   }
 }
 
+void _showFullImage(BuildContext context, String? imageUrl, String title) {
+  if (imageUrl == null || imageUrl.isEmpty) return;
+  
+  showDialog(
+    context: context,
+    builder: (context) => Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(20),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(
+                ApiConfig.getFullImageUrl(imageUrl),
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: Colors.white,
+                  padding: const EdgeInsets.all(40),
+                  child: const Icon(Icons.broken_image, size: 80, color: Colors.grey),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 30),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _AssetDetailModal extends StatelessWidget {
   final ServiceProvider provider;
   final VoidCallback onBookNow;
@@ -1044,17 +1182,20 @@ class _AssetDetailModal extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Image
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.network(
-                      ApiConfig.getFullImageUrl(provider.image),
-                      height: 220,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
+                  GestureDetector(
+                    onTap: () => _showFullImage(context, provider.image, provider.serviceName),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        ApiConfig.getFullImageUrl(provider.image),
                         height: 220,
-                        color: Colors.grey[100],
-                        child: const Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          height: 220,
+                          color: Colors.grey[100],
+                          child: const Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
+                        ),
                       ),
                     ),
                   ),
@@ -1067,9 +1208,29 @@ class _AssetDetailModal extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              provider.name,
-                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                            Row(
+                              children: [
+                                 GestureDetector(
+                                  onTap: () => _showFullImage(context, provider.ownerProfileImage, provider.name),
+                                  child: CircleAvatar(
+                                    radius: 20,
+                                    backgroundImage: provider.ownerProfileImage != null
+                                        ? NetworkImage(ApiConfig.getFullImageUrl(provider.ownerProfileImage))
+                                        : null,
+                                    child: provider.ownerProfileImage == null
+                                        ? const Icon(Icons.person, size: 24)
+                                        : null,
+                                  ),
+                                ),
+
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    provider.name,
+                                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
                             ),
                             Text(
                               provider.serviceName,

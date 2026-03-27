@@ -3,6 +3,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';
 import '../utils/provider_manager.dart';
 import '../data/vehicle_data.dart';
 import '../services/api_service.dart';
@@ -23,7 +24,63 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   
   final ImagePicker _picker = ImagePicker();
 
+  Future<bool> _requestMediaPermission() async {
+    PermissionStatus status;
+    if (Platform.isAndroid) {
+      // In Android 13+ (API 33+), READ_EXTERNAL_STORAGE is deprecated.
+      // Use Permission.photos. For older Androids, Permission.storage.
+      // permission_handler makes it easy by requesting both or the relevant one.
+      Map<Permission, PermissionStatus> statuses = await [
+        Permission.storage,
+        Permission.photos,
+      ].request();
+      
+      bool photosGranted = statuses[Permission.photos]?.isGranted ?? false;
+      bool photosLimited = statuses[Permission.photos]?.isLimited ?? false;
+      bool storageGranted = statuses[Permission.storage]?.isGranted ?? false;
+
+      if (photosGranted || photosLimited || storageGranted) {
+        return true;
+      }
+      return false;
+    } else if (Platform.isIOS) {
+       status = await Permission.photos.request();
+       return status.isGranted || status.isLimited;
+    }
+    return true; // Default for web/desktop
+  }
+
+  void _showPermissionDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Permission Required"),
+        content: const Text("Media/Photo access is required to upload asset images. Please allow it in the app settings to proceed."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55)),
+            child: const Text("Open Settings", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _pickImage() async {
+    bool hasPermission = await _requestMediaPermission();
+    if (!hasPermission) {
+      _showPermissionDeniedDialog();
+      return;
+    }
+
     final XFile? image = await _picker.pickImage(
       source: ImageSource.gallery,
       maxWidth: 1024,

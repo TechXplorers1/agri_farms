@@ -9,6 +9,9 @@ import 'terms_privacy_screen.dart';
 import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
 import '../../services/api_service.dart'; // Import ApiService
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import '../config/api_config.dart';
 
 import 'provider/provider_requests_screen.dart';
 import 'manage_items_screen.dart'; // Import ManageItemsScreen
@@ -27,6 +30,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userVillage = 'Your Village';
   String _userDistrict = 'Your District';
   String _userRole = 'User';
+  String? _profileImageUrl;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -44,6 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _userVillage = prefs.getString('user_village') ?? 'Your Village';
       _userDistrict = prefs.getString('user_district') ?? 'Your District';
       _userRole = prefs.getString('user_role') ?? 'User';
+      _profileImageUrl = prefs.getString('user_profile_image');
     });
 
     // Then fetch latest from backend if user_id exists
@@ -58,6 +64,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await prefs.setString('user_village', userData['village'] ?? _userVillage);
         await prefs.setString('user_district', userData['district'] ?? _userDistrict);
         await prefs.setString('user_role', userData['role'] ?? _userRole);
+        if (userData['profileImageUrl'] != null) {
+          await prefs.setString('user_profile_image', userData['profileImageUrl']);
+        }
 
         if (mounted) {
           setState(() {
@@ -65,6 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _userVillage = userData['village'] ?? _userVillage;
             _userDistrict = userData['district'] ?? _userDistrict;
             _userRole = userData['role'] ?? _userRole;
+            _profileImageUrl = userData['profileImageUrl'] ?? _profileImageUrl;
           });
         }
       } catch (e) {
@@ -101,10 +111,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.white,
-                        child: Icon(Icons.person_outline, size: 40, color: Color(0xFF00AA55)),
+                      GestureDetector(
+                        onTap: _pickAndUploadImage,
+                        child: Stack(
+                          children: [
+                            CircleAvatar(
+                              radius: 40,
+                              backgroundColor: Colors.white,
+                              backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                                  ? NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl))
+                                  : null,
+                              child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                                  ? (_isUploading 
+                                      ? const CircularProgressIndicator(color: Color(0xFF00AA55))
+                                      : const Icon(Icons.person_outline, size: 40, color: Color(0xFF00AA55)))
+                                  : null,
+                            ),
+                            if (_isUploading)
+                              const Positioned.fill(
+                                child: Center(
+                                  child: CircularProgressIndicator(color: Colors.white),
+                                ),
+                              ),
+                            Positioned(
+                              bottom: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.camera_alt, size: 16, color: Color(0xFF00AA55)),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 10),
                       Text(
@@ -327,6 +369,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _pickAndUploadImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+
+    if (image == null) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      final apiService = ApiService();
+      final uploadResponse = await apiService.uploadImage(File(image.path));
+      final String? relativeUrl = uploadResponse['url'];
+
+      if (relativeUrl != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final userId = prefs.getString('user_id');
+        if (userId != null) {
+          // Update user profile on backend
+          await apiService.updateUser(userId, {
+            'profileImageUrl': relativeUrl,
+          });
+
+          // Update local state and storage
+          await prefs.setString('user_profile_image', relativeUrl);
+          setState(() {
+            _profileImageUrl = relativeUrl;
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Profile photo updated successfully!'), backgroundColor: Colors.green),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('Error uploading profile photo: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to upload profile photo: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
+    }
   }
 
   Widget _buildStatItem(String count, String label, IconData icon, Color color) {

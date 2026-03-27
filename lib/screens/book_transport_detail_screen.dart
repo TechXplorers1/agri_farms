@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/booking_dto.dart';
 import '../services/api_service.dart';
+import '../config/api_config.dart';
 
 class BookTransportDetailScreen extends StatefulWidget {
   final String providerName;
@@ -13,6 +14,7 @@ class BookTransportDetailScreen extends StatefulWidget {
   final String providerId;
   final String assetId;
   final double rate; // Rate per trip or per km usually, simplifying to 'per trip' for now
+  final String? ownerProfileImage;
 
   const BookTransportDetailScreen({
     super.key,
@@ -21,6 +23,7 @@ class BookTransportDetailScreen extends StatefulWidget {
     required this.providerId,
     required this.assetId,
     required this.rate,
+    this.ownerProfileImage,
   });
 
   @override
@@ -284,14 +287,18 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
               ),
               child: Row(
                 children: [
-                   Container(
-                     padding: const EdgeInsets.all(10),
-                     decoration: BoxDecoration(
-                       color: Colors.white,
-                       shape: BoxShape.circle,
-                       border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                   GestureDetector(
+                     onTap: () => _showFullImage(context, widget.ownerProfileImage, widget.providerName),
+                     child: CircleAvatar(
+                       radius: 30, // Increased size
+                       backgroundColor: Colors.white,
+                       backgroundImage: widget.ownerProfileImage != null
+                           ? NetworkImage(ApiConfig.getFullImageUrl(widget.ownerProfileImage))
+                           : null,
+                       child: widget.ownerProfileImage == null
+                           ? const Icon(Icons.local_shipping, color: Colors.blue, size: 30)
+                           : null,
                      ),
-                     child: const Icon(Icons.local_shipping, color: Colors.blue, size: 24),
                    ),
                    const SizedBox(width: 16),
                    Expanded(
@@ -510,6 +517,43 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     );
   }
 
-
-
+  void _showFullImage(BuildContext context, String? imageUrl, String title) {
+    if (imageUrl == null || imageUrl.isEmpty) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  ApiConfig.getFullImageUrl(imageUrl),
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(40),
+                    child: const Icon(Icons.broken_image, size: 80, color: Colors.grey),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import '../config/api_config.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -16,7 +19,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _phoneController = TextEditingController();
 
   String? _userId;
+  String? _profileImageUrl;
+  XFile? _selectedImage;
   bool _isLoading = true;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -32,6 +38,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _villageController.text = prefs.getString('user_village') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
       _phoneController.text = prefs.getString('user_mobile') ?? '+919188528855'; 
+      _profileImageUrl = prefs.getString('user_profile_image');
       _isLoading = false;
     });
   }
@@ -63,21 +70,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
 
       if (_userId != null) {
+        String? finalImageUrl = _profileImageUrl;
+        
+        // Upload image if a new one was selected
+        if (_selectedImage != null) {
+          setState(() => _isUploading = true);
+          try {
+            final uploadResponse = await apiService.uploadImage(File(_selectedImage!.path));
+            finalImageUrl = uploadResponse['url'];
+          } catch (e) {
+            debugPrint("Error uploading image: $e");
+            // Optionally handle upload error, but we'll try to proceed with other changes
+          } finally {
+            setState(() => _isUploading = false);
+          }
+        }
+
         await apiService.updateUser(_userId!, {
           'fullName': _nameController.text,
           'village': _villageController.text,
           'district': _districtController.text,
+          'profileImageUrl': finalImageUrl,
         });
+        
+        // Update local storage
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', _nameController.text);
+        await prefs.setString('user_village', _villageController.text);
+        await prefs.setString('user_district', _districtController.text);
+        if (finalImageUrl != null) {
+          await prefs.setString('user_profile_image', finalImageUrl);
+        }
       } else {
         throw Exception('Could not find user ID to update back-end.');
       }
 
-      // Update local storage
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_name', _nameController.text);
-      await prefs.setString('user_village', _villageController.text);
-      await prefs.setString('user_district', _districtController.text);
-      
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -102,6 +129,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _districtController.dispose();
     _phoneController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+    if (image != null) {
+      setState(() {
+        _selectedImage = image;
+      });
+    }
   }
 
   @override
@@ -139,30 +181,46 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   // Avatar
                   Center(
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.person_outline, size: 40, color: Colors.grey),
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          right: 0,
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF00AA55), // Green
+                    child: GestureDetector(
+                      onTap: _pickImage,
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
                               shape: BoxShape.circle,
+                              image: _selectedImage != null 
+                                ? DecorationImage(image: FileImage(File(_selectedImage!.path)), fit: BoxFit.cover)
+                                : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                                  ? DecorationImage(image: NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl)), fit: BoxFit.cover)
+                                  : null),
                             ),
-                            child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                            child: (_selectedImage == null && (_profileImageUrl == null || _profileImageUrl!.isEmpty))
+                                ? const Icon(Icons.person_outline, size: 40, color: Colors.grey)
+                                : null,
                           ),
-                        ),
-                      ],
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF00AA55), // Green
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                            ),
+                          ),
+                          if (_isUploading)
+                            const Positioned.fill(
+                              child: Center(
+                                child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 30),

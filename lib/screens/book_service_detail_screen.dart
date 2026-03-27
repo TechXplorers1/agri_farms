@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/booking_dto.dart';
 import '../services/api_service.dart';
+import '../config/api_config.dart';
 
 class BookServiceDetailScreen extends StatefulWidget {
   final String providerName;
@@ -13,6 +14,7 @@ class BookServiceDetailScreen extends StatefulWidget {
   final String providerId;
   final String assetId;
   final String priceInfo;
+  final String? ownerProfileImage;
 
   const BookServiceDetailScreen({
     super.key,
@@ -21,6 +23,7 @@ class BookServiceDetailScreen extends StatefulWidget {
     required this.providerId,
     required this.assetId,
     required this.priceInfo,
+    this.ownerProfileImage,
   });
 
   @override
@@ -278,14 +281,18 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
               ),
               child: Row(
                 children: [
-                   Container(
-                     padding: const EdgeInsets.all(10),
-                     decoration: BoxDecoration(
-                       color: Colors.white,
-                       shape: BoxShape.circle,
-                       border: Border.all(color: Colors.green.withOpacity(0.2)),
+                   GestureDetector(
+                     onTap: () => _showFullImage(context, widget.ownerProfileImage, widget.providerName),
+                     child: CircleAvatar(
+                       radius: 30, // Increased size
+                       backgroundColor: Colors.white,
+                       backgroundImage: widget.ownerProfileImage != null
+                           ? NetworkImage(ApiConfig.getFullImageUrl(widget.ownerProfileImage))
+                           : null,
+                       child: widget.ownerProfileImage == null
+                           ? const Icon(Icons.agriculture, color: Color(0xFF00AA55), size: 30)
+                           : null,
                      ),
-                     child: const Icon(Icons.agriculture, color: Color(0xFF00AA55), size: 24),
                    ),
                    const SizedBox(width: 16),
                    Expanded(
@@ -473,6 +480,46 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                   AppLocalizations.of(context)!.confirmRequest,
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFullImage(BuildContext context, String? imageUrl, String title) {
+    if (imageUrl == null || imageUrl.isEmpty) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  ApiConfig.getFullImageUrl(imageUrl),
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(40),
+                    child: const Icon(Icons.broken_image, size: 80, color: Colors.grey),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
               ),
             ),
           ],
