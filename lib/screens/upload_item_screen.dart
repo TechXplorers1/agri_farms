@@ -275,6 +275,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         femalePrice: int.tryParse(_femalePriceController.text) ?? 0,
         skills: derivedSkills.join(', '),
         roleDistribution: _roleDistributions,
+        groupName: _nameController.text,
         image: 'https://placehold.co/600x400?text=Workers',
       );
 
@@ -892,6 +893,35 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   void _addRoleDistribution() {
     final count = _roleCountController.text.trim();
     if (count.isNotEmpty && _selectedRoleSkills.isNotEmpty) {
+      int newCount = int.tryParse(count) ?? 0;
+      if (newCount <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid count greater than 0', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red));
+        return;
+      }
+      
+      int currentAllocated = 0;
+      for (String roleStr in _roleDistributions) {
+        final parts = roleStr.split('-');
+        if (parts.length == 2) {
+          final countAndGender = parts[0].trim().split(' ');
+          if (countAndGender.length >= 2 && countAndGender[1] == _roleGender) {
+            currentAllocated += int.tryParse(countAndGender[0]) ?? 0;
+          }
+        }
+      }
+
+      int maxAllowed = _roleGender == 'Male' 
+          ? (int.tryParse(_maleCountController.text) ?? 0)
+          : (int.tryParse(_femaleCountController.text) ?? 0);
+
+      if (currentAllocated + newCount > maxAllowed) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Cannot allocate $newCount $_roleGender workers. Max allowed is $maxAllowed, already allocated is $currentAllocated.', style: const TextStyle(color: Colors.white)),
+          backgroundColor: Colors.red,
+        ));
+        return;
+      }
+
       setState(() {
         _roleDistributions.add('$count $_roleGender - ${_selectedRoleSkills.join(", ")}');
         _roleCountController.clear();

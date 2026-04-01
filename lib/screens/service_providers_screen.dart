@@ -126,12 +126,13 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
              rating: (w['rating'] ?? 5.0).toDouble(),
              approvalStatus: w['approvalStatus'] ?? 'Pending',
              location: w['location'] ?? 'Unknown',
-             maleCount: w['maleCount'] ?? 0,
-             femaleCount: w['femaleCount'] ?? 0,
-             malePrice: (w['malePricePerDay'] ?? 0).toDouble(),
-             femalePrice: (w['femalePricePerDay'] ?? 0).toDouble(),
+             maleCount: (w['maleCount'] as num?)?.toInt() ?? 0,
+             femaleCount: (w['femaleCount'] as num?)?.toInt() ?? 0,
+             malePrice: (w['pricePerMale'] as num?)?.toInt() ?? 0,
+             femalePrice: (w['pricePerFemale'] as num?)?.toInt() ?? 0,
              skills: w['skills'] ?? 'General Labor',
-             roleDistribution: (w['roleDistribution'] as String?)?.split(',') ?? ['General Farming'],
+             roleDistribution: (w['roles'] as List<dynamic>?)?.map((r) => '${r['count']} ${r['gender']} - ${r['taskName']}').toList() ?? ['General Farming'],
+             groupName: w['groupName'],
              image: w['imageUrl'],
              ownerProfileImage: w['ownerProfileImageUrl']
          )).toList();
@@ -460,10 +461,23 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        provider.name,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            provider.name,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (provider.groupName != null && provider.groupName!.isNotEmpty && provider.groupName != provider.name) ...[
+                             const SizedBox(height: 2),
+                             Text(
+                               provider.groupName!,
+                               style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                               overflow: TextOverflow.ellipsis,
+                             ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
@@ -1330,6 +1344,8 @@ class _AssetDetailModal extends StatelessWidget {
   Widget _buildWorkerDetails(BuildContext context, FarmWorkerListing item) {
     return Column(
       children: [
+        if (item.groupName != null && item.groupName!.isNotEmpty)
+          _buildDetailRow(Icons.business_outlined, 'Group Name', item.groupName!),
         _buildDetailRow(Icons.people_outline, 'Total Group', '${item.maleCount + item.femaleCount} Workers'),
         _buildDetailRow(Icons.male, 'Male Workers', '${item.maleCount} Staff (₹${item.malePrice}/day)'),
         _buildDetailRow(Icons.female, 'Female Workers', '${item.femaleCount} Staff (₹${item.femalePrice}/day)'),

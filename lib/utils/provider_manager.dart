@@ -61,6 +61,7 @@ class FarmWorkerListing extends ServiceProvider {
   final int femalePrice;
   final String skills; // e.g., 'Sowing, Harvesting'
   final List<String> roleDistribution; // e.g. ["5 Men - Sowing", "4 Women - Weeding"]
+  final String? groupName;
 
   FarmWorkerListing({
     required super.id,
@@ -79,6 +80,7 @@ class FarmWorkerListing extends ServiceProvider {
     required this.femalePrice,
     required this.skills,
     this.roleDistribution = const [],
+    this.groupName,
     super.image,
     super.ownerProfileImage,
   });
@@ -188,7 +190,7 @@ class ProviderManager extends ChangeNotifier {
            id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, maleCount: old.maleCount, femaleCount: old.femaleCount,
            malePrice: old.malePrice, femalePrice: old.femalePrice, skills: old.skills, isAvailable: old.isAvailable,
-           jobsCompleted: old.jobsCompleted, roleDistribution: old.roleDistribution
+           jobsCompleted: old.jobsCompleted, roleDistribution: old.roleDistribution, groupName: old.groupName
          );
       } else if (old is TransportListing) {
          updated = TransportListing(
@@ -233,6 +235,7 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.8,
         skills: 'Sowing, Harvesting',
         roleDistribution: ['12 Men - Sowing', '20 Women - Harvesting'],
+        groupName: 'Ramesh Labour Group',
         location: 'Rampur Village',
         image: 'https://images.unsplash.com/photo-1595843472097-dfd63ff444d1?q=80&w=200&auto=format&fit=crop',
       ),
@@ -248,6 +251,7 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.5,
         skills: 'Weeding, Loading',
         roleDistribution: ['8 Men - Loading', '15 Women - Weeding'],
+        groupName: 'Suresh Workers',
         location: 'Sonapur',
         image: 'https://images.unsplash.com/photo-1628155985854-443b740523bb?q=80&w=200&auto=format&fit=crop',
       ),
