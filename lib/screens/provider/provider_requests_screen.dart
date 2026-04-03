@@ -66,9 +66,18 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
           final allMyBookings = (_currentProviderId != null 
               ? _bookingManager.getBookingsForProvider(_currentProviderId!)
               : <BookingDetails>[]).toList(); 
-          final pendingBookings = allMyBookings.where((b) => b.status.toLowerCase() == 'pending').toList();
-          final activeBookings = allMyBookings.where((b) => b.status.toLowerCase() == 'confirmed').toList();
-          final historyBookings = allMyBookings.where((b) => b.status.toLowerCase() != 'pending' && b.status.toLowerCase() != 'confirmed').toList();
+          final pendingBookings = allMyBookings.where((b) => b.status.toLowerCase() == 'pending').toList()
+            ..sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate));
+            
+          final activeBookings = allMyBookings.where((b) => b.status.toLowerCase() == 'confirmed').toList()
+            ..sort((a, b) {
+              final aDate = a.rawScheduledStartTime ?? a.rawBookingDate;
+              final bDate = b.rawScheduledStartTime ?? b.rawBookingDate;
+              return aDate.compareTo(bDate);
+            });
+            
+          final historyBookings = allMyBookings.where((b) => b.status.toLowerCase() != 'pending' && b.status.toLowerCase() != 'confirmed').toList()
+            ..sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate));
 
           return DefaultTabController(
             length: 3,
@@ -168,10 +177,8 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                   children: [
                     Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
                     const SizedBox(width: 4),
-                    Text(booking.date, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                    Text('Booked For: ${booking.date}', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                     const SizedBox(width: 16),
-                    Icon(Icons.currency_rupee, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
                     Text(booking.price, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                   ],
                 ),
@@ -195,7 +202,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                      ),
                      const SizedBox(height: 8),
                   ],
-                   ...booking.details.entries.where((e) => !['male_count', 'female_count', 'Provider'].contains(e.key)).map((e) => // Hide Provider name if redundant
+                   ...booking.details.entries.where((e) => !['male_count', 'female_count', 'Provider', 'Count', 'Vehicle Count'].contains(e.key)).map((e) => // Hide Provider name if redundant
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Row(

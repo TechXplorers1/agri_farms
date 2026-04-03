@@ -11,8 +11,9 @@ import 'tools/crop_advisory_screen.dart';
 import 'provider/provider_requests_screen.dart'; // Import for header action
 import 'community_screen.dart';
 import 'upload_item_screen.dart';
+import 'generic_history_screen.dart';
+import '../utils/booking_manager.dart';
 
-import 'upload_item_screen.dart';
 import '../../services/api_service.dart'; // Import ApiService
 import '../../services/notification_service.dart'; // Import NotificationService
 import 'package:shared_preferences/shared_preferences.dart';
@@ -746,10 +747,13 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       // Market Placeholder (Index 1) - Disabled
       // const Center(child: Text('Market Screen Placeholder')),
-      // Rentals Placeholder (Index 2)
-      // Rentals Placeholder (Index 2)
-      EquipmentRentalsScreen(userRole: widget.userRole),
-      // Community Placeholder (Index 3)
+      // Activity Placeholder (Index 1)
+      const GenericHistoryScreen(
+        title: 'Activity Bookings',
+        categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
+        showBackButton: false,
+      ),
+      // Community Placeholder (Index 2)
       // Community Placeholder (Index 3)
       const CommunityScreen(),
       // Profile Tab (Index 4)
@@ -768,8 +772,7 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         items: [
           BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), label: AppLocalizations.of(context)!.navHome),
-          // BottomNavigationBarItem(icon: const Icon(Icons.storefront_outlined), label: AppLocalizations.of(context)!.navMarket), 
-          BottomNavigationBarItem(icon: const Icon(Icons.build_outlined), label: AppLocalizations.of(context)!.navRentals),
+          BottomNavigationBarItem(icon: const Icon(Icons.history), label: AppLocalizations.of(context)!.activity),
           BottomNavigationBarItem(icon: const Icon(Icons.people_outlined), label: AppLocalizations.of(context)!.navCommunity),
           BottomNavigationBarItem(icon: const Icon(Icons.person_outline), label: AppLocalizations.of(context)!.navProfile),
         ],

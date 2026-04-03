@@ -21,6 +21,7 @@ class UploadItemScreen extends StatefulWidget {
 class _UploadItemScreenState extends State<UploadItemScreen> {
   XFile? _selectedImage;
   bool _isUploading = false;
+  bool _isSubmitting = false;
   
   final ImagePicker _picker = ImagePicker();
 
@@ -185,17 +186,22 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    // If we are in 'Services' generic category and the selected dropdown item is 'Farm Workers'
-    if (widget.category == 'Farm Workers' || (widget.category == 'Services' && _selectedServiceType == 'Farm Workers')) {
-      _submitFarmWorker();
-    } else if (widget.category == 'Transport') {
-      _submitTransport();
-    } else if (widget.category == 'Equipment') {
-      _submitEquipment();
-    } else {
-      // Treat as generic service if not specific
-      _submitService();
+  Future<void> _submit() async {
+    setState(() => _isSubmitting = true);
+    try {
+      // If we are in 'Services' generic category and the selected dropdown item is 'Farm Workers'
+      if (widget.category == 'Farm Workers' || (widget.category == 'Services' && _selectedServiceType == 'Farm Workers')) {
+        await _submitFarmWorker();
+      } else if (widget.category == 'Transport') {
+        await _submitTransport();
+      } else if (widget.category == 'Equipment') {
+        await _submitEquipment();
+      } else {
+        // Treat as generic service if not specific
+        await _submitService();
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -432,13 +438,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _submit,
+                onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00AA55),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                child: _isUploading 
-                  ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                child: _isSubmitting 
+                  ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))
                   : Text(AppLocalizations.of(context)!.submitListing, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
             ),

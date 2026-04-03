@@ -40,6 +40,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   final List<int> _selectedSlots = [];
   List<dynamic> _existingBookings = [];
   bool _isLoadingBookings = false;
+  bool _isSubmitting = false;
   final int _startHour = 6;
   final int _endHour = 20;
 
@@ -234,12 +235,16 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     bool hasWorkers = widget.roleDistribution.isNotEmpty ? _selectedRoleCounts.isNotEmpty : (_maleCount > 0 || _femaleCount > 0);
 
     if (hasWorkers && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty) {
-      
+      setState(() {
+        _isSubmitting = true;
+      });
+
       // Save address
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
 
       final String? userId = prefs.getString('user_id');
+      final String? userName = prefs.getString('user_name');
 
       // Format duration text
       String durationText;
@@ -266,9 +271,11 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       }
 
       final Map<String, dynamic> notesMap = {
+        'Booked By': userName ?? 'Unknown User',
         'Provider': widget.providerName,
         'Details': detailsStr,
         'Duration': durationText,
+        'Location': _addressController.text,
         'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
       };
 
@@ -293,6 +300,9 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         await BookingManager().createBooking(dto);
         
         if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+        });
 
         Navigator.push(
           context,
@@ -305,6 +315,9 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         );
       } catch(e) {
         if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
         );
@@ -555,17 +568,19 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _confirmBooking,
+                      onPressed: _isSubmitting ? null : _confirmBooking,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF00AA55),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: Text(
-                        AppLocalizations.of(context)!.confirmBooking,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
+                      child: _isSubmitting
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(
+                            AppLocalizations.of(context)!.confirmBooking,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
                     ),
                   ),
                 ],

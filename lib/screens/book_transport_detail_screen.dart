@@ -38,6 +38,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   final TextEditingController _addressController = TextEditingController();
   List<BookingDTO> _existingBookings = [];
   bool _isLoadingBookings = false;
+  bool _isSubmitting = false;
 
   // Time Slot Configuration
   final int _startHour = 6; // 6:00 AM
@@ -189,11 +190,14 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
   void _confirmBooking() async {
     if (_selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty) {
-      
+      setState(() {
+        _isSubmitting = true;
+      });
       // Save address
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
       final String? userId = prefs.getString('user_id');
+      final String? userName = prefs.getString('user_name');
 
       // Format time slots
       String formattedTime;
@@ -204,9 +208,10 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       }
 
       final Map<String, dynamic> notesMap = {
+        'Booked By': userName ?? 'Unknown User',
         'Provider': widget.providerName,
         'Vehicle Type': widget.vehicleType,
-        'Vehicle Count': 1,
+        'Location': _addressController.text,
         'Goods Type': _selectedGoodsType,
         'Time': formattedTime,
         'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
@@ -233,6 +238,9 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         await BookingManager().createBooking(dto);
         
         if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+        });
 
         Navigator.push(
           context,
@@ -245,6 +253,9 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         );
       } catch(e) {
         if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
         );
@@ -495,17 +506,19 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _confirmBooking,
+                      onPressed: _isSubmitting ? null : _confirmBooking,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue, // Transport Theme Color
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: Text(
-                        AppLocalizations.of(context)!.confirmRequest,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
+                      child: _isSubmitting 
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(
+                            AppLocalizations.of(context)!.confirmRequest,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
                     ),
                   ),
                 ],

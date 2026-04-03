@@ -37,6 +37,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   DateTime? _selectedDate;
   List<BookingDTO> _existingBookings = [];
   bool _isLoadingBookings = false;
+  bool _isSubmitting = false;
 
   // Time Slot Configuration
   final int _startHour = 6; // 6:00 AM
@@ -180,6 +181,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
   void _confirmBooking() async {
     if (_selectedDate != null && _quantityController.text.isNotEmpty && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty) {
+      setState(() {
+        _isSubmitting = true;
+      });
       // Save address for future use if it changed
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
@@ -196,10 +200,13 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       }
 
       final String? userId = prefs.getString('user_id');
+      final String? userName = prefs.getString('user_name');
 
       final Map<String, dynamic> notesMap = {
+        'Booked By': userName ?? 'Unknown User',
         'Provider': widget.providerName,
         'Service': widget.serviceName,
+        'Location': _addressController.text,
         'Quantity': _quantityController.text,
         'Preferred Time': timeStr,
         'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
@@ -227,6 +234,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         await BookingManager().createBooking(dto);
         
         if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+        });
 
         Navigator.push(
           context,
@@ -239,6 +249,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         );
       } catch(e) {
         if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
         );
@@ -469,17 +482,19 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _confirmBooking,
+                onPressed: _isSubmitting ? null : _confirmBooking,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0A0E21),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: Text(
-                  AppLocalizations.of(context)!.confirmRequest,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
+                child: _isSubmitting 
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : Text(
+                      AppLocalizations.of(context)!.confirmRequest,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
               ),
             ),
           ],

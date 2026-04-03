@@ -38,6 +38,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   final TextEditingController _addressController = TextEditingController();
   List<BookingDTO> _existingBookings = [];
   bool _isLoadingBookings = false;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -176,6 +177,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
   void _confirmBooking() async {
     if (_selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty) {
+      setState(() {
+        _isSubmitting = true;
+      });
       // Save address
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
@@ -189,11 +193,13 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       }
 
       final String? userId = prefs.getString('user_id');
+      final String? userName = prefs.getString('user_name');
 
       final Map<String, dynamic> notesMap = {
+        'Booked By': userName ?? 'Unknown User',
         'Provider': widget.providerName,
         'Equipment': widget.equipmentType,
-        'Count': _equipmentCount,
+        'Location': _addressController.text,
         'Duration': durationText,
         'Operator Required': _includeOperator ? 'Yes' : 'No',
         'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
@@ -220,6 +226,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         await BookingManager().createBooking(dto);
         
         if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+        });
 
         Navigator.push(
           context,
@@ -232,6 +241,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         );
       } catch(e) {
         if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
         );
@@ -317,7 +329,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
             // Delivery Address
             const Text(
-              'Delivery/Usage Address',
+              'Rent/Usage Address',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),
              const SizedBox(height: 12),
@@ -466,17 +478,19 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: _confirmBooking,
+                      onPressed: _isSubmitting ? null : _confirmBooking,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green, 
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: Text(
-                        AppLocalizations.of(context)!.rentNow,
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
+                      child: _isSubmitting 
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(
+                            AppLocalizations.of(context)!.rentNow,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
                     ),
                   ),
                 ],

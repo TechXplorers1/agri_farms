@@ -22,6 +22,8 @@ class BookingDetails {
   final Map<String, dynamic> details;
   final String? providerId;
   final String? farmerId;
+  final DateTime rawBookingDate;
+  final DateTime? rawScheduledStartTime;
 
   BookingDetails({
     required this.id,
@@ -33,6 +35,8 @@ class BookingDetails {
     this.details = const {},
     this.providerId,
     this.farmerId,
+    required this.rawBookingDate,
+    this.rawScheduledStartTime,
   });
 
   factory BookingDetails.fromDTO(BookingDTO dto) {
@@ -60,13 +64,15 @@ class BookingDetails {
     return BookingDetails(
       id: dto.bookingId ?? '',
       title: title,
-      date: dto.bookingDate?.toString().split(' ')[0] ?? '',
+      date: dto.scheduledStartTime?.toString().split(' ')[0] ?? dto.bookingDate?.toString().split(' ')[0] ?? '',
       price: priceStr,
       status: dto.status ?? 'Pending',
       category: cat,
       providerId: dto.providerId,
       farmerId: dto.farmerId,
       details: parsedDetails,
+      rawBookingDate: dto.bookingDate ?? DateTime.now(),
+      rawScheduledStartTime: dto.scheduledStartTime,
     );
   }
 }
@@ -171,6 +177,8 @@ class BookingManager extends ChangeNotifier {
           details: old.details,
           providerId: old.providerId,
           farmerId: old.farmerId,
+          rawBookingDate: old.rawBookingDate,
+          rawScheduledStartTime: old.rawScheduledStartTime,
         );
         notifyListeners();
       }
