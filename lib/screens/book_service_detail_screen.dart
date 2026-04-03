@@ -40,9 +40,15 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   bool _isSubmitting = false;
 
   // Time Slot Configuration
-  final int _startHour = 6; // 6:00 AM
-  final int _endHour = 20;  // 8:00 PM (Last slot starts at 8)
-  final List<int> _selectedSlots = [];
+  final int _startHour = 6;
+  final int _endHour = 20;
+  int? _selectedStartHour;
+  int _durationHours = 1;
+
+  List<int> get _selectedSlots {
+    if (_selectedStartHour == null) return [];
+    return List.generate(_durationHours, (i) => _selectedStartHour! + i);
+  }
 
   // Real Logic: Check if a slot is blocked
   bool _isSlotBlocked(int hour) {
@@ -76,21 +82,25 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       return;
     }
     if (_isSlotBlocked(hour)) {
-       ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This slot is already booked')),
       );
       return;
     }
 
     setState(() {
-      if (_selectedSlots.contains(hour)) {
-        _selectedSlots.remove(hour);
-        _selectedSlots.sort();
-      } else {
-        _selectedSlots.add(hour);
-        _selectedSlots.sort();
-      }
+      _selectedStartHour = hour;
+      _durationHours = 1;
     });
+  }
+
+  bool _isRangeAvailable(int startHour, int duration) {
+    for (int i = 0; i < duration; i++) {
+      if (_isSlotBlocked(startHour + i) || (startHour + i) >= _endHour) {
+        return false;
+      }
+    }
+    return true;
   }
 
   String _formatTime(int hour) {
@@ -173,6 +183,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+        _selectedStartHour = null;
+        _durationHours = 1;
       });
     }
   }
@@ -209,7 +221,6 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         'Location': _addressController.text,
         'Quantity': _quantityController.text,
         'Preferred Time': timeStr,
-        'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
         'Notes': _notesController.text,
       };
 
@@ -416,7 +427,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             if (_selectedDate == null)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
-                child: Text('Select a date to view available time slots', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                child: Text('Select a date first to view available slots', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
               ),
             const SizedBox(height: 12),
             
@@ -435,14 +446,15 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                 int hour = _startHour + index;
                 bool isBlocked = _isSlotBlocked(hour);
                 bool isSelected = _selectedSlots.contains(hour);
-                
+
                 return InkWell(
                   onTap: () => _onSlotTap(hour),
                   child: Container(
                     decoration: BoxDecoration(
                       color: isBlocked ? Colors.grey[200] : (isSelected ? const Color(0xFF00AA55) : Colors.white),
                       border: Border.all(
-                        color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!)
+                        color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!),
+                        width: isSelected ? 2 : 1,
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -460,6 +472,63 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                 );
               },
             ),
+
+            if (_selectedStartHour != null) ...[
+              const SizedBox(height: 24),
+              const Text(
+                'Select Duration',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        _buildDurationButton(
+                          icon: Icons.remove,
+                          onPressed: _durationHours > 1 
+                            ? () => setState(() => _durationHours--)
+                            : null,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Text(
+                            '$_durationHours ${_durationHours == 1 ? 'Hour' : 'Hours'}',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        _buildDurationButton(
+                          icon: Icons.add,
+                          onPressed: _isRangeAvailable(_selectedStartHour!, _durationHours + 1)
+                            ? () => setState(() => _durationHours++)
+                            : null,
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '${_formatTime(_selectedStartHour!)} to ${_formatTime(_selectedStartHour! + _durationHours)}',
+                      style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              if (!_isRangeAvailable(_selectedStartHour!, _durationHours + 1) && (_selectedStartHour! + _durationHours) < _endHour)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, left: 4),
+                  child: Text(
+                    'Next slot is already booked or unavailable',
+                    style: TextStyle(color: Colors.orange[800], fontSize: 12),
+                  ),
+                ),
+            ],
 
             const SizedBox(height: 24),
 
@@ -539,6 +608,19 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDurationButton({required IconData icon, VoidCallback? onPressed}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: onPressed == null ? Colors.grey[200] : const Color(0xFFE8F5E9),
+        shape: BoxShape.circle,
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: onPressed == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+        onPressed: onPressed,
       ),
     );
   }
