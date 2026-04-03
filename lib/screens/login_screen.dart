@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'verify_otp_screen.dart';
+import '../../services/api_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -16,6 +17,7 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _selectedRole;
   bool _isLogin = true; // Default to Login
   bool _isButtonEnabled = false;
+  bool _isLoading = false;
 
   List<String> _getRoles(BuildContext context) {
     var l10n = AppLocalizations.of(context)!;
@@ -50,18 +52,90 @@ class _AuthScreenState extends State<AuthScreen> {
     });
   }
 
-  void _getOtp() {
-    if (_isButtonEnabled) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => VerifyOtpScreen(
-            mobileNumber: _phoneController.text,
-            fullName: _isLogin ? '' : _nameController.text, // Empty for login
-            role: _isLogin ? '' : _selectedRole!,        // Empty for login
-            isLogin: _isLogin,
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              if (title == 'Account Not Found') {
+                setState(() {
+                  _isLogin = false;
+                  _validateInput();
+                });
+              } else if (title == 'Account Exists') {
+                setState(() {
+                  _isLogin = true;
+                  _validateInput();
+                });
+              }
+            },
+            child: const Text('OK', style: TextStyle(color: Color(0xFF00AA55))),
           ),
-        ),
-      );
+        ],
+      ),
+    );
+  }
+
+  Future<void> _getOtp() async {
+    if (_isButtonEnabled) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        final apiService = ApiService();
+        
+        if (_isLogin) {
+          try {
+            await apiService.getUserByPhone(_phoneController.text);
+          } catch (e) {
+            if (e.toString().contains('404') || e.toString().contains('Not Found')) {
+              if (mounted) _showErrorDialog('Account Not Found', 'Please sign up or register to get logged in.');
+              return;
+            } else {
+              if (mounted) _showErrorDialog('Error', 'Failed to verify account: $e');
+              return;
+            }
+          }
+        } else {
+          try {
+            await apiService.getUserByPhone(_phoneController.text);
+            if (mounted) _showErrorDialog('Account Exists', 'This mobile number is already registered. Please login instead.');
+            return;
+          } catch (e) {
+            if (e.toString().contains('404') || e.toString().contains('Not Found')) {
+              // Expected missing user
+            } else {
+              if (mounted) _showErrorDialog('Error', 'Failed to check account: $e');
+              return;
+            }
+          }
+        }
+
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => VerifyOtpScreen(
+                mobileNumber: _phoneController.text,
+                fullName: _isLogin ? '' : _nameController.text, // Empty for login
+                role: _isLogin ? '' : _selectedRole!,        // Empty for login
+                isLogin: _isLogin,
+              ),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
     }
   }
 
@@ -266,15 +340,15 @@ class _AuthScreenState extends State<AuthScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _isButtonEnabled ? _getOtp : null,
+                  onPressed: _isButtonEnabled && !_isLoading ? _getOtp : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isButtonEnabled ? Colors.black : Colors.grey,
+                    backgroundColor: _isButtonEnabled && !_isLoading ? Colors.black : Colors.grey,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                     disabledBackgroundColor: Colors.grey,
                   ),
-                  child: Text(
+                  child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(
                     _isLogin ? 'Login' : AppLocalizations.of(context)!.getOtp, // Or "Sign Up" if preferred
                     style: const TextStyle(
                       color: Colors.white,

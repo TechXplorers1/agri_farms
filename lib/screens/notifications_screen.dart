@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
+import 'provider/provider_requests_screen.dart';
+import 'generic_history_screen.dart';
+import '../utils/booking_manager.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -25,7 +28,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('user_id');
-      
+
       if (userId != null) {
         final notifications = await _apiService.getUserNotifications(userId);
         setState(() {
@@ -55,6 +58,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       print('Error marking as read: $e');
     }
+  }
+
+  void _onNotificationTap(dynamic notification, int index) async {
+    // Mark as read first
+    if (notification['id'] != null) {
+      await _markAsRead(notification['id'], index);
+    }
+
+    if (!mounted) return;
+
+    final type = notification['type'] ?? '';
+
+    if (type == 'booking_request') {
+      // Asset owner received a new booking request → Service Requests screen
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const ProviderRequestsScreen(),
+        ),
+      );
+    } else if (type == 'booking_status_update') {
+      // Farmer/requester received status update → Activity Bookings screen
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const GenericHistoryScreen(
+            title: 'Activity Bookings',
+            categories: [
+              BookingCategory.services,
+              BookingCategory.farmWorkers,
+              BookingCategory.transport,
+              BookingCategory.rentals,
+            ],
+            showBackButton: true,
+          ),
+        ),
+      );
+    }
+    // General notifications: just mark as read, no navigation
   }
 
   String _formatTime(String? dateString) {
@@ -106,20 +146,54 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   itemCount: _notifications.length,
                   itemBuilder: (context, index) {
                     final notification = _notifications[index];
+                    final type = notification['type'] ?? '';
+                    final isNavigable =
+                        type == 'booking_request' || type == 'booking_status_update';
+
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: GestureDetector(
-                        onTap: () {
-                          if (notification['id'] != null) {
-                            _markAsRead(notification['id'], index);
-                          }
-                        },
-                        child: _buildNotificationCard(
-                          type: notification['type'] ?? 'general',
-                          title: notification['title'] ?? 'Notification',
-                          description: notification['message'] ?? '',
-                          time: _formatTime(notification['createdAt']),
-                          isRead: notification['read'] == true,
+                        onTap: () => _onNotificationTap(notification, index),
+                        child: Stack(
+                          children: [
+                            _buildNotificationCard(
+                              type: type,
+                              title: notification['title'] ?? 'Notification',
+                              description: notification['message'] ?? '',
+                              time: _formatTime(notification['createdAt']),
+                              isRead: notification['read'] == true,
+                            ),
+                            if (isNavigable)
+                              Positioned(
+                                right: 16,
+                                bottom: 14,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      type == 'booking_request'
+                                          ? 'View Requests'
+                                          : 'View Bookings',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: type == 'booking_request'
+                                            ? const Color(0xFF2E7D32)
+                                            : const Color(0xFFF57F17),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Icon(
+                                      Icons.arrow_forward_ios_rounded,
+                                      size: 10,
+                                      color: type == 'booking_request'
+                                          ? const Color(0xFF2E7D32)
+                                          : const Color(0xFFF57F17),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     );
@@ -137,7 +211,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           const SizedBox(height: 16),
           Text(
             'No notifications yet',
-            style: TextStyle(fontSize: 18, color: Colors.grey[800], fontWeight: FontWeight.bold),
+            style: TextStyle(
+                fontSize: 18, color: Colors.grey[800], fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
@@ -156,11 +231,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     required String time,
     required bool isRead,
   }) {
-    // Determine visuals based on type
     Color bgColor = Colors.white;
-    Color iconBg = const Color(0xFFF1F8E9); // Light Green
+    Color iconBg = const Color(0xFFF1F8E9);
     IconData icon = Icons.notifications_active;
-    Color iconColor = const Color(0xFF2E7D32); // Dark Green
+    Color iconColor = const Color(0xFF2E7D32);
 
     if (type == 'booking_request') {
       bgColor = isRead ? Colors.white : const Color(0xFFE8F5E9);
@@ -186,11 +260,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.withOpacity(0.2)),
         boxShadow: [
-           BoxShadow(
-             color: Colors.grey.withOpacity(0.05),
-             blurRadius: 5,
-             offset: const Offset(0, 2),
-           )
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          )
         ],
       ),
       child: Column(
@@ -227,7 +301,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                   child: const Text(
                     'New',
-                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
             ],
@@ -242,7 +319,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 12),
+          // Extra bottom padding to leave room for the "View →" link
+          const SizedBox(height: 24),
           // Time
           Text(
             time,

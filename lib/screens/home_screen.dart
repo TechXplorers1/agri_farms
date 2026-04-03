@@ -280,10 +280,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF00AA55), // Match Splash Screen Green
+                              color: Colors.white,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.eco, color: Colors.white, size: 24), // Match Splash Icon
+                            child: const Icon(Icons.eco, color: Color(0xFF00AA55), size: 24), // Match Splash Icon
                           ),
                           const SizedBox(width: 12),
                           const Text(
