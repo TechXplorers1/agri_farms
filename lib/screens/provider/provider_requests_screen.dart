@@ -2,6 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/booking_manager.dart';
 
+String _formatProviderDate(String raw) {
+  try {
+    final dt = DateTime.parse(raw);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  } catch (_) {
+    return raw;
+  }
+}
+
 class ProviderRequestsScreen extends StatefulWidget {
   const ProviderRequestsScreen({super.key});
 
@@ -177,7 +187,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                   children: [
                     Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
                     const SizedBox(width: 4),
-                    Text('Booked For: ${booking.date}', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                    Text('Booked for : ${_formatProviderDate(booking.date)}', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                     const SizedBox(width: 16),
                     Text(booking.price, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                   ],
@@ -214,6 +224,19 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                         ],
                       ),
                     )
+                  ),
+                ],
+                if (booking.id.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.confirmation_number_outlined, size: 13, color: Colors.grey[400]),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Booking ID: #${booking.id.length > 6 ? booking.id.substring(booking.id.length - 6).toUpperCase() : booking.id.toUpperCase()}',
+                        style: TextStyle(color: Colors.grey[400], fontSize: 11, fontFamily: 'monospace'),
+                      ),
+                    ],
                   ),
                 ],
                 if (tabType == 'new') ...[

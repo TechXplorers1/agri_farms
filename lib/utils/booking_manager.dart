@@ -137,12 +137,13 @@ class BookingManager extends ChangeNotifier {
     }
   }
 
-  Future<void> createBooking(BookingDTO dto) async {
+  Future<BookingDTO> createBooking(BookingDTO dto) async {
     try {
       final response = await _apiService.createBooking(dto.toJson());
       final newDto = BookingDTO.fromJson(response);
       _bookings.insert(0, BookingDetails.fromDTO(newDto));
       notifyListeners();
+      return newDto;
     } catch (e) {
       print('Error creating booking: $e');
       throw e;

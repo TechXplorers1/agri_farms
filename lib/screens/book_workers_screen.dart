@@ -297,7 +297,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       );
       
       try {
-        await BookingManager().createBooking(dto);
+        final newBooking = await BookingManager().createBooking(dto);
         
         if (!mounted) return;
         setState(() {
@@ -308,7 +308,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => BookingConfirmationScreen(
-              bookingId: "Created Successfully",
+              bookingId: newBooking.bookingId ?? "ID-Error",
               bookingTitle: widget.providerName,
             ),
           ),

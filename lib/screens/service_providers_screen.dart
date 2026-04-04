@@ -1269,22 +1269,11 @@ class _AssetDetailModal extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  const Divider(),
-                  const SizedBox(height: 20),
-                  
-                  // Specific Details Based on Type
+                  // Specific Details Based on Type (Now includes Location, Jobs Done, and Distance)
                   if (provider is EquipmentListing) _buildEquipmentDetails(context, provider as EquipmentListing),
                   if (provider is TransportListing) _buildTransportDetails(context, provider as TransportListing),
                   if (provider is FarmWorkerListing) _buildWorkerDetails(context, provider as FarmWorkerListing),
                   if (provider is ServiceListing) _buildServiceDetails(context, provider as ServiceListing),
-                  
-                  const SizedBox(height: 24),
-                  
-                  // General Info
-                  _buildDetailRow(Icons.location_on_outlined, AppLocalizations.of(context)!.locationLabel, provider.location.isNotEmpty ? provider.location : 'Village Area'),
-                  _buildDetailRow(Icons.history, 'Experience', '${provider.jobsCompleted} ${AppLocalizations.of(context)!.jobsCompleted}'),
-                  _buildDetailRow(Icons.social_distance_outlined, 'Distance', provider.distance),
                   
                   const SizedBox(height: 30),
                   
@@ -1324,6 +1313,9 @@ class _AssetDetailModal extends StatelessWidget {
            _buildDetailRow(Icons.calendar_today, 'Year', item.yearOfManufacture!),
         _buildDetailRow(Icons.person_outline, 'Operator', item.operatorAvailable ? 'Available (Included/Extra)' : 'Not Provided'),
         _buildDetailRow(Icons.payments_outlined, 'Price Rate', item.price),
+        _buildDetailRow(Icons.location_on_outlined, AppLocalizations.of(context)!.locationLabel, item.location.isNotEmpty ? item.location : 'Village Area'),
+        _buildDetailRow(Icons.history, 'Jobs Done', '${item.jobsCompleted} ${AppLocalizations.of(context)!.jobsCompleted}'),
+        _buildDetailRow(Icons.social_distance_outlined, 'Distance', item.distance),
       ],
     );
   }
@@ -1337,6 +1329,9 @@ class _AssetDetailModal extends StatelessWidget {
         if (item.serviceArea != null)
            _buildDetailRow(Icons.map_outlined, 'Service Area', item.serviceArea!),
         _buildDetailRow(Icons.payments_outlined, 'Rental Rate', item.price),
+        _buildDetailRow(Icons.location_on_outlined, AppLocalizations.of(context)!.locationLabel, item.location.isNotEmpty ? item.location : 'Village Area'),
+        _buildDetailRow(Icons.history, 'Jobs Done', '${item.jobsCompleted} ${AppLocalizations.of(context)!.jobsCompleted}'),
+        _buildDetailRow(Icons.social_distance_outlined, 'Distance', item.distance),
       ],
     );
   }
@@ -1350,6 +1345,9 @@ class _AssetDetailModal extends StatelessWidget {
         _buildDetailRow(Icons.male, 'Male Workers', '${item.maleCount} Staff (₹${item.malePrice}/day)'),
         _buildDetailRow(Icons.female, 'Female Workers', '${item.femaleCount} Staff (₹${item.femalePrice}/day)'),
         _buildDetailRow(Icons.psychology_outlined, 'Skills Offered', item.skills),
+        _buildDetailRow(Icons.location_on_outlined, AppLocalizations.of(context)!.locationLabel, item.location.isNotEmpty ? item.location : 'Village Area'),
+        _buildDetailRow(Icons.history, 'Jobs Done', '${item.jobsCompleted} ${AppLocalizations.of(context)!.jobsCompleted}'),
+        _buildDetailRow(Icons.social_distance_outlined, 'Distance', item.distance),
         const SizedBox(height: 12),
         const Text('Role Breakdown', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         const SizedBox(height: 8),
@@ -1371,8 +1369,10 @@ class _AssetDetailModal extends StatelessWidget {
       children: [
         _buildDetailRow(Icons.settings_outlined, 'Tools Used', item.equipmentUsed),
         _buildDetailRow(Icons.person_outline, 'Operator', item.operatorIncluded ? 'Expert Provided' : 'Only Machine'),
-        _buildDetailRow(Icons.check_circle_outline, 'Track Record', '${item.jobsCompleted} Successful Jobs'),
         _buildDetailRow(Icons.payments_outlined, 'Service Charge', item.price),
+        _buildDetailRow(Icons.location_on_outlined, AppLocalizations.of(context)!.locationLabel, item.location.isNotEmpty ? item.location : 'Village Area'),
+        _buildDetailRow(Icons.history, 'Jobs Done', '${item.jobsCompleted} ${AppLocalizations.of(context)!.jobsCompleted}'),
+        _buildDetailRow(Icons.social_distance_outlined, 'Distance', item.distance),
       ],
     );
   }

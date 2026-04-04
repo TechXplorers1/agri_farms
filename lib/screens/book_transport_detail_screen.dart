@@ -246,7 +246,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       );
       
       try {
-        await BookingManager().createBooking(dto);
+        final newBooking = await BookingManager().createBooking(dto);
         
         if (!mounted) return;
         setState(() {
@@ -257,7 +257,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => BookingConfirmationScreen(
-              bookingId: "Created Successfully",
+              bookingId: newBooking.bookingId ?? "ID-Error",
               bookingTitle: '${widget.vehicleType} Service',
             ),
           ),

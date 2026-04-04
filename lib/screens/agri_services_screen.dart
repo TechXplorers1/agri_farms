@@ -42,13 +42,13 @@ class AgriServicesScreen extends StatelessWidget {
                 children: [
                    _buildServiceCard(context, 'Ploughing', AppLocalizations.of(context)!.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue),
                    _buildServiceCard(context, 'Electricians', 'Electricians', Icons.electrical_services, const Color(0xFFFFF8E1), Colors.amber[800]!),
-                   _buildServiceCard(context, 'Mechanics', 'Mechanics', Icons.build, const Color(0xFFECEFF1), Colors.blueGrey),
-                   _buildServiceCard(context, 'Harvesting', AppLocalizations.of(context)!.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange), // Yellowish bg
+                   _buildServiceCard(context, 'Harvesting', AppLocalizations.of(context)!.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange),
                    _buildServiceCard(context, 'Farm Workers', AppLocalizations.of(context)!.farmWorkers, Icons.groups, const Color(0xFFF3E5F5), Colors.purple),
                    _buildServiceCard(context, 'Drone Spraying', AppLocalizations.of(context)!.droneSpraying, Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green),
-                   _buildServiceCard(context, 'Irrigation', AppLocalizations.of(context)!.irrigation, Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan),
-
                    _buildServiceCard(context, 'Vet Care', AppLocalizations.of(context)!.vetCare, Icons.pets, const Color(0xFFFCE4EC), Colors.pink),
+                   _buildServiceCard(context, 'Mechanics', 'Mechanics', Icons.build, const Color(0xFFECEFF1), Colors.blueGrey, isComingSoon: true),
+                   _buildServiceCard(context, 'Irrigation', AppLocalizations.of(context)!.irrigation, Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, isComingSoon: true),
+                   _buildServiceCard(context, 'Soil Testing', AppLocalizations.of(context)!.soilTesting, Icons.science, const Color(0xFFE8F5E9), Colors.green, isComingSoon: true),
                 ],
               ),
             ),
@@ -58,7 +58,7 @@ class AgriServicesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildServiceCard(BuildContext context, String title, String displayTitle, IconData icon, Color bgColor, Color iconColor) {
+  Widget _buildServiceCard(BuildContext context, String title, String displayTitle, IconData icon, Color bgColor, Color iconColor, {bool isComingSoon = false}) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -66,8 +66,8 @@ class AgriServicesScreen extends StatelessWidget {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -75,32 +75,90 @@ class AgriServicesScreen extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () {
+          onTap: isComingSoon ? null : () {
             Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: title, title: displayTitle, userRole: userRole)));
           },
           borderRadius: BorderRadius.circular(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
             children: [
-              Container(
-                height: 70,
-                width: 70,
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(20), // Squircle shape
+              // Main Content
+              Opacity(
+                opacity: isComingSoon ? 0.4 : 1.0,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        height: 70,
+                        width: 70,
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(icon, size: 36, color: iconColor),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        displayTitle,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Icon(icon, size: 36, color: iconColor),
               ),
-              const SizedBox(height: 16),
-              Text(
-                displayTitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 15, // Slightly smaller than 16 to fit better
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+              
+              // Coming Soon Catchy UI
+              if (isComingSoon) ...[
+                // Lock Icon Overlay
+                const Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
                 ),
-              ),
+                
+                // Catchy Badge
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.orange.shade400,
+                          Colors.orange.shade700,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(16),
+                        bottomRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Coming Soon',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

@@ -4,6 +4,16 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 
+String _formatBookingDate(String raw) {
+  try {
+    final dt = DateTime.parse(raw);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
+  } catch (_) {
+    return raw;
+  }
+}
+
 class GenericHistoryScreen extends StatefulWidget {
   final String title;
   final List<BookingCategory> categories;
@@ -252,7 +262,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    'Booked For: ${booking.date}', 
+                    'Booked for : ${_formatBookingDate(booking.date)}', 
                     style: TextStyle(color: Colors.grey[600], fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   )
@@ -263,6 +273,19 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                 ]
               ],
             ),
+            if (booking.id.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.confirmation_number_outlined, size: 13, color: Colors.grey[400]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Booking ID: #${booking.id.length > 6 ? booking.id.substring(booking.id.length - 6).toUpperCase() : booking.id.toUpperCase()}',
+                    style: TextStyle(color: Colors.grey[400], fontSize: 11, fontFamily: 'monospace'),
+                  ),
+                ],
+              ),
+            ],
             if (booking.details.isNotEmpty) ...[
               const SizedBox(height: 12),
               const Divider(),

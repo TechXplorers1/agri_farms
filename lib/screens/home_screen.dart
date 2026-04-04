@@ -71,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // Services
       HomeServiceItem(l10n.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services', ServiceProvidersScreen(serviceKey: 'Ploughing', title: l10n.ploughing, userRole: widget.userRole)),
+      HomeServiceItem(l10n.soilTesting, Icons.science, const Color(0xFFE8F5E9), Colors.green, 'Services', ServiceProvidersScreen(serviceKey: 'Soil Testing', title: l10n.soilTesting, userRole: widget.userRole)),
       HomeServiceItem(l10n.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services', ServiceProvidersScreen(serviceKey: 'Harvesting', title: l10n.harvesting, userRole: widget.userRole)),
       HomeServiceItem(l10n.farmWorkers, Icons.groups, const Color(0xFFF3E5F5), Colors.purple, 'Services', ServiceProvidersScreen(serviceKey: 'Farm Workers', title: l10n.farmWorkers, userRole: widget.userRole)),
       HomeServiceItem(l10n.droneSpraying, Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services', ServiceProvidersScreen(serviceKey: 'Drone Spraying', title: l10n.droneSpraying, userRole: widget.userRole)),
@@ -278,12 +279,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(Icons.eco, color: Color(0xFF00AA55), size: 24), // Match Splash Icon
+                            child: const Icon(Icons.eco, color: Color(0xFF00AA55), size: 32), // Filled 80%
                           ),
                           const SizedBox(width: 12),
                           const Text(
@@ -598,15 +599,15 @@ class _HomeScreenState extends State<HomeScreen> {
                      Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
                   }),
                   const SizedBox(height: 12),
-                   _buildSectionContainer(
+                    _buildSectionContainer(
                      Row(
                       children: [
-                        Expanded(child: _buildServiceItem(Icons.local_shipping, AppLocalizations.of(context)!.miniTruck, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Mini Truck', title: AppLocalizations.of(context)!.miniTruck, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 12),
                         Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.tractorTrolley, const Color(0xFFE8F5E9), Colors.green, onTap: () {
                            Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: AppLocalizations.of(context)!.tractorTrolley, userRole: widget.userRole)));
+                        })),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildServiceItem(Icons.local_shipping, AppLocalizations.of(context)!.miniTruck, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Mini Truck', title: AppLocalizations.of(context)!.miniTruck, userRole: widget.userRole)));
                         })),
                         const SizedBox(width: 12),
                         Expanded(child: _buildServiceItem(Icons.local_shipping_outlined, AppLocalizations.of(context)!.fullTruck, const Color(0xFFFFF3E0), Colors.orange, onTap: () {

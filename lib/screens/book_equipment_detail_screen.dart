@@ -230,7 +230,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       );
       
       try {
-        await BookingManager().createBooking(dto);
+        final newBooking = await BookingManager().createBooking(dto);
         
         if (!mounted) return;
         setState(() {
@@ -241,7 +241,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => BookingConfirmationScreen(
-              bookingId: "Created Successfully",
+              bookingId: newBooking.bookingId ?? "ID-Error",
               bookingTitle: '${widget.equipmentType} Rental',
             ),
           ),
