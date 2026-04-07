@@ -16,6 +16,7 @@ import '../config/api_config.dart';
 import 'provider/provider_requests_screen.dart';
 import 'manage_items_screen.dart'; // Import ManageItemsScreen
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import '../utils/ui_utils.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -405,18 +406,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           });
 
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Profile photo updated successfully!'), backgroundColor: Colors.green),
-            );
+            UiUtils.showCenteredToast(context, 'Profile photo updated successfully!');
           }
         }
       }
     } catch (e) {
       print('Error uploading profile photo: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload profile photo: $e'), backgroundColor: Colors.red),
-        );
+        UiUtils.showCustomAlert(context, 'Failed to upload profile photo: $e', isError: true);
       }
     } finally {
       if (mounted) {

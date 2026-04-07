@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
+import '../utils/ui_utils.dart';
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -32,8 +33,16 @@ class BookServiceDetailScreen extends StatefulWidget {
 
 class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   final TextEditingController _notesController = TextEditingController();
-  final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, String?> _fieldErrors = {};
+  
+  // GlobalKeys for scrolling
+  final GlobalKey _qtySectionKey = GlobalKey();
+  final GlobalKey _addressSectionKey = GlobalKey();
+  final GlobalKey _dateSectionKey = GlobalKey();
+  final GlobalKey _timeSectionKey = GlobalKey();
   DateTime? _selectedDate;
   List<BookingDTO> _existingBookings = [];
   bool _isLoadingBookings = false;
@@ -49,6 +58,34 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     if (_selectedStartHour == null) return [];
     return List.generate(_durationHours, (i) => _selectedStartHour! + i);
   }
+
+  // Electrician Specific Fields
+  final List<String> _electricianPurposes = [
+    'Pump Motor Repair',
+    'Wiring Installation/Repair',
+    'Solar Panel Maintenance',
+    'Generator Servicing',
+    'Control Panel Troubleshooting',
+    'Lighting Installation',
+    'Battery/Inverter Maintenance',
+    'Others'
+  ];
+
+  final List<String> _electricianAssets = [
+    'Submersible Pump',
+    'Monoblock Pump',
+    'Diesel Generator',
+    'Solar System',
+    'Farmhouse Wiring',
+    'Cold Storage Unit',
+    'Poultry House Ventilation',
+    'Others'
+  ];
+
+  String? _selectedPurpose;
+  String? _selectedAssetType;
+  final TextEditingController _customPurposeController = TextEditingController();
+  final TextEditingController _customAssetController = TextEditingController();
 
   // Real Logic: Check if a slot is blocked
   bool _isSlotBlocked(int hour) {
@@ -76,15 +113,11 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
   void _onSlotTap(int hour) {
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a date first')),
-      );
+      UiUtils.showCenteredToast(context, 'Please select a date first', isError: true);
       return;
     }
     if (_isSlotBlocked(hour)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This slot is already booked')),
-      );
+      UiUtils.showCenteredToast(context, 'This slot is already booked', isError: true);
       return;
     }
 
@@ -142,6 +175,17 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _notesController.dispose();
+    _addressController.dispose();
+    _quantityController.dispose();
+    _customPurposeController.dispose();
+    _customAssetController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadAddress() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -153,12 +197,12 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     });
   }
 
-  @override
-  void dispose() {
-    _notesController.dispose();
-    _quantityController.dispose();
-    _addressController.dispose();
-    super.dispose();
+  void _scrollToField(GlobalKey key) {
+    Scrollable.ensureVisible(
+      key.currentContext!,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -192,7 +236,13 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
 
   void _confirmBooking() async {
-    if (_selectedDate != null && _quantityController.text.isNotEmpty && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty) {
+    bool isElectrician = widget.serviceName == 'Electricians';
+    bool isQtyValid = isElectrician 
+      ? (_selectedPurpose != null && (_selectedPurpose != 'Others' || _customPurposeController.text.isNotEmpty)) &&
+        (_selectedAssetType != null && (_selectedAssetType != 'Others' || _customAssetController.text.isNotEmpty))
+      : _quantityController.text.isNotEmpty;
+
+    if (_selectedDate != null && isQtyValid && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty) {
       setState(() {
         _isSubmitting = true;
       });
@@ -208,7 +258,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       if (_selectedSlots.length == 1) {
         timeStr = _formatTimeRange(_selectedSlots.first);
       } else {
-         timeStr = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})'; // Simplified range display
+         timeStr = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}'; // Simplified range display
       }
 
       final String? userId = prefs.getString('user_id');
@@ -219,10 +269,16 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         'Provider': widget.providerName,
         'Service': widget.serviceName,
         'Location': _addressController.text,
-        'Quantity': _quantityController.text,
         'Preferred Time': timeStr,
         'Notes': _notesController.text,
       };
+
+      if (isElectrician) {
+        notesMap['Purpose of Visit'] = _selectedPurpose == 'Others' ? _customPurposeController.text : _selectedPurpose;
+        notesMap['Asset to Repair'] = _selectedAssetType == 'Others' ? _customAssetController.text : _selectedAssetType;
+      } else {
+        notesMap['Number of Acres'] = _quantityController.text;
+      }
 
       DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first);
       DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1);
@@ -263,21 +319,48 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         setState(() {
           _isSubmitting = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
-        );
+        UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
       }
     } else {
-      String msg = AppLocalizations.of(context)!.fillAllDetails;
-      if (_quantityController.text.isEmpty) {
-        msg = widget.serviceName == 'Harvesting' ? 'Please enter duration (Hours)' : 'Please enter quantity (Acres/Hours)';
-      } else if (_addressController.text.isEmpty) msg = 'Please enter service address';
-      else if (_selectedDate == null) msg = 'Please select a date';
-      else if (_selectedSlots.isEmpty) msg = 'Please select at least one time slot';
+      setState(() {
+        _fieldErrors.clear();
+        if (isElectrician) {
+          if (_selectedPurpose == null) _fieldErrors['purpose'] = 'Please select purpose of visit';
+          else if (_selectedPurpose == 'Others' && _customPurposeController.text.isEmpty) _fieldErrors['purpose_custom'] = 'Please specify purpose';
+          
+          if (_selectedAssetType == null) _fieldErrors['asset'] = 'Please select asset type';
+          else if (_selectedAssetType == 'Others' && _customAssetController.text.isEmpty) _fieldErrors['asset_custom'] = 'Please specify asset name';
+        } else {
+          if (_quantityController.text.isEmpty) {
+            _fieldErrors['qty'] = 'Please enter number of acres';
+          }
+        }
+        
+        if (_addressController.text.isEmpty) {
+          _fieldErrors['address'] = 'Please enter service address';
+        }
+        if (_selectedDate == null) {
+          _fieldErrors['date'] = 'Please select a date';
+        }
+        if (_selectedSlots.isEmpty) {
+          _fieldErrors['slots'] = 'Please select at least one time slot';
+        }
+      });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: Colors.red),
-      );
+      // Scroll to first error
+      if (_fieldErrors.containsKey('purpose') || _fieldErrors.containsKey('purpose_custom') || 
+          _fieldErrors.containsKey('asset') || _fieldErrors.containsKey('asset_custom') ||
+          _fieldErrors.containsKey('qty')) {
+        _scrollToField(_qtySectionKey);
+      } else if (_fieldErrors.containsKey('address')) {
+        _scrollToField(_addressSectionKey);
+      } else if (_fieldErrors.containsKey('date')) {
+        _scrollToField(_dateSectionKey);
+      } else if (_fieldErrors.containsKey('slots')) {
+        _scrollToField(_timeSectionKey);
+      }
+
+      UiUtils.showCenteredToast(context, AppLocalizations.of(context)!.fillAllDetails, isError: true);
     }
   }
 
@@ -291,6 +374,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         surfaceTintColor: Colors.white,
       ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,37 +424,118 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Quantity Input
-            const Text(
+            // Requirement Details (Conditional)
+            Text(
+              key: _qtySectionKey,
               'Requirement Details',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _quantityController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: widget.serviceName == 'Harvesting' ? 'Duration (Hours)' : 'Quantity (Acres / Hours)',
-                hintText: widget.serviceName == 'Harvesting' ? 'e.g. 4 Hours' : 'e.g. 2 Acres',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: (_fieldErrors.containsKey('qty') || _fieldErrors.containsKey('purpose') || _fieldErrors.containsKey('asset')) ? Colors.red : Colors.black87
               ),
             ),
+            const SizedBox(height: 12),
+            
+            if (widget.serviceName == 'Electricians') ...[
+              // Purpose of Visit
+              _buildDropdownField(
+                label: 'Purpose of Visit',
+                hint: 'Choose purpose of visit',
+                value: _selectedPurpose,
+                items: _electricianPurposes,
+                errorKey: 'purpose',
+                onChanged: (val) => setState(() => _selectedPurpose = val),
+              ),
+              if (_selectedPurpose == 'Others') ...[
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _customPurposeController,
+                  label: 'Specify Purpose',
+                  hint: 'Enter your custom purpose...',
+                  errorKey: 'purpose_custom',
+                ),
+              ],
+              const SizedBox(height: 16),
+              
+              // Type of Asset
+              _buildDropdownField(
+                label: 'Type of Asset',
+                hint: 'Choose type of asset/machinery',
+                value: _selectedAssetType,
+                items: _electricianAssets,
+                errorKey: 'asset',
+                onChanged: (val) => setState(() => _selectedAssetType = val),
+              ),
+              if (_selectedAssetType == 'Others') ...[
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _customAssetController,
+                  label: 'Specify Asset Name',
+                  hint: 'Enter asset/machinery name...',
+                  errorKey: 'asset_custom',
+                ),
+              ],
+            ] else ...[
+              // Default Acreage Input
+              TextField(
+                controller: _quantityController,
+                keyboardType: TextInputType.number,
+                onChanged: (_) {
+                  if (_fieldErrors.containsKey('qty')) setState(() => _fieldErrors.remove('qty'));
+                },
+                decoration: InputDecoration(
+                  labelText: 'Number of Acres',
+                  hintText: 'e.g. 2 Acres',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _fieldErrors.containsKey('qty') ? Colors.red : Colors.grey[300]!),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _fieldErrors.containsKey('qty') ? Colors.red : Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _fieldErrors.containsKey('qty') ? Colors.red : const Color(0xFF00AA55), width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                ),
+              ),
+            ],
             
             const SizedBox(height: 24),
 
             // Address
-            const Text(
+            Text(
+              key: _addressSectionKey,
               'Service Address (Mandatory)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: _fieldErrors.containsKey('address') ? Colors.red : Colors.black87
+              ),
             ),
              const SizedBox(height: 12),
             TextField(
               controller: _addressController,
               maxLines: 3,
+              onChanged: (_) {
+                if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
+              },
               decoration: InputDecoration(
                 hintText: 'Enter full address for service...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : const Color(0xFF00AA55), width: 2),
+                ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
             ),
@@ -379,17 +544,27 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
              // Date Selection
             Text(
+              key: _dateSectionKey,
               AppLocalizations.of(context)!.selectDate,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: _fieldErrors.containsKey('date') ? Colors.red : Colors.black87
+              ),
             ),
             const SizedBox(height: 12),
             GestureDetector(
-              onTap: () => _selectDate(context),
+              onTap: () async {
+                await _selectDate(context);
+                if (_selectedDate != null && _fieldErrors.containsKey('date')) {
+                  setState(() => _fieldErrors.remove('date'));
+                }
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(color: _fieldErrors.containsKey('date') ? Colors.red : Colors.grey[300]!),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -421,8 +596,13 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
             // Time Selection
             Text(
+              key: _timeSectionKey,
               AppLocalizations.of(context)!.preferredTime,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: _fieldErrors.containsKey('slots') ? Colors.red : Colors.black87
+              ),
             ),
             if (_selectedDate == null)
               Padding(
@@ -448,12 +628,19 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                 bool isSelected = _selectedSlots.contains(hour);
 
                 return InkWell(
-                  onTap: () => _onSlotTap(hour),
+                  onTap: () {
+                    _onSlotTap(hour);
+                    if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) {
+                      setState(() => _fieldErrors.remove('slots'));
+                    }
+                  },
                   child: Container(
                     decoration: BoxDecoration(
                       color: isBlocked ? Colors.grey[200] : (isSelected ? const Color(0xFF00AA55) : Colors.white),
                       border: Border.all(
-                        color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!),
+                        color: isBlocked 
+                            ? Colors.transparent 
+                            : (isSelected ? const Color(0xFF00AA55) : (_fieldErrors.containsKey('slots') ? Colors.red.withOpacity(0.5) : Colors.grey[300]!)),
                         width: isSelected ? 2 : 1,
                       ),
                       borderRadius: BorderRadius.circular(8),
@@ -622,6 +809,90 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         icon: Icon(icon, color: onPressed == null ? Colors.grey[400] : const Color(0xFF00AA55)),
         onPressed: onPressed,
       ),
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String label,
+    required String hint,
+    required String? value,
+    required List<String> items,
+    required String errorKey,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black54)),
+        ),
+        DropdownButtonFormField<String>(
+          value: value,
+          decoration: InputDecoration(
+            hintText: hint,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: _fieldErrors.containsKey(errorKey) ? Colors.red : Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: _fieldErrors.containsKey(errorKey) ? Colors.red : Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: _fieldErrors.containsKey(errorKey) ? Colors.red : const Color(0xFF00AA55), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+          items: items.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+          onChanged: (val) {
+            onChanged(val);
+            if (_fieldErrors.containsKey(errorKey)) setState(() => _fieldErrors.remove(errorKey));
+            if (errorKey == 'purpose' && _fieldErrors.containsKey('purpose_custom')) setState(() => _fieldErrors.remove('purpose_custom'));
+            if (errorKey == 'asset' && _fieldErrors.containsKey('asset_custom')) setState(() => _fieldErrors.remove('asset_custom'));
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required String errorKey,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black54)),
+        ),
+        TextField(
+          controller: controller,
+          onChanged: (_) {
+            if (_fieldErrors.containsKey(errorKey)) setState(() => _fieldErrors.remove(errorKey));
+          },
+          decoration: InputDecoration(
+            hintText: hint,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: _fieldErrors.containsKey(errorKey) ? Colors.red : Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: _fieldErrors.containsKey(errorKey) ? Colors.red : Colors.grey[300]!),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: _fieldErrors.containsKey(errorKey) ? Colors.red : const Color(0xFF00AA55), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart'; // Import BookingManager
+import '../utils/ui_utils.dart';
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -15,6 +16,8 @@ class BookWorkersScreen extends StatefulWidget {
   final int maxFemale;
   final int priceMale;
   final int priceFemale;
+  final int priceMaleHourly;
+  final int priceFemaleHourly;
   final List<String> roleDistribution;
 
   const BookWorkersScreen({
@@ -26,6 +29,8 @@ class BookWorkersScreen extends StatefulWidget {
     required this.maxFemale,
     required this.priceMale,
     required this.priceFemale,
+    required this.priceMaleHourly,
+    required this.priceFemaleHourly,
     this.roleDistribution = const [],
   });
 
@@ -41,10 +46,19 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   List<dynamic> _existingBookings = [];
   bool _isLoadingBookings = false;
   bool _isSubmitting = false;
+  String _bookingMode = 'Daily'; // 'Daily' or 'Hourly'
   final int _startHour = 6;
   final int _endHour = 20;
 
   final TextEditingController _addressController = TextEditingController(); // Add controller
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, String?> _fieldErrors = {};
+  
+  // GlobalKeys for scrolling to sections
+  final GlobalKey _workerSectionKey = GlobalKey();
+  final GlobalKey _addressSectionKey = GlobalKey();
+  final GlobalKey _dateSectionKey = GlobalKey();
+  final GlobalKey _timeSectionKey = GlobalKey();
 
   @override
   void initState() {
@@ -151,15 +165,11 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
   void _onSlotTap(int hour) {
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a date first')),
-      );
+      UiUtils.showCenteredToast(context, 'Please select a date first', isError: true);
       return;
     }
     if (_isSlotBlocked(hour)) {
-       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This slot is already booked')),
-      );
+       UiUtils.showCenteredToast(context, 'This slot is already booked', isError: true);
       return;
     }
     setState(() {
@@ -182,7 +192,16 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   @override
   void dispose() {
     _addressController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToField(GlobalKey key) {
+    Scrollable.ensureVisible(
+      key.currentContext!,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
   }
   
   final Map<String, int> _selectedRoleCounts = {};
@@ -191,15 +210,23 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     double hours = _selectedSlots.length.toDouble();
     if (hours == 0) hours = 1.0;
 
+    bool isHourly = _bookingMode == 'Hourly';
+
     if (widget.roleDistribution.isNotEmpty) {
       int total = 0;
       _selectedRoleCounts.forEach((role, count) {
          bool isMale = _getGenderForRole(role) == 'Male';
-         total += count * (isMale ? widget.priceMale : widget.priceFemale);
+         int rate = isHourly 
+            ? (isMale ? widget.priceMaleHourly : widget.priceFemaleHourly)
+            : (isMale ? widget.priceMale : widget.priceFemale);
+         total += count * rate;
       });
-      return (total * hours).toInt();
+      return isHourly ? (total * hours).toInt() : total;
     } else {
-      return (((_maleCount * widget.priceMale) + (_femaleCount * widget.priceFemale)) * hours).toInt();
+      int maleRate = isHourly ? widget.priceMaleHourly : widget.priceMale;
+      int femaleRate = isHourly ? widget.priceFemaleHourly : widget.priceFemale;
+      int subtotal = (_maleCount * maleRate) + (_femaleCount * femaleRate);
+      return isHourly ? (subtotal * hours).toInt() : subtotal;
     }
   }
 
@@ -251,7 +278,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       if (_selectedSlots.length == 1) {
         durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.first + 1)}';
       } else {
-         durationText = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})';
+         durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}';
       }
       
       String detailsStr = '';
@@ -273,8 +300,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       final Map<String, dynamic> notesMap = {
         'Booked By': userName ?? 'Unknown User',
         'Provider': widget.providerName,
-        'Details': detailsStr,
-        'Duration': durationText,
+        'Booking Mode': _bookingMode,
+        'Service': 'Farm Workers',
         'Location': _addressController.text,
         'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
       };
@@ -318,21 +345,37 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         setState(() {
           _isSubmitting = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
-        );
+        UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
       }
     } else {
-      String msg = AppLocalizations.of(context)!.fillAllDetails;
-      if (!hasWorkers) {
-        msg = AppLocalizations.of(context)!.selectAtLeastOneWorker;
-      } else if (_addressController.text.isEmpty) msg = 'Please enter work location address';
-      else if (_selectedDate == null) msg = AppLocalizations.of(context)!.selectDateError;
-      else if (_selectedSlots.isEmpty) msg = 'Please select at least one time slot';
+      setState(() {
+        _fieldErrors.clear();
+        if (!hasWorkers) {
+          _fieldErrors['workers'] = AppLocalizations.of(context)!.selectAtLeastOneWorker;
+        }
+        if (_addressController.text.isEmpty) {
+          _fieldErrors['address'] = 'Please enter work location address';
+        }
+        if (_selectedDate == null) {
+          _fieldErrors['date'] = AppLocalizations.of(context)!.selectDateError;
+        }
+        if (_selectedSlots.isEmpty) {
+          _fieldErrors['slots'] = 'Please select at least one time slot';
+        }
+      });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg)),
-      );
+      // Scroll to first error
+      if (_fieldErrors.containsKey('workers')) {
+        _scrollToField(_workerSectionKey);
+      } else if (_fieldErrors.containsKey('address')) {
+        _scrollToField(_addressSectionKey);
+      } else if (_fieldErrors.containsKey('date')) {
+        _scrollToField(_dateSectionKey);
+      } else if (_fieldErrors.containsKey('slots')) {
+        _scrollToField(_timeSectionKey);
+      }
+
+      UiUtils.showCenteredToast(context, AppLocalizations.of(context)!.fillAllDetails, isError: true);
     }
   }
 
@@ -346,6 +389,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         surfaceTintColor: Colors.white,
       ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,11 +427,75 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Booking Mode Toggle
+            Center(
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment<String>(
+                    value: 'Daily',
+                    label: Text('Daily Booking'),
+                    icon: Icon(Icons.calendar_today),
+                  ),
+                  ButtonSegment<String>(
+                    value: 'Hourly',
+                    label: Text('Hourly Booking'),
+                    icon: Icon(Icons.access_time),
+                  ),
+                ],
+                selected: {_bookingMode},
+                onSelectionChanged: (Set<String> newSelection) {
+                  setState(() {
+                    _bookingMode = newSelection.first;
+                  });
+                },
+                style: SegmentedButton.styleFrom(
+                  selectedBackgroundColor: const Color(0xFF00AA55),
+                  selectedForegroundColor: Colors.white,
+                  backgroundColor: Colors.grey[50],
+                  side: BorderSide(color: Colors.grey[300]!),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_bookingMode == 'Hourly')
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[100]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: Colors.blue[700]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'In Hourly mode, total price is calculated based on the number of workers and the duration of the time slots selected.',
+                        style: TextStyle(fontSize: 12, color: Colors.blue[800]),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 24),
+
             // Worker selection restored and improved
             Text(
+              key: _workerSectionKey,
               AppLocalizations.of(context)!.selectWorkers,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: _fieldErrors.containsKey('workers') ? Colors.red : Colors.black87
+              ),
             ),
+            if (_fieldErrors.containsKey('workers'))
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: Text(_fieldErrors['workers']!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              ),
             const SizedBox(height: 12),
             if (widget.roleDistribution.isNotEmpty)
               ...widget.roleDistribution.map((role) {
@@ -395,11 +503,12 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                 final gender = _getGenderForRole(role);
                 final maxCount = _getMaxCountForRole(role);
                 final currentCount = _selectedRoleCounts[role] ?? 0;
-                final price = gender == 'Male' ? widget.priceMale : widget.priceFemale;
 
                 return _buildCounter(
                   label: skill,
-                  subtitle: '$gender | ₹$price ${AppLocalizations.of(context)!.perDay} | Max: $maxCount',
+                  gender: gender,
+                  skill: skill,
+                  role: role,
                   count: currentCount,
                   max: maxCount,
                   onChanged: (val) => setState(() => _selectedRoleCounts[role] = val),
@@ -408,14 +517,16 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             else ...[
                _buildCounter(
                  label: AppLocalizations.of(context)!.maleWorkers,
-                 subtitle: '₹${widget.priceMale} ${AppLocalizations.of(context)!.perDay} | ${AppLocalizations.of(context)!.available}: ${widget.maxMale}',
+                 gender: 'Male',
+                 skill: AppLocalizations.of(context)!.maleWorkers,
                  count: _maleCount,
                  max: widget.maxMale,
                  onChanged: (val) => setState(() => _maleCount = val),
                ),
                _buildCounter(
                  label: AppLocalizations.of(context)!.femaleWorkers,
-                 subtitle: '₹${widget.priceFemale} ${AppLocalizations.of(context)!.perDay} | ${AppLocalizations.of(context)!.available}: ${widget.maxFemale}',
+                 gender: 'Female',
+                 skill: AppLocalizations.of(context)!.femaleWorkers,
                  count: _femaleCount,
                  max: widget.maxFemale,
                  onChanged: (val) => setState(() => _femaleCount = val),
@@ -425,17 +536,36 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             const SizedBox(height: 32),
 
             // Address Section
-            const Text(
+            Text(
+              key: _addressSectionKey,
               'Work Location Address',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: _fieldErrors.containsKey('address') ? Colors.red : Colors.black87
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _addressController,
               maxLines: 3,
+              onChanged: (_) {
+                if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
+              },
               decoration: InputDecoration(
                 hintText: 'Enter farm address/location...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : const Color(0xFF00AA55), width: 2),
+                ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
             ),
@@ -443,17 +573,27 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
             // Date Selection
             Text(
+              key: _dateSectionKey,
               AppLocalizations.of(context)!.selectDate,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: _fieldErrors.containsKey('date') ? Colors.red : Colors.black87
+              ),
             ),
             const SizedBox(height: 12),
             GestureDetector(
-              onTap: () => _selectDate(context),
+              onTap: () async {
+                await _selectDate(context);
+                if (_selectedDate != null && _fieldErrors.containsKey('date')) {
+                  setState(() => _fieldErrors.remove('date'));
+                }
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(color: _fieldErrors.containsKey('date') ? Colors.red : Colors.grey[300]!),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -478,9 +618,14 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             ),
             const SizedBox(height: 32),
             // Time Selection Slots
-            const Text(
+            Text(
+              key: _timeSectionKey,
               'Select Duration (Time Slots)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: _fieldErrors.containsKey('slots') ? Colors.red : Colors.black87
+              ),
             ),
             if (_selectedDate == null)
               Padding(
@@ -511,7 +656,12 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                   final isSelected = _selectedSlots.contains(hour);
 
                   return GestureDetector(
-                    onTap: () => _onSlotTap(hour),
+                    onTap: () {
+                      _onSlotTap(hour);
+                      if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) {
+                         setState(() => _fieldErrors.remove('slots'));
+                      }
+                    },
                     child: Container(
                       decoration: BoxDecoration(
                         color: isBlocked 
@@ -521,7 +671,9 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                         border: Border.all(
                           color: isBlocked 
                               ? Colors.grey[300]! 
-                              : isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!,
+                              : isSelected 
+                                  ? const Color(0xFF00AA55) 
+                                  : (_fieldErrors.containsKey('slots') ? Colors.red.withOpacity(0.5) : Colors.grey[300]!),
                         ),
                       ),
                       alignment: Alignment.center,
@@ -593,7 +745,13 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   }
 
 
-  Widget _buildCounter({required String label, required int count, required int max, required Function(int) onChanged, String? subtitle}) {
+  Widget _buildCounter({required String label, required int count, required int max, required Function(int) onChanged, String? subtitle, String? skill, String? gender, String? role}) {
+    final maxCount = _getMaxCountForRole(role ?? '');
+    int currentRate = _bookingMode == 'Hourly' 
+      ? (gender == 'Male' ? widget.priceMaleHourly : widget.priceFemaleHourly)
+      : (gender == 'Male' ? widget.priceMale : widget.priceFemale);
+    String rateUnit = _bookingMode == 'Hourly' ? '/ hr' : '/ day';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(12),
@@ -609,7 +767,9 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                if (subtitle != null)
+                if (skill != null)
+                  Text('$gender - ₹$currentRate $rateUnit', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                if (subtitle != null && skill == null)
                    Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),

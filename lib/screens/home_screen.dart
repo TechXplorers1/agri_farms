@@ -17,6 +17,7 @@ import '../utils/booking_manager.dart';
 import '../../services/api_service.dart'; // Import ApiService
 import '../../services/notification_service.dart'; // Import NotificationService
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/ui_utils.dart';
 
 class HomeServiceItem {
   final String title;
@@ -193,9 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   setState(() {
                    _userLocation = "Kodad, Suryapet"; 
                   });
-                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Location detected successfully!')),
-                  );
+                   UiUtils.showCenteredToast(context, 'Location detected successfully!');
                 },
               ),
               ListTile(
@@ -661,7 +660,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildToolCard(context, AppLocalizations.of(context)!.weather, Icons.cloud_outlined, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
-                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Detailed Weather Coming Soon!')));
+                           UiUtils.showCenteredToast(context, 'Detailed Weather Coming Soon!');
                         }),
                         const SizedBox(width: 12),
                         _buildToolCard(context, AppLocalizations.of(context)!.cropAdvisory, Icons.grass, const Color(0xFFE8F5E9), Colors.green, onTap: () {
@@ -669,7 +668,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         }),
                          const SizedBox(width: 12),
                         _buildToolCard(context, AppLocalizations.of(context)!.mandiPrices, Icons.show_chart, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
-                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Market Prices Coming Soon!')));
+                           UiUtils.showCenteredToast(context, 'Market Prices Coming Soon!');
                         }),
                         const SizedBox(width: 12),
                         _buildToolCard(context, AppLocalizations.of(context)!.farmingCalculator, Icons.calculate_outlined, const Color(0xFFF3E5F5), Colors.purple, onTap: () {
@@ -681,7 +680,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _buildToolCard(context, 'Support', Icons.headset_mic_outlined, const Color(0xFFE0F7FA), Colors.cyan, onTap: () {
                            // Navigate to Help or specific support screen
                            // For now reusing Profile or a simple placeholder
-                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Support Center Coming Soon!')));
+                           UiUtils.showCenteredToast(context, 'Support Center Coming Soon!');
                         }),
                       ],
                     ),

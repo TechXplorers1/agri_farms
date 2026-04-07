@@ -4,6 +4,7 @@ import '../../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../config/api_config.dart';
+import '../utils/ui_utils.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -101,23 +102,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (finalImageUrl != null) {
           await prefs.setString('user_profile_image', finalImageUrl);
         }
+
+        if (mounted) {
+          setState(() => _isLoading = false);
+          UiUtils.showCenteredToast(context, 'Profile updated successfully!');
+          Navigator.pop(context, true); // Return true to indicate update
+        }
       } else {
         throw Exception('Could not find user ID to update back-end.');
-      }
-
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!'), backgroundColor: Colors.green),
-        );
-        Navigator.pop(context, true); // Return true to indicate update
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile: $e'), backgroundColor: Colors.red),
-        );
+        UiUtils.showCustomAlert(context, 'Failed to update profile: $e', isError: true);
       }
     }
   }

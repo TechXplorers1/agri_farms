@@ -8,6 +8,7 @@ import '../utils/provider_manager.dart';
 import '../data/vehicle_data.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
+import '../utils/ui_utils.dart';
 
 class UploadItemScreen extends StatefulWidget {
   final String category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
@@ -24,6 +25,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   bool _isSubmitting = false;
   
   final ImagePicker _picker = ImagePicker();
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, String?> _fieldErrors = {};
+  
 
   Future<bool> _requestMediaPermission() async {
     PermissionStatus status;
@@ -141,6 +145,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _femaleCountController = TextEditingController();
   final TextEditingController _malePriceController = TextEditingController();
   final TextEditingController _femalePriceController = TextEditingController();
+  final TextEditingController _maleHourlyPriceController = TextEditingController();
+  final TextEditingController _femaleHourlyPriceController = TextEditingController();
   // Role Distribution
   final List<String> _roleDistributions = [];
   final TextEditingController _roleCountController = TextEditingController();
@@ -183,6 +189,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _malePriceController.dispose();
     _femalePriceController.dispose();
     _roleCountController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -206,13 +213,25 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   Future<void> _submitFarmWorker() async {
-    if (_nameController.text.isEmpty || (_maleCountController.text.isEmpty && _femaleCountController.text.isEmpty)) {
-      _showError(AppLocalizations.of(context)!.fillRequiredFields);
-      return;
+    setState(() => _fieldErrors.clear());
+    bool hasError = false;
+
+    if (_nameController.text.isEmpty) {
+      _fieldErrors['name'] = 'Please enter group name';
+      hasError = true;
+    }
+    if (_maleCountController.text.isEmpty && _femaleCountController.text.isEmpty) {
+      _fieldErrors['maleCount'] = 'Enter at least one';
+      _fieldErrors['femaleCount'] = 'Enter at least one';
+      hasError = true;
+    }
+    if (_roleDistributions.isEmpty) {
+      _fieldErrors['roles'] = AppLocalizations.of(context)!.selectSkillError;
+      hasError = true;
     }
 
-    if (_roleDistributions.isEmpty) {
-      _showError(AppLocalizations.of(context)!.selectSkillError); // Reuse or add new error message
+    if (hasError) {
+      _showError(AppLocalizations.of(context)!.fillRequiredFields);
       return;
     }
 
@@ -255,6 +274,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'femaleCount': int.tryParse(_femaleCountController.text) ?? 0,
         'pricePerMale': double.tryParse(_malePriceController.text) ?? 0.0,
         'pricePerFemale': double.tryParse(_femalePriceController.text) ?? 0.0,
+        'pricePerHourMale': double.tryParse(_maleHourlyPriceController.text) ?? 0.0,
+        'pricePerHourFemale': double.tryParse(_femaleHourlyPriceController.text) ?? 0.0,
         'skills': derivedSkills.join(', '),
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
         'serviceRangeKm': 50, // default or add field later
@@ -279,6 +300,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         femaleCount: int.tryParse(_femaleCountController.text) ?? 0,
         malePrice: int.tryParse(_malePriceController.text) ?? 0,
         femalePrice: int.tryParse(_femalePriceController.text) ?? 0,
+        maleHourlyPrice: int.tryParse(_maleHourlyPriceController.text) ?? 0,
+        femaleHourlyPrice: int.tryParse(_femaleHourlyPriceController.text) ?? 0,
         skills: derivedSkills.join(', '),
         roleDistribution: _roleDistributions,
         groupName: _nameController.text,
@@ -295,9 +318,25 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
 
   Future<void> _submitEquipment() async {
-    if (_selectedEquipmentType == null || _brandModelController.text.isEmpty || _priceController.text.isEmpty) {
-       _showError(AppLocalizations.of(context)!.fillRequiredFields);
-       return;
+    setState(() => _fieldErrors.clear());
+    bool hasError = false;
+
+    if (_selectedEquipmentType == null) {
+      _fieldErrors['category'] = 'Select category';
+      hasError = true;
+    }
+    if (_brandModelController.text.isEmpty) {
+      _fieldErrors['brandModel'] = 'Enter brand/model';
+      hasError = true;
+    }
+    if (_priceController.text.isEmpty) {
+      _fieldErrors['price'] = 'Enter price';
+      hasError = true;
+    }
+
+    if (hasError) {
+      _showError(AppLocalizations.of(context)!.fillRequiredFields);
+      return;
     }
 
     try {
@@ -347,16 +386,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   void _completeSubmission() {
     _upgradeUserToProvider();
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppLocalizations.of(context)!.listingUploaded),
-        backgroundColor: Color(0xFF00AA55),
-      ),
+    UiUtils.showCustomAlert(
+      context, 
+      AppLocalizations.of(context)!.listingUploaded,
+      isError: false
     );
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
+    UiUtils.showCenteredToast(context, message, isError: true);
   }
 
   Future<void> _upgradeUserToProvider() async {
@@ -381,6 +419,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         backgroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,7 +501,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       children: [
         _buildSectionTitle(AppLocalizations.of(context)!.groupDetails),
         const SizedBox(height: 12),
-        _buildTextField('Group Name / Leader Name', _nameController, AppLocalizations.of(context)!.groupNameHint),
+        _buildTextField('Group Name / Leader Name', _nameController, AppLocalizations.of(context)!.groupNameHint, errorKey: 'name'),
         const SizedBox(height: 16),
         
         // Skills selection removed as per request. Skills are now derived from Role Distribution.
@@ -473,19 +512,28 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildTextField(AppLocalizations.of(context)!.maleWorkers, _maleCountController, 'Count', keyboardType: TextInputType.number)),
+            Expanded(child: _buildTextField(AppLocalizations.of(context)!.maleWorkers, _maleCountController, 'Count', keyboardType: TextInputType.number, errorKey: 'maleCount')),
             const SizedBox(width: 16),
-             Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceMale, _malePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number)),
+            Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceMale, _malePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number, errorKey: 'malePrice')),
           ],
         ),
         const SizedBox(height: 16),
         Row(
            children: [
-            Expanded(child: _buildTextField(AppLocalizations.of(context)!.femaleWorkers, _femaleCountController, 'Count', keyboardType: TextInputType.number)),
+            Expanded(child: _buildTextField(AppLocalizations.of(context)!.femaleWorkers, _femaleCountController, 'Count', keyboardType: TextInputType.number, errorKey: 'femaleCount')),
             const SizedBox(width: 16),
-            Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceFemale, _femalePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number)),
+            Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceFemale, _femalePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number, errorKey: 'femalePrice')),
           ],
         ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _buildTextField('Male Hourly Price', _maleHourlyPriceController, 'Rate / Hour', keyboardType: TextInputType.number, errorKey: 'maleHourlyPrice')),
+            const SizedBox(width: 16),
+            Expanded(child: _buildTextField('Female Hourly Price', _femaleHourlyPriceController, 'Rate / Hour', keyboardType: TextInputType.number, errorKey: 'femaleHourlyPrice')),
+          ],
+        ),
+        const SizedBox(height: 16),
         _buildRoleDistributionForm(),
       ],
     );
@@ -563,18 +611,18 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           }
         ),
 
-        _buildTextField('Vehicle Name / Title', _nameController, AppLocalizations.of(context)!.vehicleNameHint),
+        _buildTextField('Vehicle Name / Title', _nameController, AppLocalizations.of(context)!.vehicleNameHint, errorKey: 'name'),
         const SizedBox(height: 16),
-        _buildTextField(AppLocalizations.of(context)!.vehicleNumber, _vehicleNumberController, 'e.g. MH 40 AB 1234'),
+        _buildTextField(AppLocalizations.of(context)!.vehicleNumber, _vehicleNumberController, 'e.g. MH 40 AB 1234', errorKey: 'number'),
         const SizedBox(height: 16),
-        _buildTextField(AppLocalizations.of(context)!.loadCapacity, _capacityController, 'e.g. 1.5 Ton'),
+        _buildTextField(AppLocalizations.of(context)!.loadCapacity, _capacityController, 'e.g. 1.5 Ton', errorKey: 'capacity'),
         const SizedBox(height: 16),
         _buildTextField(AppLocalizations.of(context)!.serviceArea, _serviceAreaController, 'e.g. Within 50km or specific districts'),
         
         const SizedBox(height: 20),
         _buildSectionTitle(AppLocalizations.of(context)!.pricingAvailability),
         const SizedBox(height: 12),
-        _buildTextField(AppLocalizations.of(context)!.priceLabel, _priceController, 'e.g. ₹20/km or ₹1000/trip', keyboardType: TextInputType.text),
+        _buildTextField(AppLocalizations.of(context)!.priceLabel, _priceController, 'e.g. ₹20/km or ₹1000/trip', keyboardType: TextInputType.text, errorKey: 'price'),
         
         const SizedBox(height: 20),
         _buildSectionTitle(AppLocalizations.of(context)!.options),
@@ -591,8 +639,24 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   Future<void> _submitTransport() async {
-    if (_selectedTransportType == null || _nameController.text.isEmpty || _priceController.text.isEmpty) {
-      _showError('Please select type and fill details');
+    setState(() => _fieldErrors.clear());
+    bool hasError = false;
+
+    if (_selectedTransportType == null) {
+      _fieldErrors['type'] = 'Select vehicle type';
+      hasError = true;
+    }
+    if (_nameController.text.isEmpty) {
+      _fieldErrors['name'] = 'Enter vehicle name';
+      hasError = true;
+    }
+    if (_priceController.text.isEmpty) {
+      _fieldErrors['price'] = 'Enter price';
+      hasError = true;
+    }
+
+    if (hasError) {
+      _showError(AppLocalizations.of(context)!.fillRequiredFields);
       return;
     }
 
@@ -643,7 +707,19 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   Future<void> _submitService() async {
-    if (_nameController.text.isEmpty || _priceController.text.isEmpty) {
+    setState(() => _fieldErrors.clear());
+    bool hasError = false;
+
+    if (_nameController.text.isEmpty) {
+      _fieldErrors['name'] = 'Enter provider name';
+      hasError = true;
+    }
+    if (_priceController.text.isEmpty) {
+      _fieldErrors['price'] = 'Enter price';
+      hasError = true;
+    }
+
+    if (hasError) {
        _showError('Please provide service details');
        return;
     }
@@ -720,14 +796,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
            _buildFarmWorkerForm(),
         ] else ...[
            const SizedBox(height: 16),
-           _buildTextField('Provider Name / Business Name', _nameController, 'e.g. Ramesh Services'),
+           _buildTextField('Provider Name / Business Name', _nameController, 'e.g. Ramesh Services', errorKey: 'name'),
            const SizedBox(height: 16),
            _buildTextField('Equipment Used', _equipmentUsedController, 'e.g. John Deere Tractor + Plough'),
            
            const SizedBox(height: 20),
            _buildSectionTitle('Pricing & Terms'),
            const SizedBox(height: 12),
-           _buildTextField('Price / Rate', _priceController, widget.category == 'Harvesting' ? 'e.g. ₹2000 / hour' : 'e.g. ₹1200 / acre'),
+           _buildTextField('Price / Rate', _priceController, widget.category == 'Harvesting' ? 'e.g. ₹2000 / hour' : 'e.g. ₹1200 / acre', errorKey: 'price'),
            
            const SizedBox(height: 20),
            SwitchListTile(
@@ -856,30 +932,45 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, String hint, {TextInputType keyboardType = TextInputType.text, int maxLines = 1}) {
+  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey}) {
+    bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14, 
+            fontWeight: FontWeight.w500, 
+            color: hasError ? Colors.red : Colors.black87
+          ),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
-          keyboardType: keyboardType,
           maxLines: maxLines,
-          decoration: _inputDecoration(hint),
+          keyboardType: keyboardType,
+          onChanged: (_) {
+            if (hasError) setState(() => _fieldErrors.remove(errorKey));
+          },
+          decoration: _inputDecoration(hint, isError: hasError),
         ),
+        if (hasError && _fieldErrors[errorKey] != null)
+           Padding(
+             padding: const EdgeInsets.only(top: 4.0),
+             child: Text(_fieldErrors[errorKey]!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+           ),
       ],
     );
   }
 
-  InputDecoration _inputDecoration(String hint) {
+  InputDecoration _inputDecoration(String hint, {bool isError = false}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey[400]),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: isError ? Colors.red : Colors.grey[300]!),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
@@ -901,7 +992,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     if (count.isNotEmpty && _selectedRoleSkills.isNotEmpty) {
       int newCount = int.tryParse(count) ?? 0;
       if (newCount <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid count greater than 0', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red));
+        UiUtils.showCenteredToast(context, 'Please enter a valid count greater than 0', isError: true);
         return;
       }
       
@@ -921,10 +1012,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           : (int.tryParse(_femaleCountController.text) ?? 0);
 
       if (currentAllocated + newCount > maxAllowed) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Cannot allocate $newCount $_roleGender workers. Max allowed is $maxAllowed, already allocated is $currentAllocated.', style: const TextStyle(color: Colors.white)),
-          backgroundColor: Colors.red,
-        ));
+        UiUtils.showCenteredToast(context, 'Cannot allocate $newCount $_roleGender workers. Max allowed is $maxAllowed, already allocated is $currentAllocated.', isError: true);
         return;
       }
 
@@ -934,7 +1022,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         _selectedRoleSkills = []; // Reset list
       });
     } else {
-       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter count and select at least one skill')));
+       UiUtils.showCenteredToast(context, 'Please enter count and select at least one skill', isError: true);
     }
   }
 

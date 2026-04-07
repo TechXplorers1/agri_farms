@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/booking_manager.dart';
+import '../../utils/ui_utils.dart';
 
 String _formatProviderDate(String raw) {
   try {
@@ -306,24 +307,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
       _bookingManager.updateBookingStatus(id, status);
     }
     
-    Color snackColor;
-    String message = 'Request $status';
-    final lowerStatus = status.toLowerCase();
-    
-    if (lowerStatus == 'confirmed') snackColor = Colors.green;
-    else if (lowerStatus == 'completed') {
-      snackColor = Colors.blue;
-      message = 'Request Finished';
-    }
-    else snackColor = Colors.red;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: snackColor,
-        duration: const Duration(seconds: 1),
-      )
-    );
+    UiUtils.showCenteredToast(context, 'Booking status updated to $status');
   }
 
   Widget _buildWorkerChip(String label, Color color) {

@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import 'edit_registered_item_screen.dart';
 
 import '../config/api_config.dart';
+import '../utils/ui_utils.dart';
 
 class ManageItemsScreen extends StatefulWidget {
   const ManageItemsScreen({Key? key}) : super(key: key);
@@ -52,9 +53,7 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load items: $e'), backgroundColor: Colors.red),
-      );
+      UiUtils.showCustomAlert(context, 'Failed to load items: $e', isError: true);
     } finally {
       setState(() => _isLoading = false);
     }
@@ -84,14 +83,10 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
       else if (category == 'Service') await _apiService.deleteService(id);
       else if (category == 'WorkerGroup') await _apiService.deleteWorkerGroup(id);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$category deleted successfully'), backgroundColor: Colors.green),
-      );
+      UiUtils.showCenteredToast(context, '$category deleted successfully');
       _fetchItems(); // Refresh
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete: $e'), backgroundColor: Colors.red),
-      );
+      UiUtils.showCustomAlert(context, 'Failed to delete: $e', isError: true);
     }
   }
 

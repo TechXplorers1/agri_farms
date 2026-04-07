@@ -59,6 +59,8 @@ class FarmWorkerListing extends ServiceProvider {
   final int femaleCount;
   final int malePrice;
   final int femalePrice;
+  final int maleHourlyPrice;
+  final int femaleHourlyPrice;
   final String skills; // e.g., 'Sowing, Harvesting'
   final List<String> roleDistribution; // e.g. ["5 Men - Sowing", "4 Women - Weeding"]
   final String? groupName;
@@ -78,6 +80,8 @@ class FarmWorkerListing extends ServiceProvider {
     required this.femaleCount,
     required this.malePrice,
     required this.femalePrice,
+    required this.maleHourlyPrice,
+    required this.femaleHourlyPrice,
     required this.skills,
     this.roleDistribution = const [],
     this.groupName,
@@ -189,7 +193,9 @@ class ProviderManager extends ChangeNotifier {
          updated = FarmWorkerListing(
            id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, maleCount: old.maleCount, femaleCount: old.femaleCount,
-           malePrice: old.malePrice, femalePrice: old.femalePrice, skills: old.skills, isAvailable: old.isAvailable,
+           malePrice: old.malePrice, femalePrice: old.femalePrice, 
+           maleHourlyPrice: old.maleHourlyPrice, femaleHourlyPrice: old.femaleHourlyPrice,
+           skills: old.skills, isAvailable: old.isAvailable,
            jobsCompleted: old.jobsCompleted, roleDistribution: old.roleDistribution, groupName: old.groupName
          );
       } else if (old is TransportListing) {
@@ -231,6 +237,8 @@ class ProviderManager extends ChangeNotifier {
         femaleCount: 20,
         malePrice: 500,
         femalePrice: 700,
+        maleHourlyPrice: 100,
+        femaleHourlyPrice: 120,
         distance: '3 km',
         rating: 4.8,
         skills: 'Sowing, Harvesting',
@@ -247,6 +255,8 @@ class ProviderManager extends ChangeNotifier {
         femaleCount: 15,
         malePrice: 550,
         femalePrice: 750,
+        maleHourlyPrice: 110,
+        femaleHourlyPrice: 130,
         distance: '5 km',
         rating: 4.5,
         skills: 'Weeding, Loading',

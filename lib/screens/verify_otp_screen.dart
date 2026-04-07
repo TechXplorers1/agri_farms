@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
 import '../../services/api_service.dart'; // Import ApiService
+import '../utils/ui_utils.dart';
 
 class VerifyOtpScreen extends StatefulWidget {
   final String mobileNumber;
@@ -134,9 +135,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to create account: $e'), backgroundColor: Colors.red),
-          );
+          UiUtils.showCustomAlert(context, 'Failed to create account: $e', isError: true);
         }
       } finally {
         if (mounted) {

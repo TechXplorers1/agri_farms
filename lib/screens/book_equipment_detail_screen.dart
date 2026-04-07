@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
+import '../utils/ui_utils.dart';
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -40,6 +41,13 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   DateTime? _selectedDate;
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, String?> _fieldErrors = {};
+  
+  // GlobalKeys for scrolling
+  final GlobalKey _addressSectionKey = GlobalKey();
+  final GlobalKey _dateSectionKey = GlobalKey();
+  final GlobalKey _timeSectionKey = GlobalKey();
   List<BookingDTO> _existingBookings = [];
   bool _isLoadingBookings = false;
   bool _isSubmitting = false;
@@ -88,7 +96,16 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   void dispose() {
     _addressController.dispose();
     _notesController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollToField(GlobalKey key) {
+    Scrollable.ensureVisible(
+      key.currentContext!,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
   }
 
   double get _totalPrice {
@@ -155,15 +172,11 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
   void _onSlotTap(int hour) {
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a date first')),
-      );
+      UiUtils.showCenteredToast(context, 'Please select a date first', isError: true);
       return;
     }
     if (_isSlotBlocked(hour)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This slot is already booked')),
-      );
+      UiUtils.showCenteredToast(context, 'This slot is already booked', isError: true);
       return;
     }
 
@@ -196,7 +209,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       if (_selectedSlots.length == 1) {
         durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.first + 1)}';
       } else {
-         durationText = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})';
+         durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}';
       }
 
       final String? userId = prefs.getString('user_id');
@@ -251,20 +264,32 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         setState(() {
           _isSubmitting = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit booking: $e'), backgroundColor: Colors.red),
-        );
+        UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
       }
     } else {
-      String msg = AppLocalizations.of(context)!.fillAllDetails;
-      if (_selectedDate == null) {
-        msg = 'Select a start date';
-      } else if (_addressController.text.isEmpty) msg = 'Please enter delivery address';
-      else if (_selectedSlots.isEmpty) msg = 'Select at least one time slot';
+      setState(() {
+        _fieldErrors.clear();
+        if (_addressController.text.isEmpty) {
+          _fieldErrors['address'] = 'Please enter delivery address';
+        }
+        if (_selectedDate == null) {
+          _fieldErrors['date'] = 'Select a start date';
+        }
+        if (_selectedSlots.isEmpty) {
+          _fieldErrors['slots'] = 'Select at least one time slot';
+        }
+      });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: Colors.red),
-      );
+      // Scroll to first error
+      if (_fieldErrors.containsKey('address')) {
+        _scrollToField(_addressSectionKey);
+      } else if (_fieldErrors.containsKey('date')) {
+        _scrollToField(_dateSectionKey);
+      } else if (_fieldErrors.containsKey('slots')) {
+        _scrollToField(_timeSectionKey);
+      }
+
+      UiUtils.showCenteredToast(context, AppLocalizations.of(context)!.fillAllDetails, isError: true);
     }
   }
 
@@ -280,6 +305,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         surfaceTintColor: Colors.white,
       ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,17 +361,36 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             const SizedBox(height: 24),
 
             // Delivery Address
-            const Text(
+            Text(
+              key: _addressSectionKey,
               'Rent/Usage Address',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: _fieldErrors.containsKey('address') ? Colors.red : Colors.black87
+              ),
             ),
              const SizedBox(height: 12),
             TextField(
               controller: _addressController,
               maxLines: 3,
+              onChanged: (_) {
+                if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
+              },
               decoration: InputDecoration(
                 hintText: 'Enter location for equipment rent/usage...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.green, width: 2),
+                ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
             ),
@@ -354,17 +399,27 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             
             // Date Selection
             Text(
+              key: _dateSectionKey,
               AppLocalizations.of(context)!.selectDate,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: _fieldErrors.containsKey('date') ? Colors.red : Colors.black87
+              ),
             ),
             const SizedBox(height: 12),
             GestureDetector(
-              onTap: () => _selectDate(context),
+              onTap: () async {
+                await _selectDate(context);
+                if (_selectedDate != null && _fieldErrors.containsKey('date')) {
+                  setState(() => _fieldErrors.remove('date'));
+                }
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(color: _fieldErrors.containsKey('date') ? Colors.red : Colors.grey[300]!),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -390,9 +445,14 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             const SizedBox(height: 24),
 
             // Time Slots
-            const Text(
+            Text(
+              key: _timeSectionKey,
               'Select Start Time',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+              style: TextStyle(
+                fontSize: 16, 
+                fontWeight: FontWeight.bold, 
+                color: _fieldErrors.containsKey('slots') ? Colors.red : Colors.black87
+              ),
             ),
             if (_selectedDate == null)
               Padding(
@@ -418,7 +478,12 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                 bool isSelected = _selectedSlots.contains(hour);
 
                 return InkWell(
-                  onTap: () => _onSlotTap(hour),
+                  onTap: () {
+                    _onSlotTap(hour);
+                    if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) {
+                      setState(() => _fieldErrors.remove('slots'));
+                    }
+                  },
                   child: Container(
                     decoration: BoxDecoration(
                       color: isBlocked
@@ -431,7 +496,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                             ? Colors.transparent
                             : isSelected
                                 ? Colors.green[700]!
-                                : Colors.grey[300]!,
+                                : (_fieldErrors.containsKey('slots') ? Colors.red.withOpacity(0.5) : Colors.grey[300]!),
                         width: isSelected ? 2 : 1,
                       ),
                       borderRadius: BorderRadius.circular(8),

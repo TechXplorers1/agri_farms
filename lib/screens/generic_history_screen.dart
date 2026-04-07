@@ -3,6 +3,7 @@ import '../utils/booking_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../utils/ui_utils.dart';
 
 String _formatBookingDate(String raw) {
   try {
@@ -62,9 +63,9 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
         targetUserId = booking.farmerId;
       }
 
-      if (targetUserId == null || targetUserId.isEmpty) {
+      if (targetUserId == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contact details not available.')));
+          UiUtils.showCenteredToast(context, 'Contact details not available.', isError: true);
         }
         return;
       }
@@ -73,9 +74,9 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
       final userData = await apiService.getUser(targetUserId);
       final phone = userData['phoneNumber'] ?? userData['mobile'];
 
-      if (phone == null || phone.toString().isEmpty) {
+      if (phone == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone number not found.')));
+          UiUtils.showCenteredToast(context, 'Phone number not found.', isError: true);
         }
         return;
       }
@@ -88,12 +89,12 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
         await launchUrl(uri);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not launch app.')));
+          UiUtils.showCenteredToast(context, 'Could not launch app.', isError: true);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error fetching contact info.')));
+        UiUtils.showCustomAlert(context, 'Error fetching contact info.', isError: true);
       }
     } finally {
       if (mounted) {
