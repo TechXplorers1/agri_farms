@@ -102,7 +102,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     for (var booking in _existingBookings) {
       if (booking.scheduledStartTime != null && booking.scheduledEndTime != null) {
         if (slotStart.isBefore(booking.scheduledEndTime!) && slotEnd.isAfter(booking.scheduledStartTime!)) {
-           if (booking.status != 'CANCELLED' && booking.status != 'REJECTED') {
+           final String status = booking.status?.toUpperCase() ?? '';
+           if (status != 'CANCELLED' && status != 'REJECTED' && status != 'COMPLETED' && status != 'FINISHED') {
              return true;
            }
         }

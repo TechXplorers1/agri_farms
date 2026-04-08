@@ -105,10 +105,10 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   }
 
   String _formatTime(int hour) {
-    if (hour == 0) return '12:00 AM';
-    if (hour == 12) return '12:00 PM';
-    if (hour < 12) return '$hour:00 AM';
-    return '${hour - 12}:00 PM';
+    if (hour == 0) return '12 AM';
+    if (hour == 12) return '12 PM';
+    if (hour < 12) return '$hour AM';
+    return '${hour - 12} PM';
   }
 
   String _formatTimeRange(int hour) {
@@ -145,7 +145,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
     // Check existing bookings
     for (var booking in _existingBookings) {
-      if (booking['status'] == 'CANCELLED') continue;
+      final String status = booking['status']?.toString().toUpperCase() ?? '';
+      if (status == 'CANCELLED' || status == 'REJECTED' || status == 'COMPLETED' || status == 'FINISHED') continue;
 
       DateTime start = DateTime.parse(booking['scheduledStartTime']);
       DateTime end = DateTime.parse(booking['scheduledEndTime']);

@@ -273,7 +273,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => _updateStatus(booking.id, 'Completed'),
+                      onPressed: () => _handleCompletedTap(booking),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
@@ -308,6 +308,42 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
     }
     
     UiUtils.showCenteredToast(context, 'Booking status updated to $status');
+  }
+
+  Future<void> _handleCompletedTap(BookingDetails booking) async {
+    final now = DateTime.now();
+    final targetDate = booking.rawScheduledStartTime ?? booking.rawBookingDate;
+    
+    // Check if the scheduled time is in the future
+    if (targetDate.isAfter(now)) {
+      bool confirm = await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirm Completion'),
+          content: const Text('This booking is scheduled for a future date or time. Are you sure you want to mark it as completed now? This will immediately open up the time slot for others to book.'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Yes, Complete'),
+            ),
+          ],
+        ),
+      ) ?? false;
+      
+      if (!confirm) return;
+    }
+    
+    _updateStatus(booking.id, 'Completed');
   }
 
   Widget _buildWorkerChip(String label, Color color) {
