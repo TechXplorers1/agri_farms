@@ -16,6 +16,8 @@ class BookWorkersScreen extends StatefulWidget {
   final int maxFemale;
   final int priceMale;
   final int priceFemale;
+  final int priceMaleHourly;
+  final int priceFemaleHourly;
   final List<String> roleDistribution;
 
   const BookWorkersScreen({
@@ -27,6 +29,8 @@ class BookWorkersScreen extends StatefulWidget {
     required this.maxFemale,
     required this.priceMale,
     required this.priceFemale,
+    this.priceMaleHourly = 0,
+    this.priceFemaleHourly = 0,
     this.roleDistribution = const [],
   });
 
@@ -37,6 +41,7 @@ class BookWorkersScreen extends StatefulWidget {
 class _BookWorkersScreenState extends State<BookWorkersScreen> {
   int _maleCount = 0;
   int _femaleCount = 0;
+  String _bookingMode = 'Daily'; // 'Daily' or 'Hourly'
   DateTime? _selectedDate;
   final List<int> _selectedSlots = [];
   List<dynamic> _existingBookings = [];
@@ -202,18 +207,36 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   final Map<String, int> _selectedRoleCounts = {};
 
   int get _totalPrice {
-    double hours = _selectedSlots.length.toDouble();
-    if (hours == 0) hours = 1.0;
-
-    if (widget.roleDistribution.isNotEmpty) {
-      int total = 0;
-      _selectedRoleCounts.forEach((role, count) {
-         bool isMale = _getGenderForRole(role) == 'Male';
-         total += count * (isMale ? widget.priceMale : widget.priceFemale);
-      });
-      return (total * hours).toInt();
+    if (_bookingMode == 'Daily') {
+       if (widget.roleDistribution.isNotEmpty) {
+         int total = 0;
+         _selectedRoleCounts.forEach((role, count) {
+            bool isMale = _getGenderForRole(role) == 'Male';
+            total += count * (isMale ? widget.priceMale : widget.priceFemale);
+         });
+         return total;
+       } else {
+         return (_maleCount * widget.priceMale) + (_femaleCount * widget.priceFemale);
+       }
     } else {
-      return (((_maleCount * widget.priceMale) + (_femaleCount * widget.priceFemale)) * hours).toInt();
+       double hours = _selectedSlots.length.toDouble();
+       if (hours == 0) hours = 1.0;
+   
+       if (widget.roleDistribution.isNotEmpty) {
+         int total = 0;
+         _selectedRoleCounts.forEach((role, count) {
+            bool isMale = _getGenderForRole(role) == 'Male';
+            // Use hourly price if available, else fallback to daily/8 as approx
+            int hourlyMale = widget.priceMaleHourly > 0 ? widget.priceMaleHourly : (widget.priceMale / 8).round();
+            int hourlyFemale = widget.priceFemaleHourly > 0 ? widget.priceFemaleHourly : (widget.priceFemale / 8).round();
+            total += count * (isMale ? hourlyMale : hourlyFemale);
+         });
+         return (total * hours).toInt();
+       } else {
+         int hourlyMale = widget.priceMaleHourly > 0 ? widget.priceMaleHourly : (widget.priceMale / 8).round();
+         int hourlyFemale = widget.priceFemaleHourly > 0 ? widget.priceFemaleHourly : (widget.priceFemale / 8).round();
+         return (((_maleCount * hourlyMale) + (_femaleCount * hourlyFemale)) * hours).toInt();
+       }
     }
   }
 
@@ -247,8 +270,9 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
   void _confirmBooking() async {
     bool hasWorkers = widget.roleDistribution.isNotEmpty ? _selectedRoleCounts.isNotEmpty : (_maleCount > 0 || _femaleCount > 0);
+    bool hasValidTime = _bookingMode == 'Daily' || _selectedSlots.isNotEmpty;
 
-    if (hasWorkers && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty) {
+    if (hasWorkers && hasValidTime && _selectedDate != null && _addressController.text.isNotEmpty) {
       setState(() {
         _isSubmitting = true;
       });
@@ -262,10 +286,14 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
       // Format duration text
       String durationText;
-      if (_selectedSlots.length == 1) {
-        durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.first + 1)}';
+      if (_bookingMode == 'Daily') {
+         durationText = 'Full Day';
       } else {
-         durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}';
+         if (_selectedSlots.length == 1) {
+           durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.first + 1)}';
+         } else {
+            durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}';
+         }
       }
       
       String detailsStr = '';
@@ -287,14 +315,22 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       final Map<String, dynamic> notesMap = {
         'Booked By': userName ?? 'Unknown User',
         'Provider': widget.providerName,
+        'Mode': _bookingMode,
         'Details': detailsStr,
         'Duration': durationText,
         'Location': _addressController.text,
-        'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
+        'Slots': _bookingMode == 'Daily' ? 'Full Day' : _selectedSlots.map((h) => _formatTime(h)).join(', '),
       };
 
-      DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first, 0);
-      DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1, 0);
+      DateTime start;
+      DateTime end;
+      if (_bookingMode == 'Daily') {
+          start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 8, 0);
+          end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 18, 0);
+      } else {
+          start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first, 0);
+          end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1, 0);
+      }
 
       BookingDTO dto = BookingDTO(
         farmerId: userId,
@@ -346,7 +382,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         if (_selectedDate == null) {
           _fieldErrors['date'] = AppLocalizations.of(context)!.selectDateError;
         }
-        if (_selectedSlots.isEmpty) {
+        if (_bookingMode == 'Hourly' && _selectedSlots.isEmpty) {
           _fieldErrors['slots'] = 'Please select at least one time slot';
         }
       });
@@ -413,6 +449,67 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               ),
             ),
             const SizedBox(height: 24),
+
+            // Booking Mode Selection
+            const Text(
+              'Booking Mode',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() {
+                        _bookingMode = 'Daily';
+                        _selectedSlots.clear(); // Clear hourly slots on switch
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _bookingMode == 'Daily' ? const Color(0xFF00AA55) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Daily',
+                          style: TextStyle(
+                            color: _bookingMode == 'Daily' ? Colors.white : Colors.grey.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _bookingMode = 'Hourly'),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _bookingMode == 'Hourly' ? const Color(0xFF00AA55) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Hourly',
+                          style: TextStyle(
+                            color: _bookingMode == 'Hourly' ? Colors.white : Colors.grey.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
 
             // Worker selection restored and improved
             Text(
@@ -547,16 +644,17 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               ),
             ),
             const SizedBox(height: 32),
-            // Time Selection Slots
-            Text(
-              key: _timeSectionKey,
-              'Select Duration (Time Slots)',
-              style: TextStyle(
-                fontSize: 16, 
-                fontWeight: FontWeight.bold, 
-                color: _fieldErrors.containsKey('slots') ? Colors.red : Colors.black87
+            if (_bookingMode == 'Hourly') ...[
+              // Time Selection Slots
+              Text(
+                key: _timeSectionKey,
+                'Select Duration (Time Slots)',
+                style: TextStyle(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.bold, 
+                  color: _fieldErrors.containsKey('slots') ? Colors.red : Colors.black87
+                ),
               ),
-            ),
             if (_selectedDate == null)
               Padding(
                 padding: const EdgeInsets.only(top: 8.0),
@@ -622,6 +720,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                   );
                 },
               ),
+            ],
 
             const SizedBox(height: 40),
 

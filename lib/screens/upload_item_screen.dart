@@ -145,6 +145,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _femaleCountController = TextEditingController();
   final TextEditingController _malePriceController = TextEditingController();
   final TextEditingController _femalePriceController = TextEditingController();
+  final TextEditingController _malePriceHourlyController = TextEditingController();
+  final TextEditingController _femalePriceHourlyController = TextEditingController();
   // Role Distribution
   final List<String> _roleDistributions = [];
   final TextEditingController _roleCountController = TextEditingController();
@@ -272,6 +274,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'femaleCount': int.tryParse(_femaleCountController.text) ?? 0,
         'pricePerMale': double.tryParse(_malePriceController.text) ?? 0.0,
         'pricePerFemale': double.tryParse(_femalePriceController.text) ?? 0.0,
+        'pricePerMaleHourly': double.tryParse(_malePriceHourlyController.text) ?? 0.0,
+        'pricePerFemaleHourly': double.tryParse(_femalePriceHourlyController.text) ?? 0.0,
         'skills': derivedSkills.join(', '),
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
         'serviceRangeKm': 50, // default or add field later
@@ -296,6 +300,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         femaleCount: int.tryParse(_femaleCountController.text) ?? 0,
         malePrice: int.tryParse(_malePriceController.text) ?? 0,
         femalePrice: int.tryParse(_femalePriceController.text) ?? 0,
+        malePriceHourly: int.tryParse(_malePriceHourlyController.text) ?? 0,
+        femalePriceHourly: int.tryParse(_femalePriceHourlyController.text) ?? 0,
         skills: derivedSkills.join(', '),
         roleDistribution: _roleDistributions,
         groupName: _nameController.text,
@@ -517,6 +523,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             Expanded(child: _buildTextField(AppLocalizations.of(context)!.femaleWorkers, _femaleCountController, 'Count', keyboardType: TextInputType.number, errorKey: 'femaleCount')),
             const SizedBox(width: 16),
             Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceFemale, _femalePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number, errorKey: 'femalePrice')),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(child: _buildTextField('Hourly Rate (Male)', _malePriceHourlyController, 'e.g. 50/hr', keyboardType: TextInputType.number, errorKey: 'malePriceHourly')),
+            const SizedBox(width: 16),
+             Expanded(child: _buildTextField('Hourly Rate (Female)', _femalePriceHourlyController, 'e.g. 40/hr', keyboardType: TextInputType.number, errorKey: 'femalePriceHourly')),
           ],
         ),
         _buildRoleDistributionForm(),

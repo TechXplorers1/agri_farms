@@ -59,6 +59,8 @@ class FarmWorkerListing extends ServiceProvider {
   final int femaleCount;
   final int malePrice;
   final int femalePrice;
+  final int malePriceHourly;
+  final int femalePriceHourly;
   final String skills; // e.g., 'Sowing, Harvesting'
   final List<String> roleDistribution; // e.g. ["5 Men - Sowing", "4 Women - Weeding"]
   final String? groupName;
@@ -78,6 +80,8 @@ class FarmWorkerListing extends ServiceProvider {
     required this.femaleCount,
     required this.malePrice,
     required this.femalePrice,
+    this.malePriceHourly = 0,
+    this.femalePriceHourly = 0,
     required this.skills,
     this.roleDistribution = const [],
     this.groupName,

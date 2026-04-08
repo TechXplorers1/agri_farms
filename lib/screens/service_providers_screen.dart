@@ -130,6 +130,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
              femaleCount: (w['femaleCount'] as num?)?.toInt() ?? 0,
              malePrice: (w['pricePerMale'] as num?)?.toInt() ?? 0,
              femalePrice: (w['pricePerFemale'] as num?)?.toInt() ?? 0,
+             malePriceHourly: (w['pricePerMaleHourly'] as num?)?.toInt() ?? 0,
+             femalePriceHourly: (w['pricePerFemaleHourly'] as num?)?.toInt() ?? 0,
              skills: w['skills'] ?? 'General Labor',
              roleDistribution: (w['roles'] as List<dynamic>?)?.map((r) => '${r['count']} ${r['gender']} - ${r['taskName']}').toList() ?? ['General Farming'],
              groupName: w['groupName'],
@@ -586,6 +588,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                      maxFemale: provider.femaleCount,
                      priceMale: provider.malePrice,
                      priceFemale: provider.femalePrice,
+                     priceMaleHourly: provider.malePriceHourly,
+                     priceFemaleHourly: provider.femalePriceHourly,
                      roleDistribution: provider.roleDistribution,
                    )));
                 },
