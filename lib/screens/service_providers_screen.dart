@@ -44,7 +44,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   Future<List<ServiceProvider>> _fetchProviders() async {
     final List<String> transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
     final List<String> equipmentTypes = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB', 'Rotavators', 'Cultivators', 'Seed Drills', 'Power Tillers'];
-    final List<String> serviceTypes = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Vet Care', 'Crop Advisory'];
+    final List<String> serviceTypes = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Vet Care', 'Crop Advisory', 'Electricians', 'Mechanics', 'Soil Testing'];
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -130,8 +130,6 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
              femaleCount: (w['femaleCount'] as num?)?.toInt() ?? 0,
              malePrice: (w['pricePerMale'] as num?)?.toInt() ?? 0,
              femalePrice: (w['pricePerFemale'] as num?)?.toInt() ?? 0,
-             maleHourlyPrice: (w['pricePerHourMale'] as num?)?.toInt() ?? 0,
-             femaleHourlyPrice: (w['pricePerHourFemale'] as num?)?.toInt() ?? 0,
              skills: w['skills'] ?? 'General Labor',
              roleDistribution: (w['roles'] as List<dynamic>?)?.map((r) => '${r['count']} ${r['gender']} - ${r['taskName']}').toList() ?? ['General Farming'],
              groupName: w['groupName'],
@@ -553,8 +551,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                     Text(AppLocalizations.of(context)!.male, style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
                     Text('${provider.maleCount} Available', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text('₹${provider.malePrice} / day', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                    Text('₹${provider.maleHourlyPrice} / hour', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                    Text('₹${provider.malePrice} ${AppLocalizations.of(context)!.perDay}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                   ],
                 ),
               ),
@@ -565,8 +562,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                     Text(AppLocalizations.of(context)!.female, style: const TextStyle(color: Colors.pink, fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 4),
                     Text('${provider.femaleCount} Available', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text('₹${provider.femalePrice} / day', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                    Text('₹${provider.femaleHourlyPrice} / hour', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                    Text('₹${provider.femalePrice} ${AppLocalizations.of(context)!.perDay}', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                   ],
                 ),
               ),
@@ -590,8 +586,6 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                      maxFemale: provider.femaleCount,
                      priceMale: provider.malePrice,
                      priceFemale: provider.femalePrice,
-                     priceMaleHourly: provider.maleHourlyPrice,
-                     priceFemaleHourly: provider.femaleHourlyPrice,
                      roleDistribution: provider.roleDistribution,
                    )));
                 },

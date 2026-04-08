@@ -28,8 +28,6 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   late TextEditingController _nameController;
   late TextEditingController _priceController;
   late TextEditingController _locationController;
-  late TextEditingController _maleHourlyPriceController;
-  late TextEditingController _femaleHourlyPriceController;
 
   // Specifics
   late TextEditingController _secondaryController; // e.g., brandModel, type, groupName
@@ -52,8 +50,6 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _locationController = TextEditingController(text: widget.itemData['location']?.toString() ?? '');
     _secondaryController = TextEditingController();
     _capacityController = TextEditingController();
-    _maleHourlyPriceController = TextEditingController();
-    _femaleHourlyPriceController = TextEditingController();
     _imageUrl = widget.itemData['imageUrl']?.toString();
 
     if (widget.category == 'Vehicle') {
@@ -76,9 +72,8 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     } else if (widget.category == 'WorkerGroup') {
       _nameController.text = widget.itemData['groupName']?.toString() ?? '';
       _priceController.text = widget.itemData['pricePerMale']?.toString() ?? '';
-      _secondaryController.text = widget.itemData['pricePerFemale']?.toString() ?? ''; 
-      _maleHourlyPriceController.text = widget.itemData['pricePerHourMale']?.toString() ?? '';
-      _femaleHourlyPriceController.text = widget.itemData['pricePerHourFemale']?.toString() ?? '';
+      _secondaryController.text = widget.itemData['pricePerFemale']?.toString() ?? ''; // Using secondary for female price
+      // Can add more fields if needed
     }
   }
 
@@ -89,8 +84,6 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _locationController.dispose();
     _secondaryController.dispose();
     _capacityController.dispose();
-    _maleHourlyPriceController.dispose();
-    _femaleHourlyPriceController.dispose();
     super.dispose();
   }
 
@@ -139,8 +132,6 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['groupName'] = _nameController.text;
         updatedData['pricePerMale'] = double.tryParse(_priceController.text) ?? 0.0;
         updatedData['pricePerFemale'] = double.tryParse(_secondaryController.text) ?? 0.0;
-        updatedData['pricePerHourMale'] = double.tryParse(_maleHourlyPriceController.text) ?? 0.0;
-        updatedData['pricePerHourFemale'] = double.tryParse(_femaleHourlyPriceController.text) ?? 0.0;
         updatedData['location'] = _locationController.text;
         await _apiService.updateWorkerGroup(widget.itemData['groupId'], updatedData);
       }
@@ -234,24 +225,8 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
               ),
             ] else if (widget.category == 'WorkerGroup') ...[
               _buildTextField('Group Name', _nameController),
-              const Text('Daily Wages', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: _buildTextField('Male / Day', _priceController, keyboardType: TextInputType.number)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildTextField('Female / Day', _secondaryController, keyboardType: TextInputType.number)),
-                ],
-              ),
-              const Text('Hourly Rates', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blue)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: _buildTextField('Male / Hour', _maleHourlyPriceController, keyboardType: TextInputType.number)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildTextField('Female / Hour', _femaleHourlyPriceController, keyboardType: TextInputType.number)),
-                ],
-              ),
+              _buildTextField('Price Per Male', _priceController, keyboardType: TextInputType.number),
+              _buildTextField('Price Per Female', _secondaryController, keyboardType: TextInputType.number),
             ],
 
             const SizedBox(height: 16),

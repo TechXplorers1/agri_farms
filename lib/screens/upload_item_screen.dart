@@ -145,8 +145,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _femaleCountController = TextEditingController();
   final TextEditingController _malePriceController = TextEditingController();
   final TextEditingController _femalePriceController = TextEditingController();
-  final TextEditingController _maleHourlyPriceController = TextEditingController();
-  final TextEditingController _femaleHourlyPriceController = TextEditingController();
   // Role Distribution
   final List<String> _roleDistributions = [];
   final TextEditingController _roleCountController = TextEditingController();
@@ -274,8 +272,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'femaleCount': int.tryParse(_femaleCountController.text) ?? 0,
         'pricePerMale': double.tryParse(_malePriceController.text) ?? 0.0,
         'pricePerFemale': double.tryParse(_femalePriceController.text) ?? 0.0,
-        'pricePerHourMale': double.tryParse(_maleHourlyPriceController.text) ?? 0.0,
-        'pricePerHourFemale': double.tryParse(_femaleHourlyPriceController.text) ?? 0.0,
         'skills': derivedSkills.join(', '),
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
         'serviceRangeKm': 50, // default or add field later
@@ -300,8 +296,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         femaleCount: int.tryParse(_femaleCountController.text) ?? 0,
         malePrice: int.tryParse(_malePriceController.text) ?? 0,
         femalePrice: int.tryParse(_femalePriceController.text) ?? 0,
-        maleHourlyPrice: int.tryParse(_maleHourlyPriceController.text) ?? 0,
-        femaleHourlyPrice: int.tryParse(_femaleHourlyPriceController.text) ?? 0,
         skills: derivedSkills.join(', '),
         roleDistribution: _roleDistributions,
         groupName: _nameController.text,
@@ -514,7 +508,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           children: [
             Expanded(child: _buildTextField(AppLocalizations.of(context)!.maleWorkers, _maleCountController, 'Count', keyboardType: TextInputType.number, errorKey: 'maleCount')),
             const SizedBox(width: 16),
-            Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceMale, _malePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number, errorKey: 'malePrice')),
+             Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceMale, _malePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number, errorKey: 'malePrice')),
           ],
         ),
         const SizedBox(height: 16),
@@ -525,15 +519,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceFemale, _femalePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number, errorKey: 'femalePrice')),
           ],
         ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(child: _buildTextField('Male Hourly Price', _maleHourlyPriceController, 'Rate / Hour', keyboardType: TextInputType.number, errorKey: 'maleHourlyPrice')),
-            const SizedBox(width: 16),
-            Expanded(child: _buildTextField('Female Hourly Price', _femaleHourlyPriceController, 'Rate / Hour', keyboardType: TextInputType.number, errorKey: 'femaleHourlyPrice')),
-          ],
-        ),
-        const SizedBox(height: 16),
         _buildRoleDistributionForm(),
       ],
     );
@@ -803,7 +788,16 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
            const SizedBox(height: 20),
            _buildSectionTitle('Pricing & Terms'),
            const SizedBox(height: 12),
-           _buildTextField('Price / Rate', _priceController, widget.category == 'Harvesting' ? 'e.g. ₹2000 / hour' : 'e.g. ₹1200 / acre', errorKey: 'price'),
+           _buildTextField(
+             'Price / Rate', 
+             _priceController, 
+             (_selectedServiceType == 'Electricians' || _selectedServiceType == 'Vet Care' || _selectedServiceType == 'Mechanics') 
+               ? 'e.g. ₹200 / visit' 
+               : (_selectedServiceType == 'Harvesting' || _selectedServiceType == 'Drone Spraying' || widget.category == 'Harvesting')
+                 ? 'e.g. ₹2000 / hour'
+                 : 'e.g. ₹1200 / acre', 
+             errorKey: 'price'
+           ),
            
            const SizedBox(height: 20),
            SwitchListTile(

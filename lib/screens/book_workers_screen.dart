@@ -16,8 +16,6 @@ class BookWorkersScreen extends StatefulWidget {
   final int maxFemale;
   final int priceMale;
   final int priceFemale;
-  final int priceMaleHourly;
-  final int priceFemaleHourly;
   final List<String> roleDistribution;
 
   const BookWorkersScreen({
@@ -29,8 +27,6 @@ class BookWorkersScreen extends StatefulWidget {
     required this.maxFemale,
     required this.priceMale,
     required this.priceFemale,
-    required this.priceMaleHourly,
-    required this.priceFemaleHourly,
     this.roleDistribution = const [],
   });
 
@@ -46,7 +42,6 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   List<dynamic> _existingBookings = [];
   bool _isLoadingBookings = false;
   bool _isSubmitting = false;
-  String _bookingMode = 'Daily'; // 'Daily' or 'Hourly'
   final int _startHour = 6;
   final int _endHour = 20;
 
@@ -210,23 +205,15 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     double hours = _selectedSlots.length.toDouble();
     if (hours == 0) hours = 1.0;
 
-    bool isHourly = _bookingMode == 'Hourly';
-
     if (widget.roleDistribution.isNotEmpty) {
       int total = 0;
       _selectedRoleCounts.forEach((role, count) {
          bool isMale = _getGenderForRole(role) == 'Male';
-         int rate = isHourly 
-            ? (isMale ? widget.priceMaleHourly : widget.priceFemaleHourly)
-            : (isMale ? widget.priceMale : widget.priceFemale);
-         total += count * rate;
+         total += count * (isMale ? widget.priceMale : widget.priceFemale);
       });
-      return isHourly ? (total * hours).toInt() : total;
+      return (total * hours).toInt();
     } else {
-      int maleRate = isHourly ? widget.priceMaleHourly : widget.priceMale;
-      int femaleRate = isHourly ? widget.priceFemaleHourly : widget.priceFemale;
-      int subtotal = (_maleCount * maleRate) + (_femaleCount * femaleRate);
-      return isHourly ? (subtotal * hours).toInt() : subtotal;
+      return (((_maleCount * widget.priceMale) + (_femaleCount * widget.priceFemale)) * hours).toInt();
     }
   }
 
@@ -300,8 +287,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       final Map<String, dynamic> notesMap = {
         'Booked By': userName ?? 'Unknown User',
         'Provider': widget.providerName,
-        'Booking Mode': _bookingMode,
-        'Service': 'Farm Workers',
+        'Details': detailsStr,
+        'Duration': durationText,
         'Location': _addressController.text,
         'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
       };
@@ -427,60 +414,6 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Booking Mode Toggle
-            Center(
-              child: SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment<String>(
-                    value: 'Daily',
-                    label: Text('Daily Booking'),
-                    icon: Icon(Icons.calendar_today),
-                  ),
-                  ButtonSegment<String>(
-                    value: 'Hourly',
-                    label: Text('Hourly Booking'),
-                    icon: Icon(Icons.access_time),
-                  ),
-                ],
-                selected: {_bookingMode},
-                onSelectionChanged: (Set<String> newSelection) {
-                  setState(() {
-                    _bookingMode = newSelection.first;
-                  });
-                },
-                style: SegmentedButton.styleFrom(
-                  selectedBackgroundColor: const Color(0xFF00AA55),
-                  selectedForegroundColor: Colors.white,
-                  backgroundColor: Colors.grey[50],
-                  side: BorderSide(color: Colors.grey[300]!),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_bookingMode == 'Hourly')
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue[100]!),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 18, color: Colors.blue[700]),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'In Hourly mode, total price is calculated based on the number of workers and the duration of the time slots selected.',
-                        style: TextStyle(fontSize: 12, color: Colors.blue[800]),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            const SizedBox(height: 24),
-
             // Worker selection restored and improved
             Text(
               key: _workerSectionKey,
@@ -503,12 +436,11 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                 final gender = _getGenderForRole(role);
                 final maxCount = _getMaxCountForRole(role);
                 final currentCount = _selectedRoleCounts[role] ?? 0;
+                final price = gender == 'Male' ? widget.priceMale : widget.priceFemale;
 
                 return _buildCounter(
                   label: skill,
-                  gender: gender,
-                  skill: skill,
-                  role: role,
+                  subtitle: '$gender | ₹$price ${AppLocalizations.of(context)!.perDay} | Max: $maxCount',
                   count: currentCount,
                   max: maxCount,
                   onChanged: (val) => setState(() => _selectedRoleCounts[role] = val),
@@ -517,16 +449,14 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             else ...[
                _buildCounter(
                  label: AppLocalizations.of(context)!.maleWorkers,
-                 gender: 'Male',
-                 skill: AppLocalizations.of(context)!.maleWorkers,
+                 subtitle: '₹${widget.priceMale} ${AppLocalizations.of(context)!.perDay} | ${AppLocalizations.of(context)!.available}: ${widget.maxMale}',
                  count: _maleCount,
                  max: widget.maxMale,
                  onChanged: (val) => setState(() => _maleCount = val),
                ),
                _buildCounter(
                  label: AppLocalizations.of(context)!.femaleWorkers,
-                 gender: 'Female',
-                 skill: AppLocalizations.of(context)!.femaleWorkers,
+                 subtitle: '₹${widget.priceFemale} ${AppLocalizations.of(context)!.perDay} | ${AppLocalizations.of(context)!.available}: ${widget.maxFemale}',
                  count: _femaleCount,
                  max: widget.maxFemale,
                  onChanged: (val) => setState(() => _femaleCount = val),
@@ -745,13 +675,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   }
 
 
-  Widget _buildCounter({required String label, required int count, required int max, required Function(int) onChanged, String? subtitle, String? skill, String? gender, String? role}) {
-    final maxCount = _getMaxCountForRole(role ?? '');
-    int currentRate = _bookingMode == 'Hourly' 
-      ? (gender == 'Male' ? widget.priceMaleHourly : widget.priceFemaleHourly)
-      : (gender == 'Male' ? widget.priceMale : widget.priceFemale);
-    String rateUnit = _bookingMode == 'Hourly' ? '/ hr' : '/ day';
-
+  Widget _buildCounter({required String label, required int count, required int max, required Function(int) onChanged, String? subtitle}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(12),
@@ -767,9 +691,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                if (skill != null)
-                  Text('$gender - ₹$currentRate $rateUnit', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                if (subtitle != null && skill == null)
+                if (subtitle != null)
                    Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
               ],
             ),
