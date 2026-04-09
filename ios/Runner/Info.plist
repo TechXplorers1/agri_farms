@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>AgriFarms uses your location to automatically fill in your farm address when booking services.</string>
 </dict>
 </plist>

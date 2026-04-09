@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'agri_services_screen.dart';
@@ -50,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _isFetchingLocation = false;
   
   // Helper method to get localized items
   List<HomeServiceItem> _getAllItems(BuildContext context) {
@@ -168,6 +171,68 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _fetchCurrentLocation() async {
+    setState(() {
+      _isFetchingLocation = true;
+    });
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        UiUtils.showCenteredToast(context, 'Location services are disabled.');
+        setState(() => _isFetchingLocation = false);
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          UiUtils.showCenteredToast(context, 'Location permissions are denied');
+          setState(() => _isFetchingLocation = false);
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        UiUtils.showCenteredToast(context, 'Location permissions are permanently denied');
+        setState(() => _isFetchingLocation = false);
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high
+      );
+
+      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      
+      if (placemarks.isNotEmpty) {
+        final place = placemarks[0];
+        String village = place.subLocality ?? place.locality ?? 'Unknown Village';
+        String district = place.subAdministrativeArea ?? place.administrativeArea ?? 'Unknown District';
+        
+        setState(() {
+          _userLocation = "$village, $district";
+        });
+
+        // Save to preferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_village', village);
+        await prefs.setString('user_district', district);
+        
+        UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
+      }
+    } catch (e) {
+      UiUtils.showCenteredToast(context, 'Error fetching location: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFetchingLocation = false;
+        });
+      }
+    }
+  }
+
   void _showLocationSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -175,38 +240,44 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Select Location',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Select Location',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  ListTile(
+                    leading: _isFetchingLocation 
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.my_location, color: Colors.blue),
+                    title: Text(_isFetchingLocation ? 'Detecting...' : 'Auto Detect Location'),
+                    enabled: !_isFetchingLocation,
+                    onTap: () async {
+                      setModalState(() {}); // Refresh local state for spinner
+                      await _fetchCurrentLocation();
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.location_city, color: Colors.orange),
+                    title: const Text('Select Village / District Manually'),
+                    enabled: !_isFetchingLocation,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _showManualLocationDialog();
+                    },
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: const Icon(Icons.my_location, color: Colors.blue),
-                title: const Text('Auto Detect Location'),
-                onTap: () {
-                  Navigator.pop(context);
-                  setState(() {
-                   _userLocation = "Kodad, Suryapet"; 
-                  });
-                   UiUtils.showCenteredToast(context, 'Location detected successfully!');
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.location_city, color: Colors.orange),
-                title: const Text('Select Village / District Manually'),
-                onTap: () {
-                  Navigator.pop(context);
-                   _showManualLocationDialog();
-                },
-              ),
-            ],
-          ),
+            );
+          }
         );
       },
     );
@@ -218,32 +289,63 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context) {
             String tempVillage = '';
             String tempDistrict = '';
-            return AlertDialog(
-                title: const Text('Enter Location'),
-                content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                        TextField(
-                            decoration: const InputDecoration(labelText: 'Village'),
-                            onChanged: (val) => tempVillage = val,
-                        ),
-                        TextField(
-                            decoration: const InputDecoration(labelText: 'District'),
-                            onChanged: (val) => tempDistrict = val,
-                        ),
+            return StatefulBuilder(
+              builder: (context, setDialogState) {
+                return AlertDialog(
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Enter Location'),
+                        if (_isFetchingLocation)
+                          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        else
+                          IconButton(
+                            icon: const Icon(Icons.my_location, color: Colors.blue, size: 20),
+                            onPressed: () async {
+                              setDialogState(() {}); // Start spinner
+                              await _fetchCurrentLocation();
+                              if (mounted) {
+                                Navigator.pop(context); // Close and reopen to show new values or just update text controllers
+                                _showManualLocationDialog(); 
+                              }
+                            },
+                            tooltip: 'Fetch Current Location',
+                          )
+                      ],
+                    ),
+                    content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                            TextField(
+                                decoration: const InputDecoration(labelText: 'Village'),
+                                controller: TextEditingController(text: _userLocation.split(',')[0].trim()),
+                                onChanged: (val) => tempVillage = val,
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                                decoration: const InputDecoration(labelText: 'District'),
+                                controller: TextEditingController(text: _userLocation.contains(',') ? _userLocation.split(',')[1].trim() : ''),
+                                onChanged: (val) => tempDistrict = val,
+                            ),
+                        ],
+                    ),
+                    actions: [
+                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                        ElevatedButton(onPressed: () {
+                             // Use temp values if they were typed, otherwise use current _userLocation split
+                            String finalVillage = tempVillage.isNotEmpty ? tempVillage : _userLocation.split(',')[0].trim();
+                            String finalDistrict = tempDistrict.isNotEmpty ? tempDistrict : (_userLocation.contains(',') ? _userLocation.split(',')[1].trim() : '');
+                            
+                            if (finalVillage.isNotEmpty && finalDistrict.isNotEmpty) {
+                                setState(() {
+                                    _userLocation = "$finalVillage, $finalDistrict";
+                                });
+                                 Navigator.pop(context);
+                            }
+                        }, child: const Text('Save')),
                     ],
-                ),
-                actions: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                    ElevatedButton(onPressed: () {
-                        if (tempVillage.isNotEmpty && tempDistrict.isNotEmpty) {
-                            setState(() {
-                                _userLocation = "$tempVillage, $tempDistrict";
-                            });
-                             Navigator.pop(context);
-                        }
-                    }, child: const Text('Save')),
-                ],
+                );
+              }
             );
         }
       );
@@ -399,15 +501,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined, color: Colors.white70, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        _userLocation,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                  InkWell(
+                    onTap: () => _showLocationSelector(context),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.location_on_outlined, color: Colors.white70, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            _userLocation,
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 16),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 20),
                   TextField(

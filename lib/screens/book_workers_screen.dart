@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/booking_dto.dart';
 import '../services/api_service.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class BookWorkersScreen extends StatefulWidget {
   final String providerName;
@@ -48,6 +50,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   List<dynamic> _existingBookings = [];
   bool _isLoadingBookings = false;
   bool _isSubmitting = false;
+  bool _isFetchingLocation = false;
   final int _startHour = 6;
   final int _endHour = 20;
 
@@ -344,6 +347,52 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     setState(() {
       _addressController.text = prefs.getString('user_address') ?? '';
     });
+  }
+
+  Future<void> _fetchCurrentLocation() async {
+    setState(() => _isFetchingLocation = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) UiUtils.showCenteredToast(context, 'Location services are disabled. Please enable GPS.', isError: true);
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) UiUtils.showCenteredToast(context, 'Location permission denied.', isError: true);
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) UiUtils.showCenteredToast(context, 'Location permission permanently denied. Enable it in Settings.', isError: true);
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        final parts = <String>[
+          if ((p.name ?? '').isNotEmpty && p.name != p.thoroughfare) p.name!,
+          if ((p.subLocality ?? '').isNotEmpty) p.subLocality!,
+          if ((p.locality ?? '').isNotEmpty) p.locality!,
+          if ((p.administrativeArea ?? '').isNotEmpty) p.administrativeArea!,
+          if ((p.postalCode ?? '').isNotEmpty) p.postalCode!,
+        ];
+        final address = parts.join(', ');
+        if (mounted) {
+          setState(() => _addressController.text = address);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('user_address', address);
+          if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
+        }
+      }
+    } catch (e) {
+      if (mounted) UiUtils.showCenteredToast(context, 'Could not fetch location. Try again.', isError: true);
+    } finally {
+      if (mounted) setState(() => _isFetchingLocation = false);
+    }
   }
 
   @override
@@ -757,6 +806,19 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               },
               decoration: InputDecoration(
                 hintText: 'Enter farm address/location...',
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.only(bottom: 40),
+                  child: _isFetchingLocation
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.my_location, color: Color(0xFF00AA55)),
+                        tooltip: 'Use my current location',
+                        onPressed: _fetchCurrentLocation,
+                      ),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),

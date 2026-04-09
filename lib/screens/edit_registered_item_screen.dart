@@ -1,7 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
@@ -34,6 +35,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   bool _boolFlag = false; // operatorAvailable, driverIncluded
   String? _condition; // Equipment
   late TextEditingController _capacityController; // Vehicle
+  bool _isFetchingLocation = false;
 
   File? _imageFile;
   String? _imageUrl;
@@ -85,6 +87,63 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _secondaryController.dispose();
     _capacityController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchCurrentLocation() async {
+    setState(() {
+      _isFetchingLocation = true;
+    });
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        UiUtils.showCenteredToast(context, 'Location services are disabled.');
+        setState(() => _isFetchingLocation = false);
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          UiUtils.showCenteredToast(context, 'Location permissions are denied');
+          setState(() => _isFetchingLocation = false);
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        UiUtils.showCenteredToast(context, 'Location permissions are permanently denied');
+        setState(() => _isFetchingLocation = false);
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high
+      );
+
+      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      
+      if (placemarks.isNotEmpty) {
+        final place = placemarks[0];
+        String village = place.subLocality ?? place.locality ?? 'Unknown Village';
+        String district = place.subAdministrativeArea ?? place.administrativeArea ?? 'Unknown District';
+        
+        setState(() {
+           _locationController.text = "$village, $district";
+        });
+        
+        UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
+      }
+    } catch (e) {
+      UiUtils.showCenteredToast(context, 'Error fetching location: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFetchingLocation = false;
+        });
+      }
+    }
   }
 
   Future<void> _pickImage() async {
@@ -230,7 +289,16 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
             ],
 
             const SizedBox(height: 16),
-            _buildTextField('Location', _locationController),
+            _buildTextField(
+              'Location', 
+              _locationController,
+              suffixIcon: _isFetchingLocation 
+                ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
+                : IconButton(
+                    icon: const Icon(Icons.my_location, color: Color(0xFF00AA55)),
+                    onPressed: _fetchCurrentLocation,
+                  ),
+            ),
 
             const SizedBox(height: 32),
             SizedBox(
@@ -252,7 +320,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text, Widget? suffixIcon}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: TextField(
@@ -262,6 +330,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
           labelText: label,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          suffixIcon: suffixIcon,
         ),
       ),
     );

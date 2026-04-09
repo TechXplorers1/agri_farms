@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -23,6 +25,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   XFile? _selectedImage;
   bool _isUploading = false;
   bool _isSubmitting = false;
+  bool _isFetchingLocation = false;
   
   final ImagePicker _picker = ImagePicker();
   final ScrollController _scrollController = ScrollController();
@@ -96,6 +99,63 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       setState(() {
         _selectedImage = image;
       });
+    }
+  }
+
+  Future<void> _fetchCurrentLocation() async {
+    setState(() {
+      _isFetchingLocation = true;
+    });
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        UiUtils.showCenteredToast(context, 'Location services are disabled.');
+        setState(() => _isFetchingLocation = false);
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          UiUtils.showCenteredToast(context, 'Location permissions are denied');
+          setState(() => _isFetchingLocation = false);
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        UiUtils.showCenteredToast(context, 'Location permissions are permanently denied');
+        setState(() => _isFetchingLocation = false);
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high
+      );
+
+      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      
+      if (placemarks.isNotEmpty) {
+        final place = placemarks[0];
+        String village = place.subLocality ?? place.locality ?? 'Unknown Village';
+        String district = place.subAdministrativeArea ?? place.administrativeArea ?? 'Unknown District';
+        
+        setState(() {
+           _locationController.text = "$village, $district";
+        });
+        
+        UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
+      }
+    } catch (e) {
+      UiUtils.showCenteredToast(context, 'Error fetching location: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isFetchingLocation = false;
+        });
+      }
     }
   }
 
@@ -467,7 +527,17 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
             if (!(widget.category == 'Farm Workers' || (widget.category == 'Services' && _selectedServiceType == 'Farm Workers'))) ...[
               const SizedBox(height: 24),
-               _buildTextField(AppLocalizations.of(context)!.locationLabel, _locationController, 'e.g. Rampur, Nagpur'),
+               _buildTextField(
+                 AppLocalizations.of(context)!.locationLabel, 
+                 _locationController, 
+                 'e.g. Rampur, Nagpur',
+                 suffixIcon: _isFetchingLocation 
+                   ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
+                   : IconButton(
+                       icon: const Icon(Icons.my_location, color: Color(0xFF00AA55)),
+                       onPressed: _fetchCurrentLocation,
+                     ),
+               ),
               const SizedBox(height: 16),
                _buildTextField(AppLocalizations.of(context)!.descriptionLabel, _descriptionController, 'Any extra info...', maxLines: 3),
             ],
@@ -940,7 +1010,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey}) {
+  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey, Widget? suffixIcon}) {
     bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -961,7 +1031,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           onChanged: (_) {
             if (hasError) setState(() => _fieldErrors.remove(errorKey));
           },
-          decoration: _inputDecoration(hint, isError: hasError),
+          decoration: _inputDecoration(hint, isError: hasError).copyWith(suffixIcon: suffixIcon),
         ),
         if (hasError && _fieldErrors[errorKey] != null)
            Padding(
