@@ -199,29 +199,19 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                   const SizedBox(height: 8),
                   Text('Request Details:', style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w600, fontSize: 13)),
                   const SizedBox(height: 8),
-                  // Special handling for worker counts to look better
-                  if (booking.details.containsKey('male_count') || booking.details.containsKey('female_count')) ...[
-                     Row(
-                       children: [
-                         if (booking.details.containsKey('male_count'))
-                           _buildWorkerChip('Men: ${booking.details['male_count']}', Colors.blue),
-                         if (booking.details.containsKey('male_count') && booking.details.containsKey('female_count'))
-                           const SizedBox(width: 12),
-                         if (booking.details.containsKey('female_count'))
-                           _buildWorkerChip('Women: ${booking.details['female_count']}', Colors.pink),
-                       ],
-                     ),
-                     const SizedBox(height: 8),
-                  ],
-                   ...booking.details.entries.where((e) => !['male_count', 'female_count', 'Provider', 'Count', 'Vehicle Count'].contains(e.key)).map((e) => // Hide Provider name if redundant
+                   ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Provider', 'Count', 'Vehicle Count'].contains(e.key)).map((e) => // Hide Provider name if redundant
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.circle, size: 6, color: Colors.grey[400]),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Icon(Icons.circle, size: 6, color: Colors.grey[400]),
+                          ),
                           const SizedBox(width: 8),
                           Text('${_formatKey(e.key)}: ', style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 13)),
-                          Text('${e.value}', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+                          Expanded(child: Text('${e.value}', style: TextStyle(color: Colors.grey[700], fontSize: 13))),
                         ],
                       ),
                     )

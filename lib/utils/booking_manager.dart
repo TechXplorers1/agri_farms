@@ -45,7 +45,7 @@ class BookingDetails {
     if (dto.assetType == 'Transport') cat = BookingCategory.transport;
     else if (dto.assetType == 'Equipment') cat = BookingCategory.rentals;
     else if (dto.assetType == 'Service') cat = BookingCategory.services;
-    else if (dto.assetType == 'Workers') cat = BookingCategory.farmWorkers;
+    else if (dto.assetType == 'Workers' || dto.assetType == 'worker_group') cat = BookingCategory.farmWorkers;
     
     Map<String, dynamic> parsedDetails = {};
     if (dto.notes != null && dto.notes!.isNotEmpty) {

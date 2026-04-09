@@ -293,7 +293,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
               const SizedBox(height: 8),
               Text('Request Details:', style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w600, fontSize: 13)),
               const SizedBox(height: 8),
-              ...booking.details.entries.where((e) => !['Count', 'Vehicle Count'].contains(e.key)).map((e) =>
+              ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Count', 'Vehicle Count'].contains(e.key)).map((e) =>
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Row(

@@ -43,6 +43,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   int _femaleCount = 0;
   String _bookingMode = 'Daily'; // 'Daily' or 'Hourly'
   DateTime? _selectedDate;
+  TimeOfDay? _selectedStartTime;
   final List<int> _selectedSlots = [];
   List<dynamic> _existingBookings = [];
   bool _isLoadingBookings = false;
@@ -54,18 +55,26 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   final ScrollController _scrollController = ScrollController();
   final Map<String, String?> _fieldErrors = {};
   
+  int _dynamicMaxMale = 0;
+  int _dynamicMaxFemale = 0;
+  final Map<String, int> _dynamicMaxRoles = {};
+  
   // GlobalKeys for scrolling to sections
   final GlobalKey _workerSectionKey = GlobalKey();
   final GlobalKey _addressSectionKey = GlobalKey();
   final GlobalKey _dateSectionKey = GlobalKey();
   final GlobalKey _timeSectionKey = GlobalKey();
+  final GlobalKey _dailyTimeSectionKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
+    _dynamicMaxMale = widget.maxMale;
+    _dynamicMaxFemale = widget.maxFemale;
     if (widget.roleDistribution.isNotEmpty) {
       for (var role in widget.roleDistribution) {
          _selectedRoleCounts[role] = 0; // Default to 0
+         _dynamicMaxRoles[role] = _getMaxCountForRole(role);
       }
     } else {
       _maleCount = 0; // Default to 0
@@ -126,6 +135,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         _isLoadingBookings = false;
         _selectedSlots.clear(); // Clear selection when date or data changes
       });
+      _recalculateAvailability();
     } catch (e) {
       setState(() => _isLoadingBookings = false);
       print('Error fetching bookings: $e');
@@ -133,9 +143,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   }
 
   bool _isSlotBlocked(int hour) {
-    if (_selectedDate == null) return true;
+    if (_selectedDate == null) return false;
 
-    // Check past time if selected date is today
     final now = DateTime.now();
     if (_selectedDate!.year == now.year &&
         _selectedDate!.month == now.month &&
@@ -143,25 +152,171 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       if (hour <= now.hour) return true;
     }
 
-    // Check existing bookings
-    for (var booking in _existingBookings) {
-      final String status = booking['status']?.toString().toUpperCase() ?? '';
-      if (status == 'CANCELLED' || status == 'REJECTED' || status == 'COMPLETED' || status == 'FINISHED') continue;
-
-      DateTime start = DateTime.parse(booking['scheduledStartTime']);
-      DateTime end = DateTime.parse(booking['scheduledEndTime']);
-
-      // Check if this hour overlaps with booking
-      // A booking from 9:00 to 11:00 blocks slots 9 and 10.
-      if (_selectedDate!.year == start.year &&
-          _selectedDate!.month == start.month &&
-          _selectedDate!.day == start.day) {
-        if (hour >= start.hour && hour < end.hour) {
-          return true;
+    Map<String, int> occupied = _getOccupiedCountsForHour(hour);
+    if (widget.roleDistribution.isNotEmpty) {
+        bool allRolesFull = true;
+        for (var r in widget.roleDistribution) {
+            if (_getMaxCountForRole(r) - (occupied[r] ?? 0) > 0) {
+               allRolesFull = false;
+               break;
+            }
         }
-      }
+        return allRolesFull;
+    } else {
+        bool maleFull = (widget.maxMale - occupied['male']!) <= 0;
+        bool femaleFull = (widget.maxFemale - occupied['female']!) <= 0;
+        return maleFull && femaleFull; // Only block if BOTH are entirely full
     }
-    return false;
+  }
+
+  int _getDetailsCount(Map<String, dynamic> notes, String gender) {
+     if (gender == 'Male' && notes.containsKey('male_count')) return int.tryParse(notes['male_count'].toString()) ?? 0;
+     if (gender == 'Female' && notes.containsKey('female_count')) return int.tryParse(notes['female_count'].toString()) ?? 0;
+     
+     int count = 0;
+     if (notes.containsKey('Details')) {
+        String details = notes['Details'].toString();
+        if (details.contains('$gender: ')) {
+           final parts = details.split(', ');
+           for (var p in parts) {
+              if (p.startsWith('$gender: ')) count += int.tryParse(p.split(': ')[1]) ?? 0;
+           }
+        } else if (details.contains(' $gender ')) {
+           final parts = details.split(', ');
+           for (var p in parts) {
+              if (p.contains(' $gender ')) count += int.tryParse(p.split(' ')[0]) ?? 0;
+           }
+        }
+     }
+     return count;
+  }
+
+  int _getRoleCount(Map<String, dynamic> notes, String roleKey) {
+     if (notes.containsKey('role_counts')) {
+         final rc = notes['role_counts'] as Map<dynamic, dynamic>;
+         return int.tryParse(rc[roleKey]?.toString() ?? '0') ?? 0;
+     }
+     String searchStr = ' (${_getSkillForRole(roleKey)})';
+     int count = 0;
+     if (notes.containsKey('Details')) {
+         String details = notes['Details'].toString();
+         final parts = details.split(', ');
+         for (var p in parts) {
+            if (p.endsWith(searchStr)) count += int.tryParse(p.split(' ')[0]) ?? 0;
+         }
+     }
+     return count;
+  }
+
+  Map<String, int> _getOccupiedCountsForHour(int hour) {
+     int runningMale = 0;
+     int runningFemale = 0;
+     Map<String, int> runningRoles = {};
+     for (var r in widget.roleDistribution) runningRoles[r] = 0;
+     
+     if (_selectedDate == null) return {'male': 0, 'female': 0};
+     DateTime slotStart = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, hour);
+     DateTime slotEnd = slotStart.add(const Duration(hours: 1));
+     
+     for (var booking in _existingBookings) {
+         final String status = booking['status']?.toString().toUpperCase() ?? '';
+         if (status == 'CANCELLED' || status == 'REJECTED' || status == 'COMPLETED' || status == 'FINISHED') continue;
+         
+         DateTime bStart = DateTime.parse(booking['scheduledStartTime']);
+         DateTime bEnd = DateTime.parse(booking['scheduledEndTime']);
+         
+         if (slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart)) {
+            Map<String, dynamic> notes = {};
+            try { notes = jsonDecode(booking['notes']?.toString() ?? '{}'); } catch(_){}
+            
+            if (widget.roleDistribution.isNotEmpty) {
+               for (var r in widget.roleDistribution) {
+                  runningRoles[r] = runningRoles[r]! + _getRoleCount(notes, r);
+               }
+            } else {
+               runningMale += _getDetailsCount(notes, 'Male');
+               runningFemale += _getDetailsCount(notes, 'Female');
+            }
+         }
+     }
+     
+     runningRoles['male'] = runningMale;
+     runningRoles['female'] = runningFemale;
+     return runningRoles;
+  }
+
+  void _recalculateAvailability() {
+      int maxM = widget.maxMale;
+      int maxF = widget.maxFemale;
+      Map<String, int> baseRoles = {};
+      for (var r in widget.roleDistribution) baseRoles[r] = _getMaxCountForRole(r);
+      
+      if (_selectedDate == null) {
+          setState(() {
+             _dynamicMaxMale = maxM;
+             _dynamicMaxFemale = maxF;
+             _dynamicMaxRoles.clear();
+             _dynamicMaxRoles.addAll(baseRoles);
+          });
+          return;
+      }
+      
+      List<int> hoursToCheck = [];
+      if (_bookingMode == 'Hourly') {
+          if (_selectedSlots.isNotEmpty) hoursToCheck = List.from(_selectedSlots);
+      } else {
+          hoursToCheck = List.generate(10, (i) => 8 + i);
+      }
+      
+      if (hoursToCheck.isEmpty) {
+          setState(() {
+             _dynamicMaxMale = maxM;
+             _dynamicMaxFemale = maxF;
+             _dynamicMaxRoles.clear();
+             _dynamicMaxRoles.addAll(baseRoles);
+             
+             if (_maleCount > _dynamicMaxMale) _maleCount = _dynamicMaxMale;
+             if (_femaleCount > _dynamicMaxFemale) _femaleCount = _dynamicMaxFemale;
+          });
+          return;
+      }
+      
+      int maxSimultaneousMale = 0;
+      int maxSimultaneousFemale = 0;
+      Map<String, int> maxSimultaneousRoles = {};
+      for (var r in widget.roleDistribution) maxSimultaneousRoles[r] = 0;
+      
+      for (int h in hoursToCheck) {
+         Map<String, int> booked = _getOccupiedCountsForHour(h);
+         if ((booked['male'] ?? 0) > maxSimultaneousMale) maxSimultaneousMale = booked['male']!;
+         if ((booked['female'] ?? 0) > maxSimultaneousFemale) maxSimultaneousFemale = booked['female']!;
+         for (var r in widget.roleDistribution) {
+            if ((booked[r] ?? 0) > maxSimultaneousRoles[r]!) {
+                maxSimultaneousRoles[r] = booked[r] ?? 0;
+            }
+         }
+      }
+      
+      setState(() {
+         _dynamicMaxMale = maxM - maxSimultaneousMale;
+         if (_dynamicMaxMale < 0) _dynamicMaxMale = 0;
+         
+         _dynamicMaxFemale = maxF - maxSimultaneousFemale;
+         if (_dynamicMaxFemale < 0) _dynamicMaxFemale = 0;
+         
+         for (var r in widget.roleDistribution) {
+             _dynamicMaxRoles[r] = baseRoles[r]! - maxSimultaneousRoles[r]!;
+             if (_dynamicMaxRoles[r]! < 0) _dynamicMaxRoles[r] = 0;
+         }
+         
+         if (_maleCount > _dynamicMaxMale) _maleCount = _dynamicMaxMale;
+         if (_femaleCount > _dynamicMaxFemale) _femaleCount = _dynamicMaxFemale;
+         for (var r in widget.roleDistribution) {
+             if ((_selectedRoleCounts[r] ?? 0) > (_dynamicMaxRoles[r] ?? 0)) {
+                 _selectedRoleCounts[r] = _dynamicMaxRoles[r]!;
+             }
+         }
+      });
   }
 
   void _onSlotTap(int hour) {
@@ -181,6 +336,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         _selectedSlots.sort();
       }
     });
+    _recalculateAvailability();
   }
 
   Future<void> _loadAddress() async {
@@ -271,7 +427,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
   void _confirmBooking() async {
     bool hasWorkers = widget.roleDistribution.isNotEmpty ? _selectedRoleCounts.isNotEmpty : (_maleCount > 0 || _femaleCount > 0);
-    bool hasValidTime = _bookingMode == 'Daily' || _selectedSlots.isNotEmpty;
+    bool hasValidTime = _bookingMode == 'Daily' ? _selectedStartTime != null : _selectedSlots.isNotEmpty;
 
     if (hasWorkers && hasValidTime && _selectedDate != null && _addressController.text.isNotEmpty) {
       setState(() {
@@ -321,12 +477,19 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         'Duration': durationText,
         'Location': _addressController.text,
         'Slots': _bookingMode == 'Daily' ? 'Full Day' : _selectedSlots.map((h) => _formatTime(h)).join(', '),
+        'male_count': _maleCount,
+        'female_count': _femaleCount,
+        'role_counts': _selectedRoleCounts,
       };
+
+      if (_bookingMode == 'Daily' && _selectedStartTime != null) {
+          notesMap['Start Time'] = _selectedStartTime!.format(context);
+      }
 
       DateTime start;
       DateTime end;
       if (_bookingMode == 'Daily') {
-          start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 8, 0);
+          start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedStartTime!.hour, _selectedStartTime!.minute);
           end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 18, 0);
       } else {
           start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first, 0);
@@ -386,6 +549,9 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         if (_bookingMode == 'Hourly' && _selectedSlots.isEmpty) {
           _fieldErrors['slots'] = 'Please select at least one time slot';
         }
+        if (_bookingMode == 'Daily' && _selectedStartTime == null) {
+          _fieldErrors['dailyTime'] = 'Please select requested start time';
+        }
       });
 
       // Scroll to first error
@@ -395,6 +561,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         _scrollToField(_addressSectionKey);
       } else if (_fieldErrors.containsKey('date')) {
         _scrollToField(_dateSectionKey);
+      } else if (_fieldErrors.containsKey('dailyTime')) {
+        _scrollToField(_dailyTimeSectionKey);
       } else if (_fieldErrors.containsKey('slots')) {
         _scrollToField(_timeSectionKey);
       }
@@ -466,10 +634,13 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => setState(() {
-                        _bookingMode = 'Daily';
-                        _selectedSlots.clear(); // Clear hourly slots on switch
-                      }),
+                      onTap: () { 
+                         setState(() {
+                           _bookingMode = 'Daily';
+                           _selectedSlots.clear(); // Clear hourly slots on switch
+                         });
+                         _recalculateAvailability();
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
@@ -489,7 +660,10 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                   ),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => setState(() => _bookingMode = 'Hourly'),
+                      onTap: () { 
+                         setState(() => _bookingMode = 'Hourly');
+                         _recalculateAvailability();
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
@@ -533,30 +707,31 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                 final skill = _getSkillForRole(role);
                 final gender = _getGenderForRole(role);
                 final maxCount = _getMaxCountForRole(role);
+                final dynamicMax = _dynamicMaxRoles[role] ?? maxCount;
                 final currentCount = _selectedRoleCounts[role] ?? 0;
                 final price = gender == 'Male' ? widget.priceMale : widget.priceFemale;
 
                 return _buildCounter(
                   label: skill,
-                  subtitle: '$gender | ₹$price ${AppLocalizations.of(context)!.perDay} | Max: $maxCount',
+                  subtitle: '$gender | ₹$price ${AppLocalizations.of(context)!.perDay} | ' + (dynamicMax < maxCount ? 'Available: $dynamicMax (${maxCount - dynamicMax} booked)' : 'Available: $maxCount'),
                   count: currentCount,
-                  max: maxCount,
+                  max: dynamicMax,
                   onChanged: (val) => setState(() => _selectedRoleCounts[role] = val),
                 );
               })
             else ...[
                _buildCounter(
                  label: AppLocalizations.of(context)!.maleWorkers,
-                 subtitle: '₹${widget.priceMale} ${AppLocalizations.of(context)!.perDay} | ${AppLocalizations.of(context)!.available}: ${widget.maxMale}',
+                 subtitle: '₹${widget.priceMale} ${AppLocalizations.of(context)!.perDay} | ' + (_dynamicMaxMale < widget.maxMale ? 'Available: $_dynamicMaxMale (${widget.maxMale - _dynamicMaxMale} booked)' : '${AppLocalizations.of(context)!.available}: ${widget.maxMale}'),
                  count: _maleCount,
-                 max: widget.maxMale,
+                 max: _dynamicMaxMale,
                  onChanged: (val) => setState(() => _maleCount = val),
                ),
                _buildCounter(
                  label: AppLocalizations.of(context)!.femaleWorkers,
-                 subtitle: '₹${widget.priceFemale} ${AppLocalizations.of(context)!.perDay} | ${AppLocalizations.of(context)!.available}: ${widget.maxFemale}',
+                 subtitle: '₹${widget.priceFemale} ${AppLocalizations.of(context)!.perDay} | ' + (_dynamicMaxFemale < widget.maxFemale ? 'Available: $_dynamicMaxFemale (${widget.maxFemale - _dynamicMaxFemale} booked)' : '${AppLocalizations.of(context)!.available}: ${widget.maxFemale}'),
                  count: _femaleCount,
-                 max: widget.maxFemale,
+                 max: _dynamicMaxFemale,
                  onChanged: (val) => setState(() => _femaleCount = val),
                ),
             ],
@@ -645,6 +820,72 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               ),
             ),
             const SizedBox(height: 32),
+            if (_bookingMode == 'Daily') ...[
+              Text(
+                key: _dailyTimeSectionKey,
+                'Required Start Time',
+                style: TextStyle(
+                  fontSize: 16, 
+                  fontWeight: FontWeight.bold, 
+                  color: _fieldErrors.containsKey('dailyTime') ? Colors.red : Colors.black87
+                ),
+              ),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () async {
+                  final TimeOfDay? picked = await showTimePicker(
+                    context: context,
+                    initialTime: _selectedStartTime ?? const TimeOfDay(hour: 8, minute: 0),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: Color(0xFF00AA55),
+                            onPrimary: Colors.white,
+                            onSurface: Colors.black,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _selectedStartTime = picked;
+                      if (_fieldErrors.containsKey('dailyTime')) {
+                        _fieldErrors.remove('dailyTime');
+                      }
+                    });
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: _fieldErrors.containsKey('dailyTime') ? Colors.red : Colors.grey[300]!),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.access_time, color: _selectedStartTime == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+                      const SizedBox(width: 12),
+                      Text(
+                        _selectedStartTime == null 
+                            ? 'Select preferred start time' 
+                            : _selectedStartTime!.format(context),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: _selectedStartTime == null ? Colors.grey[500] : Colors.black87,
+                          fontWeight: _selectedStartTime == null ? FontWeight.normal : FontWeight.w500,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             if (_bookingMode == 'Hourly') ...[
               // Time Selection Slots
               Text(
