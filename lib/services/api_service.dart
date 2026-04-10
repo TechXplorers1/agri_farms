@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import '../config/api_config.dart';
 
 class ApiService {
@@ -257,11 +257,16 @@ class ApiService {
   }
 
   // Media Upload
-  Future<Map<String, String>> uploadImage(File imageFile) async {
+  Future<Map<String, String>> uploadImage(XFile imageFile) async {
     final url = Uri.parse('$baseUrl/api/media/upload');
     try {
       var request = http.MultipartRequest('POST', url);
-      request.files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+      final bytes = await imageFile.readAsBytes();
+      request.files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: imageFile.name,
+      ));
       
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);

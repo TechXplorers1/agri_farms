@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'upload_item_screen.dart';
 import 'service_providers_screen.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -10,6 +9,7 @@ class BookTransportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -36,7 +36,6 @@ class BookTransportScreen extends StatelessWidget {
                 ),
               ),
             ),
-
         ],
       ),
       body: Padding(
@@ -45,7 +44,7 @@ class BookTransportScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              AppLocalizations.of(context)!.bookTransport,
+              l10n.bookTransport,
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
@@ -56,16 +55,16 @@ class BookTransportScreen extends StatelessWidget {
             Expanded(
               child: GridView.count(
                 crossAxisCount: 2,
-                childAspectRatio: 0.8, // Taller for capacity text
+                childAspectRatio: 1.2,
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
                 children: [
-                   _buildVehicleCard(context, 'Mini Truck', AppLocalizations.of(context)!.miniTruck, '1-2 tons', Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue),
-                   _buildVehicleCard(context, 'Tractor Trolley', AppLocalizations.of(context)!.tractorTrolley, '2-3 tons', Icons.agriculture, const Color(0xFFE8F5E9), Colors.green),
-                   _buildVehicleCard(context, 'Full Truck', AppLocalizations.of(context)!.fullTruck, '5-10 tons', Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange),
-                   _buildVehicleCard(context, 'Tempo', AppLocalizations.of(context)!.tempo, '500kg-1 ton', Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!),
-                   _buildVehicleCard(context, 'Pickup Van', AppLocalizations.of(context)!.pickupVan, '300-500 kg', Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple), 
-                   _buildVehicleCard(context, 'Container', AppLocalizations.of(context)!.container, '10+ tons', Icons.inventory, const Color(0xFFEFEBE9), Colors.brown),
+                   _buildVehicleCard(context, 'Mini Truck', l10n.miniTruck, 'assets/images/transport_truck_card.png', '1-2 tons'),
+                   _buildVehicleCard(context, 'Tractor Trolley', l10n.tractorTrolley, 'assets/images/tractor_trolley_card.png', '2-3 tons'),
+                   _buildVehicleCard(context, 'Full Truck', l10n.fullTruck, 'assets/images/full_truck_card.png', '5-10 tons'),
+                   _buildVehicleCard(context, 'Tempo', l10n.tempo, 'assets/images/tractor_trolley_card.png', '500kg-1 ton'),
+                   _buildVehicleCard(context, 'Pickup Van', l10n.pickupVan, 'assets/images/pickup_van_card.png', '300-500 kg'), 
+                   _buildVehicleCard(context, 'Container', l10n.container, 'assets/images/full_truck_card.png', '10+ tons'),
                 ],
               ),
             ),
@@ -75,58 +74,29 @@ class BookTransportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildVehicleCard(BuildContext context, String title, String displayTitle, String capacity, IconData icon, Color bgColor, Color iconColor) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _showBookingDialog(context, title, displayTitle),
-          borderRadius: BorderRadius.circular(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-               Container(
-                height: 70,
-                width: 70,
-                 decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Icon(icon, size: 36, color: iconColor),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                displayTitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 4),
-               Text(
-                capacity,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[600],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+  Widget _buildVehicleCard(BuildContext context, String serviceKey, String title, String imagePath, String subtitle) {
+    return GestureDetector(
+      onTap: () => _showBookingDialog(context, serviceKey, title),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 5))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(fit: StackFit.expand, children: [
+            Image.asset(imagePath, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.orange[50])),
+            DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.68)],
+              stops: const [0.35, 1.0],
+            ))),
+            Positioned(left: 12, right: 8, bottom: 10, child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, height: 1.1), maxLines: 2),
+              const SizedBox(height: 2),
+              Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w400)),
+            ])),
+          ]),
         ),
       ),
     );

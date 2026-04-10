@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'dart:io' show File;
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
@@ -37,7 +39,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   late TextEditingController _capacityController; // Vehicle
   bool _isFetchingLocation = false;
 
-  File? _imageFile;
+  XFile? _imageFile;
   String? _imageUrl;
 
   @override
@@ -150,7 +152,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
     if (pickedFile != null) {
       setState(() {
-        _imageFile = File(pickedFile.path);
+        _imageFile = pickedFile;
       });
     }
   }
@@ -223,7 +225,9 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey[300]!),
                   image: _imageFile != null
-                      ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover)
+                      ? (kIsWeb 
+                          ? DecorationImage(image: NetworkImage(_imageFile!.path), fit: BoxFit.cover)
+                          : DecorationImage(image: FileImage(File(_imageFile!.path)), fit: BoxFit.cover))
                       : (_imageUrl != null && _imageUrl!.isNotEmpty
                           ? DecorationImage(image: NetworkImage(ApiConfig.getFullImageUrl(_imageUrl)), fit: BoxFit.cover)
                           : null),

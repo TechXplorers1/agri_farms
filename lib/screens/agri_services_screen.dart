@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:agriculture/screens/service_providers_screen.dart';
+import 'service_providers_screen.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class AgriServicesScreen extends StatelessWidget {
@@ -8,6 +8,7 @@ class AgriServicesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -17,7 +18,7 @@ class AgriServicesScreen extends StatelessWidget {
         ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
-        actions: [],
+        actions: const [],
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -25,7 +26,7 @@ class AgriServicesScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              AppLocalizations.of(context)!.bookServices,
+              l10n.bookServices,
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
@@ -36,19 +37,19 @@ class AgriServicesScreen extends StatelessWidget {
             Expanded(
               child: GridView.count(
                 crossAxisCount: 2,
-                childAspectRatio: 0.85, // Adjust aspect ratio to prevent overflow and look better
+                childAspectRatio: 1.2,
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
                 children: [
-                   _buildServiceCard(context, 'Ploughing', AppLocalizations.of(context)!.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue),
-                   _buildServiceCard(context, 'Electricians', 'Electricians', Icons.electrical_services, const Color(0xFFFFF8E1), Colors.amber[800]!),
-                   _buildServiceCard(context, 'Harvesting', AppLocalizations.of(context)!.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange),
-                   _buildServiceCard(context, 'Farm Workers', AppLocalizations.of(context)!.farmWorkers, Icons.groups, const Color(0xFFF3E5F5), Colors.purple),
-                   _buildServiceCard(context, 'Drone Spraying', AppLocalizations.of(context)!.droneSpraying, Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green),
-                   _buildServiceCard(context, 'Vet Care', AppLocalizations.of(context)!.vetCare, Icons.pets, const Color(0xFFFCE4EC), Colors.pink),
-                   _buildServiceCard(context, 'Mechanics', 'Mechanics', Icons.build, const Color(0xFFECEFF1), Colors.blueGrey, isComingSoon: true),
-                   _buildServiceCard(context, 'Irrigation', AppLocalizations.of(context)!.irrigation, Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, isComingSoon: true),
-                   _buildServiceCard(context, 'Soil Testing', AppLocalizations.of(context)!.soilTesting, Icons.science, const Color(0xFFE8F5E9), Colors.green, isComingSoon: true),
+                   _buildServiceCard(context, 'Ploughing', l10n.ploughing, 'assets/images/agri_services_card.png', 'Field Preparation'),
+                   _buildServiceCard(context, 'Electricians', 'Electricians', 'assets/images/electrician_card.png', 'Expert Repairs'),
+                   _buildServiceCard(context, 'Harvesting', l10n.harvesting, 'assets/images/harvester_card.png', 'Crop Collection'),
+                   _buildServiceCard(context, 'Farm Workers', l10n.farmWorkers, 'assets/images/farm_workers_card.png', 'Skilled Labour'),
+                   _buildServiceCard(context, 'Drone Spraying', l10n.droneSpraying, 'assets/images/drone_spraying_card.png', 'Modern Spraying'),
+                   _buildServiceCard(context, 'Vet Care', l10n.vetCare, 'assets/images/vet_care_card.png', 'Animal health'),
+                   _buildServiceCard(context, 'Mechanics', 'Mechanics', 'assets/images/mechanic_card.png', 'Vehicle Repair', isComingSoon: true),
+                   _buildServiceCard(context, 'Irrigation', l10n.irrigation, 'assets/images/irrigation_card.png', 'Water Management'),
+                   _buildServiceCard(context, 'Soil Testing', l10n.soilTesting, 'assets/images/soil_testing_card.png', 'Know Your Soil'),
                 ],
               ),
             ),
@@ -58,109 +59,38 @@ class AgriServicesScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildServiceCard(BuildContext context, String title, String displayTitle, IconData icon, Color bgColor, Color iconColor, {bool isComingSoon = false}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isComingSoon ? null : () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: title, title: displayTitle, userRole: userRole)));
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            children: [
-              // Main Content
-              Opacity(
-                opacity: isComingSoon ? 0.4 : 1.0,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        height: 70,
-                        width: 70,
-                        decoration: BoxDecoration(
-                          color: bgColor,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Icon(icon, size: 36, color: iconColor),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        displayTitle,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              
-              // Coming Soon Catchy UI
-              if (isComingSoon) ...[
-                // Lock Icon Overlay
-                const Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Icon(
-                    Icons.lock_outline,
-                    size: 16,
-                    color: Colors.grey,
-                  ),
-                ),
-                
-                // Catchy Badge
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.orange.shade400,
-                          Colors.orange.shade700,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(16),
-                        bottomRight: Radius.circular(16),
-                      ),
-                    ),
-                    child: const Text(
-                      'Coming Soon',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
+  Widget _buildServiceCard(BuildContext context, String serviceKey, String title, String imagePath, String subtitle, {bool isComingSoon = false, bool isNew = false}) {
+    return GestureDetector(
+      onTap: isComingSoon ? null : () {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: serviceKey, title: title, userRole: userRole)));
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 5))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(fit: StackFit.expand, children: [
+            Opacity(
+              opacity: isComingSoon ? 0.6 : 1.0,
+              child: Image.asset(imagePath, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.blue[50])),
+            ),
+            DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.68)],
+              stops: const [0.35, 1.0],
+            ))),
+            Positioned(left: 12, right: 8, bottom: 10, child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, height: 1.1), maxLines: 2),
+              const SizedBox(height: 2),
+              Text(isComingSoon ? 'Coming Soon' : subtitle, style: TextStyle(color: isComingSoon ? Colors.orange : Colors.white70, fontSize: 10, fontWeight: FontWeight.w400)),
+            ])),
+            if (isComingSoon) 
+              Center(child: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.black26, shape: BoxShape.circle), child: const Icon(Icons.lock_outline, color: Colors.white, size: 24))),
+            if (isNew)
+              Positioned(top: 0, right: 0, child: Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: const BoxDecoration(color: Color(0xFFA020F0), borderRadius: BorderRadius.only(bottomLeft: Radius.circular(12))), child: const Text('New', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)))),
+          ]),
         ),
       ),
     );

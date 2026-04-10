@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'upload_item_screen.dart';
 import 'service_providers_screen.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -10,12 +9,13 @@ class EquipmentRentalsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: Colors.white, // As per image
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(
-          AppLocalizations.of(context)!.equipmentRentals,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          l10n.equipmentRentals,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         actions: [
           if (userRole != null && ['Owner', 'Provider'].contains(userRole))
@@ -26,7 +26,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
                 },
                 icon: const Icon(Icons.add, size: 18, color: Colors.white),
-                label: Text(AppLocalizations.of(context)!.addListing, style: const TextStyle(color: Colors.white)),
+                label: Text(l10n.addListing, style: const TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00AA55),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -38,13 +38,12 @@ class EquipmentRentalsScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
-      body: SingleChildScrollView( // Need scrolling for list below grid
+      body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Simple Header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -53,7 +52,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
-                  AppLocalizations.of(context)!.rentEquipment,
+                  l10n.rentEquipment,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
@@ -63,42 +62,35 @@ class EquipmentRentalsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Browse Equipment
               Text(
-                AppLocalizations.of(context)!.browseEquipment,
+                l10n.browseEquipment,
                 style: const TextStyle(
                   fontSize: 16,
                   color: Colors.black87,
                 ),
               ),
               const SizedBox(height: 16),
-              
-              // Grid
               GridView.count(
                 crossAxisCount: 2,
-                shrinkWrap: true, // Vital for nesting in SingleChildScrollView
+                shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 0.9,
+                childAspectRatio: 1.2,
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
                 children: [
-                   _buildEquipmentCard(context, 'Tractors', AppLocalizations.of(context)!.tractors, '24 available', Icons.agriculture, Colors.green[50]!, Colors.green),
-                   _buildEquipmentCard(context, 'Harvesters', AppLocalizations.of(context)!.harvesters, '12 available', Icons.grass, Colors.yellow[50]!, Colors.orange),
-                   _buildEquipmentCard(context, 'Sprayers', AppLocalizations.of(context)!.sprayers, '18 available', Icons.water_drop, Colors.blue[50]!, Colors.blue),
-                   _buildEquipmentCard(context, 'JCB', AppLocalizations.of(context)!.jcb, '8 available', Icons.construction, Colors.orange[50]!, Colors.orange, imagePath: 'assets/images/jcb_icon.png'),
-                   _buildEquipmentCard(context, 'Trolleys', AppLocalizations.of(context)!.trolleys, '15 available', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey), // Placeholder
+                   _buildEquipmentCard(context, 'Tractors', l10n.tractors, 'assets/images/tractor_card.png', 'Plough & Cultivate'),
+                   _buildEquipmentCard(context, 'Harvesters', l10n.harvesters, 'assets/images/harvester_card.png', 'Wheat & Paddy Harvest'),
+                   _buildEquipmentCard(context, 'Sprayers', l10n.sprayers, 'assets/images/sprayer_card.png', 'Pest Control'),
+                   _buildEquipmentCard(context, 'JCB', l10n.jcb, 'assets/images/jcb_card.png', 'Digging & Leveling'),
+                   _buildEquipmentCard(context, 'Trolleys', l10n.trolleys, 'assets/images/trolley_card.png', 'Load & Carry'),
                 ],
               ),
-
               const SizedBox(height: 24),
-
-              // Nearby Equipment
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    AppLocalizations.of(context)!.nearbyEquipment,
+                    l10n.nearbyEquipment,
                     style: const TextStyle(
                       fontSize: 16,
                       color: Colors.black87,
@@ -106,16 +98,13 @@ class EquipmentRentalsScreen extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () {},
-                    child: Text(AppLocalizations.of(context)!.viewMore, style: const TextStyle(color: Colors.grey)),
+                    child: Text(l10n.viewMore, style: const TextStyle(color: Colors.grey)),
                   ),
                 ],
               ),
-              
               const SizedBox(height: 8),
-
-              // Nearby Item Card - Make clickable too?
               GestureDetector(
-                onTap: () => _showBookingDialog(context, 'Tractors', AppLocalizations.of(context)!.tractors), // Assuming specific tractor maps to general category for list or using specific ID if available
+                onTap: () => _showBookingDialog(context, 'Tractors', l10n.tractors),
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -139,19 +128,19 @@ class EquipmentRentalsScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.green[50], // Light green bg for available
+                              color: Colors.green[50],
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(color: Colors.green),
                             ),
                             child: Text(
-                              AppLocalizations.of(context)!.available,
+                              l10n.available,
                               style: const TextStyle(color: Colors.green, fontSize: 12),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                       Row(
+                      Row(
                         children: const [
                            Text(
                             '₹500 per hour',
@@ -188,73 +177,35 @@ class EquipmentRentalsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEquipmentCard(BuildContext context, String title, String displayTitle, String subtitle, IconData icon, Color bgColor, Color iconColor, {String? imagePath}) {
-     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-           BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-           )
-        ]
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _showBookingDialog(context, title, displayTitle),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                 Center(
-                   child: Container(
-                    height: 60,
-                    width: 60,
-                    // No background in this specific design if matching exactly, but consistent look is better
-                    decoration: BoxDecoration( 
-                      color: bgColor.withOpacity(0.3), 
-                      borderRadius: BorderRadius.circular(15), 
-                    ),
-                    child: imagePath != null 
-                        ? Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Image.asset(imagePath, fit: BoxFit.contain),
-                          )
-                        : Icon(icon, size: 32, color: iconColor), 
-                   ),
-                 ),
-                const Spacer(),
-                Text(
-                  displayTitle,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                 Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.green[700], // Green text for availability as per standard or user pref
-                  ),
-                ),
-              ],
-            ),
-          ),
+  Widget _buildEquipmentCard(BuildContext context, String serviceKey, String title, String imagePath, String subtitle) {
+    return GestureDetector(
+      onTap: () => _showBookingDialog(context, serviceKey, title),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 5))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(fit: StackFit.expand, children: [
+            Image.asset(imagePath, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.green[50])),
+            DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.68)],
+              stops: const [0.35, 1.0],
+            ))),
+            Positioned(left: 12, right: 8, bottom: 10, child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, height: 1.1), maxLines: 2),
+              const SizedBox(height: 2),
+              Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w400)),
+            ])),
+          ]),
         ),
       ),
     );
   }
 
   void _showBookingDialog(BuildContext context, String equipmentName, String displayTitle) {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: equipmentName, title: displayTitle)));
+    Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: equipmentName, title: displayTitle, userRole: userRole)));
   }
 }

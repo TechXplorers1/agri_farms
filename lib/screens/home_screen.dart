@@ -10,14 +10,14 @@ import 'equipment_rentals_screen.dart';
 import 'service_providers_screen.dart';
 import 'tools/farming_calculator_screen.dart';
 import 'tools/crop_advisory_screen.dart';
-import 'provider/provider_requests_screen.dart'; // Import for header action
+import 'provider/provider_requests_screen.dart';
 import 'community_screen.dart';
 import 'upload_item_screen.dart';
 import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
 
-import '../../services/api_service.dart'; // Import ApiService
-import '../../services/notification_service.dart'; // Import NotificationService
+import '../../services/api_service.dart';
+import '../../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/ui_utils.dart';
 
@@ -26,14 +26,15 @@ class HomeServiceItem {
   final IconData icon;
   final Color bgColor;
   final Color iconColor;
-  final String category; // 'Services', 'Transport', 'Rentals'
+  final String category;
   final Widget navigationTarget;
-
   final String? imagePath;
+  final String? subtitle;
 
-  HomeServiceItem(this.title, this.icon, this.bgColor, this.iconColor, this.category, this.navigationTarget, {this.imagePath});
+  HomeServiceItem(this.title, this.icon, this.bgColor, this.iconColor,
+      this.category, this.navigationTarget,
+      {this.imagePath, this.subtitle});
 }
-
 
 class HomeScreen extends StatefulWidget {
   final String? userRole;
@@ -46,49 +47,75 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   String _userName = 'User';
-  String _userLocation = 'Your Village, Your District';
+  String _userLocation = 'Your Village, District';
   String _userRole = 'User';
   int _unreadNotificationCount = 0;
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _isFetchingLocation = false;
-  
-  // Helper method to get localized items
+
+  static const Color _primaryGreen = Color(0xFF2E7D32);
+  static const Color _accentGold = Color(0xFFF9A825);
+  static const Color _bgColor = Color(0xFFF5F7F2);
+
   List<HomeServiceItem> _getAllItems(BuildContext context) {
     var l10n = AppLocalizations.of(context)!;
     return [
-      // Rentals
-      HomeServiceItem(l10n.tractors, Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals', ServiceProvidersScreen(serviceKey: 'Tractors', title: l10n.tractors, userRole: widget.userRole)),
-      HomeServiceItem(l10n.harvesters, Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals', ServiceProvidersScreen(serviceKey: 'Harvesters', title: l10n.harvesters, userRole: widget.userRole)),
-      HomeServiceItem(l10n.sprayers, Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals', ServiceProvidersScreen(serviceKey: 'Sprayers', title: l10n.sprayers, userRole: widget.userRole)),
-      HomeServiceItem(l10n.trolleys, Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals', ServiceProvidersScreen(serviceKey: 'Trolleys', title: l10n.trolleys, userRole: widget.userRole)),
-      HomeServiceItem(
-        l10n.jcb, 
-        Icons.construction, 
-        Colors.orange[50]!, 
-        Colors.orange, 
-        'Rentals', 
-        ServiceProvidersScreen(serviceKey: 'JCB', title: l10n.jcb, userRole: widget.userRole),
-        imagePath: 'assets/images/jcb_icon.png'
-      ),
-
-      // Services
-      HomeServiceItem(l10n.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services', ServiceProvidersScreen(serviceKey: 'Ploughing', title: l10n.ploughing, userRole: widget.userRole)),
-      HomeServiceItem(l10n.soilTesting, Icons.science, const Color(0xFFE8F5E9), Colors.green, 'Services', ServiceProvidersScreen(serviceKey: 'Soil Testing', title: l10n.soilTesting, userRole: widget.userRole)),
-      HomeServiceItem(l10n.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services', ServiceProvidersScreen(serviceKey: 'Harvesting', title: l10n.harvesting, userRole: widget.userRole)),
-      HomeServiceItem(l10n.farmWorkers, Icons.groups, const Color(0xFFF3E5F5), Colors.purple, 'Services', ServiceProvidersScreen(serviceKey: 'Farm Workers', title: l10n.farmWorkers, userRole: widget.userRole)),
-      HomeServiceItem(l10n.droneSpraying, Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services', ServiceProvidersScreen(serviceKey: 'Drone Spraying', title: l10n.droneSpraying, userRole: widget.userRole)),
-      HomeServiceItem(l10n.irrigation, Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, 'Services', ServiceProvidersScreen(serviceKey: 'Irrigation', title: l10n.irrigation, userRole: widget.userRole)),
-      HomeServiceItem(l10n.vetCare, Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services', ServiceProvidersScreen(serviceKey: 'Vet Care', title: l10n.vetCare, userRole: widget.userRole)),
-      
-      // Transport
-      HomeServiceItem(l10n.miniTruck, Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue, 'Transport', ServiceProvidersScreen(serviceKey: 'Mini Truck', title: l10n.miniTruck, userRole: widget.userRole)),
-      HomeServiceItem(l10n.tractorTrolley, Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport', ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: l10n.tractorTrolley, userRole: widget.userRole)),
-      HomeServiceItem(l10n.fullTruck, Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport', ServiceProvidersScreen(serviceKey: 'Full Truck', title: l10n.fullTruck, userRole: widget.userRole)),
-      HomeServiceItem(l10n.tempo, Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport', ServiceProvidersScreen(serviceKey: 'Tempo', title: l10n.tempo, userRole: widget.userRole)),
-      HomeServiceItem(l10n.pickupVan, Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport', ServiceProvidersScreen(serviceKey: 'Pickup Van', title: l10n.pickupVan, userRole: widget.userRole)),
-      HomeServiceItem(l10n.container, Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport', ServiceProvidersScreen(serviceKey: 'Container', title: l10n.container, userRole: widget.userRole)),
+      HomeServiceItem(l10n.tractors, Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals',
+          ServiceProvidersScreen(serviceKey: 'Tractors', title: l10n.tractors, userRole: widget.userRole),
+          imagePath: 'assets/images/tractor_card.png', subtitle: 'Plough & Cultivate'),
+      HomeServiceItem(l10n.harvesters, Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals',
+          ServiceProvidersScreen(serviceKey: 'Harvesters', title: l10n.harvesters, userRole: widget.userRole),
+          imagePath: 'assets/images/harvester_card.png', subtitle: 'Wheat & Paddy Harvest'),
+      HomeServiceItem(l10n.sprayers, Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals',
+          ServiceProvidersScreen(serviceKey: 'Sprayers', title: l10n.sprayers, userRole: widget.userRole),
+          imagePath: 'assets/images/sprayer_card.png', subtitle: 'Pest Control'),
+      HomeServiceItem(l10n.trolleys, Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals',
+          ServiceProvidersScreen(serviceKey: 'Trolleys', title: l10n.trolleys, userRole: widget.userRole),
+          imagePath: 'assets/images/trolley_card.png', subtitle: 'Load & Carry'),
+      HomeServiceItem(l10n.jcb, Icons.construction, Colors.orange[50]!, Colors.orange, 'Rentals',
+          ServiceProvidersScreen(serviceKey: 'JCB', title: l10n.jcb, userRole: widget.userRole),
+          imagePath: 'assets/images/jcb_card.png', subtitle: 'Digging & Leveling'),
+      HomeServiceItem(l10n.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services',
+          ServiceProvidersScreen(serviceKey: 'Ploughing', title: l10n.ploughing, userRole: widget.userRole),
+          imagePath: 'assets/images/agri_services_card.png', subtitle: 'Field Preparation'),
+      HomeServiceItem(l10n.soilTesting, Icons.science, const Color(0xFFE8F5E9), Colors.green, 'Services',
+          ServiceProvidersScreen(serviceKey: 'Soil Testing', title: l10n.soilTesting, userRole: widget.userRole),
+          imagePath: 'assets/images/soil_testing_card.png', subtitle: 'Know Your Soil'),
+      HomeServiceItem(l10n.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services',
+          ServiceProvidersScreen(serviceKey: 'Harvesting', title: l10n.harvesting, userRole: widget.userRole),
+          imagePath: 'assets/images/harvester_card.png', subtitle: 'Crop Collection'),
+      HomeServiceItem(l10n.farmWorkers, Icons.groups, const Color(0xFFF3E5F5), Colors.purple, 'Services',
+          ServiceProvidersScreen(serviceKey: 'Farm Workers', title: l10n.farmWorkers, userRole: widget.userRole),
+          imagePath: 'assets/images/farm_workers_card.png', subtitle: 'Skilled Labour'),
+      HomeServiceItem(l10n.droneSpraying, Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services',
+          ServiceProvidersScreen(serviceKey: 'Drone Spraying', title: l10n.droneSpraying, userRole: widget.userRole),
+          imagePath: 'assets/images/drone_spraying_card.png', subtitle: 'Modern Spraying'),
+      HomeServiceItem(l10n.irrigation, Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, 'Services',
+          ServiceProvidersScreen(serviceKey: 'Irrigation', title: l10n.irrigation, userRole: widget.userRole),
+          imagePath: 'assets/images/irrigation_card.png', subtitle: 'Water Management'),
+      HomeServiceItem(l10n.vetCare, Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services',
+          ServiceProvidersScreen(serviceKey: 'Vet Care', title: l10n.vetCare, userRole: widget.userRole),
+          imagePath: 'assets/images/vet_care_card.png', subtitle: 'Animal Health'),
+      HomeServiceItem(l10n.miniTruck, Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue, 'Transport',
+          ServiceProvidersScreen(serviceKey: 'Mini Truck', title: l10n.miniTruck, userRole: widget.userRole),
+          imagePath: 'assets/images/transport_truck_card.png', subtitle: 'Fast Delivery'),
+      HomeServiceItem(l10n.tractorTrolley, Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport',
+          ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: l10n.tractorTrolley, userRole: widget.userRole),
+          imagePath: 'assets/images/tractor_trolley_card.png', subtitle: 'Bulk Carry'),
+      HomeServiceItem(l10n.fullTruck, Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport',
+          ServiceProvidersScreen(serviceKey: 'Full Truck', title: l10n.fullTruck, userRole: widget.userRole),
+          imagePath: 'assets/images/full_truck_card.png', subtitle: 'Long Distance'),
+      HomeServiceItem(l10n.tempo, Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport',
+          ServiceProvidersScreen(serviceKey: 'Tempo', title: l10n.tempo, userRole: widget.userRole),
+          imagePath: 'assets/images/tractor_trolley_card.png', subtitle: 'City & Village'),
+      HomeServiceItem(l10n.pickupVan, Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport',
+          ServiceProvidersScreen(serviceKey: 'Pickup Van', title: l10n.pickupVan, userRole: widget.userRole),
+          imagePath: 'assets/images/pickup_van_card.png', subtitle: 'Quick Pickup'),
+      HomeServiceItem(l10n.container, Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport',
+          ServiceProvidersScreen(serviceKey: 'Container', title: l10n.container, userRole: widget.userRole),
+          imagePath: 'assets/images/full_truck_card.png', subtitle: 'Large Cargo'),
     ];
   }
 
@@ -96,13 +123,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserData();
-    
-    // TEMPORARY: Verify API Connection
     _verifyApiConnection();
-
-    // Sync FCM Token
     NotificationService().updateFCMToken();
-
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text;
@@ -116,15 +138,12 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // TEMPORARY: Verification method
   void _verifyApiConnection() async {
     try {
       final apiService = ApiService();
-      print('Attempting to fetch equipment from API...');
-      final equipment = await apiService.getEquipment();
-      print('API Success! Fetched equipment: $equipment');
+      await apiService.getEquipment();
     } catch (e) {
-      print('API Error: $e');
+      debugPrint('API Error: $e');
     }
   }
 
@@ -145,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         }
       } catch (e) {
-        print('Error fetching notifications count: $e');
+        debugPrint('Error fetching notifications count: $e');
       }
     }
   }
@@ -155,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _userName = prefs.getString('user_name') ?? 'User';
       String village = prefs.getString('user_village') ?? 'Your Village';
-      String district = prefs.getString('user_district') ?? 'Your District';
+      String district = prefs.getString('user_district') ?? 'District';
       _userLocation = '$village, $district';
       _userRole = prefs.getString('user_role') ?? 'User';
     });
@@ -167,15 +186,12 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedIndex = index;
     });
     if (index == 0) {
-      _loadUserData(); // Reload data when switching back to Home
+      _loadUserData();
     }
   }
 
   Future<void> _fetchCurrentLocation() async {
-    setState(() {
-      _isFetchingLocation = true;
-    });
-
+    setState(() => _isFetchingLocation = true);
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
@@ -183,7 +199,6 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() => _isFetchingLocation = false);
         return;
       }
-
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -193,888 +208,657 @@ class _HomeScreenState extends State<HomeScreen> {
           return;
         }
       }
-
       if (permission == LocationPermission.deniedForever) {
         UiUtils.showCenteredToast(context, 'Location permissions are permanently denied');
         setState(() => _isFetchingLocation = false);
         return;
       }
-
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high
-      );
-
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-      
       if (placemarks.isNotEmpty) {
         final place = placemarks[0];
         String village = place.subLocality ?? place.locality ?? 'Unknown Village';
         String district = place.subAdministrativeArea ?? place.administrativeArea ?? 'Unknown District';
-        
-        setState(() {
-          _userLocation = "$village, $district";
-        });
-
-        // Save to preferences
+        setState(() => _userLocation = '$village, $district');
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_village', village);
         await prefs.setString('user_district', district);
-        
         UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
       }
     } catch (e) {
       UiUtils.showCenteredToast(context, 'Error fetching location: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isFetchingLocation = false;
-        });
-      }
+      if (mounted) setState(() => _isFetchingLocation = false);
     }
   }
 
   void _showLocationSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      backgroundColor: Colors.white,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Select Location',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-                  ListTile(
-                    leading: _isFetchingLocation 
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.my_location, color: Colors.blue),
-                    title: Text(_isFetchingLocation ? 'Detecting...' : 'Auto Detect Location'),
-                    enabled: !_isFetchingLocation,
-                    onTap: () async {
-                      setModalState(() {}); // Refresh local state for spinner
-                      await _fetchCurrentLocation();
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.location_city, color: Colors.orange),
-                    title: const Text('Select Village / District Manually'),
-                    enabled: !_isFetchingLocation,
-                    onTap: () {
-                      Navigator.pop(context);
-                      _showManualLocationDialog();
-                    },
-                  ),
-                ],
-              ),
-            );
-          }
+        return StatefulBuilder(builder: (context, setModalState) {
+          return Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40, height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                ),
+                const Text('Choose Location', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                _locationOption(Icons.my_location, Colors.blue, 'Auto Detect', 'Use GPS to find your location', !_isFetchingLocation, () async {
+                  setModalState(() {});
+                  await _fetchCurrentLocation();
+                  if (context.mounted) Navigator.pop(context);
+                }),
+                const SizedBox(height: 12),
+                _locationOption(Icons.location_city, Colors.orange, 'Enter Manually', 'Type your village/district', true, () {
+                  Navigator.pop(context);
+                  _showManualLocationDialog();
+                }),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        });
+      },
+    );
+  }
+
+  Widget _locationOption(IconData icon, Color color, String title, String subtitle, bool enabled, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          children: [
+            Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+              child: Icon(icon, color: color, size: 22)),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            ])),
+            Icon(Icons.chevron_right, color: Colors.grey[400]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showManualLocationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        String tempVillage = '';
+        String tempDistrict = '';
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Enter Location', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+              decoration: InputDecoration(labelText: 'Village', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+              controller: TextEditingController(text: _userLocation.split(',')[0].trim()),
+              onChanged: (val) => tempVillage = val,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              decoration: InputDecoration(labelText: 'District', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+              controller: TextEditingController(text: _userLocation.contains(',') ? _userLocation.split(',')[1].trim() : ''),
+              onChanged: (val) => tempDistrict = val,
+            ),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _primaryGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: () {
+                String finalVillage = tempVillage.isNotEmpty ? tempVillage : _userLocation.split(',')[0].trim();
+                String finalDistrict = tempDistrict.isNotEmpty ? tempDistrict : (_userLocation.contains(',') ? _userLocation.split(',')[1].trim() : '');
+                if (finalVillage.isNotEmpty && finalDistrict.isNotEmpty) {
+                  setState(() => _userLocation = '$finalVillage, $finalDistrict');
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Save', style: TextStyle(color: Colors.white)),
+            ),
+          ],
         );
       },
     );
   }
 
-  void _showManualLocationDialog() {
-      showDialog(
-        context: context,
-        builder: (context) {
-            String tempVillage = '';
-            String tempDistrict = '';
-            return StatefulBuilder(
-              builder: (context, setDialogState) {
-                return AlertDialog(
-                    title: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Enter Location'),
-                        if (_isFetchingLocation)
-                          const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        else
-                          IconButton(
-                            icon: const Icon(Icons.my_location, color: Colors.blue, size: 20),
-                            onPressed: () async {
-                              setDialogState(() {}); // Start spinner
-                              await _fetchCurrentLocation();
-                              if (mounted) {
-                                Navigator.pop(context); // Close and reopen to show new values or just update text controllers
-                                _showManualLocationDialog(); 
-                              }
-                            },
-                            tooltip: 'Fetch Current Location',
-                          )
-                      ],
-                    ),
-                    content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                            TextField(
-                                decoration: const InputDecoration(labelText: 'Village'),
-                                controller: TextEditingController(text: _userLocation.split(',')[0].trim()),
-                                onChanged: (val) => tempVillage = val,
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                                decoration: const InputDecoration(labelText: 'District'),
-                                controller: TextEditingController(text: _userLocation.contains(',') ? _userLocation.split(',')[1].trim() : ''),
-                                onChanged: (val) => tempDistrict = val,
-                            ),
-                        ],
-                    ),
-                    actions: [
-                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                        ElevatedButton(onPressed: () {
-                             // Use temp values if they were typed, otherwise use current _userLocation split
-                            String finalVillage = tempVillage.isNotEmpty ? tempVillage : _userLocation.split(',')[0].trim();
-                            String finalDistrict = tempDistrict.isNotEmpty ? tempDistrict : (_userLocation.contains(',') ? _userLocation.split(',')[1].trim() : '');
-                            
-                            if (finalVillage.isNotEmpty && finalDistrict.isNotEmpty) {
-                                setState(() {
-                                    _userLocation = "$finalVillage, $finalDistrict";
-                                });
-                                 Navigator.pop(context);
-                            }
-                        }, child: const Text('Save')),
-                    ],
-                );
-              }
-            );
-        }
-      );
-  }
-
   @override
   Widget build(BuildContext context) {
-    // List of widget options for each tab
     final List<Widget> widgetOptions = <Widget>[
-      // Home Tab Content (Index 0)
-      SingleChildScrollView(
-        child: Column(
-          children: [
-            // Header Section
-            Container(
-              padding: const EdgeInsets.only(top: 50, left: 20, right: 20, bottom: 20),
-              decoration: const BoxDecoration(
-                color: Color(0xFF66BB6A), // Lighter Green
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Logo and Actions Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Logo
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.eco, color: Color(0xFF00AA55), size: 32), // Filled 80%
-                          ),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Agri Farms', // Match Splash Text Spacing
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                      // Actions
-                      Row(
-                        children: [
-                          if (['Owner', 'Provider'].contains(_userRole)) // Visible for Owners and Providers
-                            IconButton(
-                              icon: const Icon(Icons.assignment_outlined, color: Colors.white),
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()),
-                                );
-                              },
-                            ),
-                          IconButton(
-                            icon: const Icon(Icons.location_on_outlined, color: Colors.white),
-                            onPressed: () => _showLocationSelector(context),
-                          ),
-                          Stack(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                                onPressed: () async {
-                                  // 1. Locally clear the unread badge
-                                  if (_unreadNotificationCount > 0) {
-                                    setState(() {
-                                      _unreadNotificationCount = 0;
-                                    });
-                                    // 2. Alert backend to mark all as read
-                                    final prefs = await SharedPreferences.getInstance();
-                                    final userId = prefs.getString('user_id');
-                                    if (userId != null) {
-                                      try {
-                                        await ApiService().markAllNotificationsAsRead(userId);
-                                      } catch (e) {
-                                        print('Failed to mark all as read: $e');
-                                      }
-                                    }
-                                  }
-
-                                  // 3. Navigate to notifications screen
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(builder: (context) => const NotificationsScreen()),
-                                  ).then((_) {
-                                    // 4. Optionally refresh on pop back
-                                    _fetchUnreadCount();
-                                  });
-                                },
-                              ),
-                              if (_unreadNotificationCount > 0)
-                                Positioned(
-                                  right: 8,
-                                  top: 8,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.red,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 16,
-                                      minHeight: 16,
-                                    ),
-                                    child: Text(
-                                      '$_unreadNotificationCount',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 10,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Greeting Section
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline, // Align text baselines
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        AppLocalizations.of(context)!.namaste,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 18, // Slightly increased for consistency
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _userName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  InkWell(
-                    onTap: () => _showLocationSelector(context),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.location_on_outlined, color: Colors.white70, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            _userLocation,
-                            style: const TextStyle(color: Colors.white, fontSize: 14),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 16),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: AppLocalizations.of(context)!.searchHint,
-                      hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                      prefixIcon: Icon(Icons.search, color: Colors.grey[500]),
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Content Body
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                   if (_searchQuery.isNotEmpty) ...[
-                      // SEARCH RESULTS VIEW
-                      if (_getFilteredItems(context, 'Services').isEmpty && 
-                          _getFilteredItems(context, 'Transport').isEmpty && 
-                          _getFilteredItems(context, 'Rentals').isEmpty)
-                          Center(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 40.0),
-                              child: Column(
-                                children: [
-                                  Icon(Icons.search_off, size: 48, color: Colors.grey[400]),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    AppLocalizations.of(context)!.noMatchFound,
-                                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                      
-                      if (_getFilteredItems(context, 'Rentals').isNotEmpty) ...[
-                         _buildSectionHeader(AppLocalizations.of(context)!.rentEquipment, () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
-                         }, onAdd: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
-                         }),
-                         const SizedBox(height: 12),
-                          _buildSectionContainer(
-                           Wrap(
-                             spacing: 12,
-                             runSpacing: 12,
-                             children: _getFilteredItems(context, 'Rentals').map((item) => 
-                               SizedBox(
-                                 width: (MediaQuery.of(context).size.width - 64) / 3,
-                                 child: _buildServiceItem(item.icon, item.title, item.bgColor, item.iconColor, onTap: () {
-                                    Navigator.push(context, MaterialPageRoute(builder: (context) => item.navigationTarget));
-                                 }),
-                               )
-                             ).toList(),
-                           )
-                          ),
-                         const SizedBox(height: 24),
-                      ],
-                      if (_getFilteredItems(context, 'Services').isNotEmpty) ...[
-                         _buildSectionHeader(AppLocalizations.of(context)!.bookServices, () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => AgriServicesScreen(userRole: widget.userRole)));
-                         }, onAdd: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Services')));
-                         }),
-                         const SizedBox(height: 12),
-                          _buildSectionContainer(
-                           // Use Wrap or Grid for search results to show potentially more than 3
-                           Wrap(
-                             spacing: 12,
-                             runSpacing: 12,
-                             children: _getFilteredItems(context, 'Services').map((item) => 
-                               SizedBox(
-                                 width: (MediaQuery.of(context).size.width - 64) / 3, // Approx 3 items per row logic
-                                 child: _buildServiceItem(item.icon, item.title, item.bgColor, item.iconColor, onTap: () {
-                                    Navigator.push(context, MaterialPageRoute(builder: (context) => item.navigationTarget));
-                                 }),
-                               )
-                             ).toList(),
-                           )
-                          ),
-                         const SizedBox(height: 24),
-                      ],
-                      if (_getFilteredItems(context, 'Transport').isNotEmpty) ...[
-                         _buildSectionHeader(AppLocalizations.of(context)!.bookTransport, () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
-                         }, onAdd: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
-                         }),
-                         const SizedBox(height: 12),
-                          _buildSectionContainer(
-                           Wrap(
-                             spacing: 12,
-                             runSpacing: 12,
-                             children: _getFilteredItems(context, 'Transport').map((item) => 
-                               SizedBox(
-                                 width: (MediaQuery.of(context).size.width - 64) / 3,
-                                 child: _buildServiceItem(item.icon, item.title, item.bgColor, item.iconColor, onTap: () {
-                                    Navigator.push(context, MaterialPageRoute(builder: (context) => item.navigationTarget));
-                                 }),
-                               )
-                             ).toList(),
-                           )
-                          ),
-                         const SizedBox(height: 24),
-                      ],
-                   ] else ...[
-                  // DEFAULT VIEW (No Search)
-                  
-                  // 1. Rent Equipment Section
-                  _buildSectionHeader(AppLocalizations.of(context)!.rentEquipment, () {
-                     Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
-                  }, onAdd: () {
-                     Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
-                  }),
-                  const SizedBox(height: 12),
-                   _buildSectionContainer(
-                     Row(
-                      children: [
-                        Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.tractors, Colors.green[50]!, Colors.green, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Tractors', title: AppLocalizations.of(context)!.tractors, userRole: widget.userRole)));
-                        })),
-                         const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.grass, AppLocalizations.of(context)!.harvesters, Colors.yellow[50]!, Colors.orange, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Harvesters', title: AppLocalizations.of(context)!.harvesters, userRole: widget.userRole)));
-                        })),
-                         const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.water_drop, AppLocalizations.of(context)!.sprayers, Colors.blue[50]!, Colors.blue, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Sprayers', title: AppLocalizations.of(context)!.sprayers, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 8),
-                         _buildArrowButton(onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => EquipmentRentalsScreen(userRole: widget.userRole)));
-                        }),
-                      ],
-                    ),
-                   ),
-
-                  const SizedBox(height: 24),
-
-                  // 2. Book Services Section
-                  _buildSectionHeader(AppLocalizations.of(context)!.bookServices, () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
-                  }, onAdd: () {
-                     Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Services')));
-                  }),
-                  const SizedBox(height: 12),
-                     _buildSectionContainer(
-                     Row(
-                      children: [
-                        Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.ploughing, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Ploughing', title: AppLocalizations.of(context)!.ploughing, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.grass, AppLocalizations.of(context)!.harvesting, const Color(0xFFFFF9C4), Colors.orange, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Harvesting', title: AppLocalizations.of(context)!.harvesting, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.groups, AppLocalizations.of(context)!.farmWorkers, const Color(0xFFF3E5F5), Colors.purple, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Farm Workers', title: AppLocalizations.of(context)!.farmWorkers, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 8),
-                         _buildArrowButton(onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const AgriServicesScreen()));
-                        }),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // 3. Book Transport Section
-                  _buildSectionHeader(AppLocalizations.of(context)!.bookTransport, () {
-                     Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
-                  }, onAdd: () {
-                     Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
-                  }),
-                  const SizedBox(height: 12),
-                    _buildSectionContainer(
-                     Row(
-                      children: [
-                        Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.tractorTrolley, const Color(0xFFE8F5E9), Colors.green, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: AppLocalizations.of(context)!.tractorTrolley, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.local_shipping, AppLocalizations.of(context)!.miniTruck, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Mini Truck', title: AppLocalizations.of(context)!.miniTruck, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildServiceItem(Icons.local_shipping_outlined, AppLocalizations.of(context)!.fullTruck, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: 'Full Truck', title: AppLocalizations.of(context)!.fullTruck, userRole: widget.userRole)));
-                        })),
-                        const SizedBox(width: 8),
-                         _buildArrowButton(onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => BookTransportScreen(userRole: widget.userRole)));
-                        }),
-                      ],
-                    ),
-                   ),
-
-                  const SizedBox(height: 24),
-                  const SizedBox(height: 24),
-
-                  // List Your Assets Section (For Providers/Owners)
-                  if (['Owner', 'Provider'].contains(_userRole)) ...[
-                    Text(
-                      AppLocalizations.of(context)!.listYourAssets,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSectionContainer(
-                       Row(
-                        children: [
-                          Expanded(child: _buildServiceItem(Icons.local_shipping, AppLocalizations.of(context)!.listTransport, const Color(0xFFE8F5E9), Colors.green, onTap: () {
-                             Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Transport')));
-                          })),
-                          const SizedBox(width: 12),
-                          Expanded(child: _buildServiceItem(Icons.agriculture, AppLocalizations.of(context)!.listEquipment, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
-                             Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
-                          })),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                  ],
-                   Text(
-                    AppLocalizations.of(context)!.tools,
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  // Tools Section
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildToolCard(context, AppLocalizations.of(context)!.weather, Icons.cloud_outlined, const Color(0xFFE3F2FD), Colors.blue, onTap: () {
-                           UiUtils.showCenteredToast(context, 'Detailed Weather Coming Soon!');
-                        }),
-                        const SizedBox(width: 12),
-                        _buildToolCard(context, AppLocalizations.of(context)!.cropAdvisory, Icons.grass, const Color(0xFFE8F5E9), Colors.green, onTap: () {
-                           Navigator.push(context, MaterialPageRoute(builder: (context) => const CropAdvisoryScreen()));
-                        }),
-                         const SizedBox(width: 12),
-                        _buildToolCard(context, AppLocalizations.of(context)!.mandiPrices, Icons.show_chart, const Color(0xFFFFF3E0), Colors.orange, onTap: () {
-                           UiUtils.showCenteredToast(context, 'Market Prices Coming Soon!');
-                        }),
-                        const SizedBox(width: 12),
-                        _buildToolCard(context, AppLocalizations.of(context)!.farmingCalculator, Icons.calculate_outlined, const Color(0xFFF3E5F5), Colors.purple, onTap: () {
-                          // Show bottom sheet to choose calculator type? Or just link to one main one. 
-                          // Linking to FarmingCalculatorScreen as main entrance
-                          Navigator.push(context, MaterialPageRoute(builder: (context) => const FarmingCalculatorScreen()));
-                        }),
-                        const SizedBox(width: 12),
-                        _buildToolCard(context, 'Support', Icons.headset_mic_outlined, const Color(0xFFE0F7FA), Colors.cyan, onTap: () {
-                           // Navigate to Help or specific support screen
-                           // For now reusing Profile or a simple placeholder
-                           UiUtils.showCenteredToast(context, 'Support Center Coming Soon!');
-                        }),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-                  
-                  // Banners
-
-                  
-                  const SizedBox(height: 24),
-                   
-                   // Info Cards & Weather
-
-                  
-                  // Community Section
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF3E5F5),
-                                borderRadius: BorderRadius.circular(8),
-                                ),
-                              child: const Icon(Icons.chat_bubble_outline, color: Colors.purple),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              AppLocalizations.of(context)!.communityQuestions,
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        _buildCommunityQuestion(
-                          'What is the best fertilizer for cotton in black soil?',
-                          '24 answers • 2 hours ago',
-                        ),
-
-                        const SizedBox(height: 16),
-                        _buildCommunityQuestion('How to treat leaf curl in tomato?', '12 answers • 2h ago'),
-                        const Divider(height: 24),
-                        _buildCommunityQuestion('Best time for wheat sowing?', '8 answers • 5h ago'),
-                      ],
-                    ),
-                  ),
-                   ], // End else (Default View)
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      // Market Placeholder (Index 1) - Disabled
-      // const Center(child: Text('Market Screen Placeholder')),
-      // Activity Placeholder (Index 1)
+      _buildHomeTab(),
       const GenericHistoryScreen(
         title: 'Activity Bookings',
         categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
         showBackButton: false,
       ),
-      // Community Placeholder (Index 2)
-      // Community Placeholder (Index 3)
       const CommunityScreen(),
-      // Profile Tab (Index 4)
       const ProfileScreen(),
     ];
 
     return Scaffold(
-      backgroundColor: Colors.grey[100], 
+      backgroundColor: _bgColor,
       body: widgetOptions.elementAt(_selectedIndex),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF00AA55),
-        unselectedItemColor: Colors.grey,
-        selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), label: AppLocalizations.of(context)!.navHome),
-          BottomNavigationBarItem(icon: const Icon(Icons.history), label: AppLocalizations.of(context)!.activity),
-          BottomNavigationBarItem(icon: const Icon(Icons.people_outlined), label: AppLocalizations.of(context)!.navCommunity),
-          BottomNavigationBarItem(icon: const Icon(Icons.person_outline), label: AppLocalizations.of(context)!.navProfile),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 20, offset: const Offset(0, -4))],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: _primaryGreen,
+          unselectedItemColor: Colors.grey[500],
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          unselectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w400),
+          items: [
+            BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), activeIcon: const Icon(Icons.home), label: AppLocalizations.of(context)!.navHome),
+            BottomNavigationBarItem(icon: const Icon(Icons.history_outlined), activeIcon: const Icon(Icons.history), label: AppLocalizations.of(context)!.activity),
+            BottomNavigationBarItem(icon: const Icon(Icons.forum_outlined), activeIcon: const Icon(Icons.forum), label: AppLocalizations.of(context)!.navCommunity),
+            BottomNavigationBarItem(icon: const Icon(Icons.person_outline), activeIcon: const Icon(Icons.person), label: AppLocalizations.of(context)!.navProfile),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHomeTab() {
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: _buildHeader()),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            child: _buildSearchBar(),
+          ),
+        ),
+        if (_searchQuery.isNotEmpty)
+          SliverToBoxAdapter(child: _buildSearchResults())
+        else ...[
+          SliverToBoxAdapter(child: _buildBannerSection()),
+          SliverToBoxAdapter(child: _buildEquipmentSection()),
+          SliverToBoxAdapter(child: _buildServicesSection()),
+          SliverToBoxAdapter(child: _buildTransportSection()),
+          if (['Owner', 'Provider'].contains(_userRole))
+            SliverToBoxAdapter(child: _buildListYourAssetsSection()),
+          SliverToBoxAdapter(child: _buildToolsSection()),
+          SliverToBoxAdapter(child: _buildCommunitySection()),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.only(top: 52, left: 20, right: 20, bottom: 24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1B5E20), Color(0xFF388E3C), Color(0xFF66BB6A)],
+        ),
+        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(28), bottomRight: Radius.circular(28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.eco, color: Color(0xFF2E7D32), size: 26),
+                ),
+                const SizedBox(width: 10),
+                const Text('Agri Farms', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
+              ]),
+              Row(children: [
+                if (['Owner', 'Provider'].contains(_userRole))
+                  _headerIconBtn(Icons.assignment_outlined, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProviderRequestsScreen()))),
+                _headerIconBtn(Icons.location_on_outlined, () => _showLocationSelector(context)),
+                Stack(children: [
+                  _headerIconBtn(Icons.notifications_outlined, () async {
+                    if (_unreadNotificationCount > 0) {
+                      setState(() => _unreadNotificationCount = 0);
+                      final prefs = await SharedPreferences.getInstance();
+                      final userId = prefs.getString('user_id');
+                      if (userId != null) {
+                        try { await ApiService().markAllNotificationsAsRead(userId); } catch (_) {}
+                      }
+                    }
+                    if (mounted) {
+                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())).then((_) => _fetchUnreadCount());
+                    }
+                  }),
+                  if (_unreadNotificationCount > 0)
+                    Positioned(right: 6, top: 6, child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(color: Color(0xFFFF5722), shape: BoxShape.circle),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text('$_unreadNotificationCount', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                    )),
+                ]),
+              ]),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text('Namaste, $_userName! 👋', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          GestureDetector(
+            onTap: () => _showLocationSelector(context),
+            child: Row(children: [
+              const Icon(Icons.location_on, color: Colors.white70, size: 15),
+              const SizedBox(width: 4),
+              Flexible(child: Text(_userLocation, style: const TextStyle(color: Colors.white70, fontSize: 13), overflow: TextOverflow.ellipsis)),
+              const Icon(Icons.keyboard_arrow_down, color: Colors.white54, size: 16),
+            ]),
+          ),
         ],
       ),
     );
   }
-  
+
+  Widget _headerIconBtn(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, color: Colors.white, size: 22),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: AppLocalizations.of(context)!.searchHint,
+          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+          prefixIcon: Icon(Icons.search, color: Colors.grey[400], size: 22),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? GestureDetector(onTap: () { _searchController.clear(); }, child: Icon(Icons.close, color: Colors.grey[400], size: 20))
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBannerSection() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      height: 160,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 6))]),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(fit: StackFit.expand, children: [
+          Image.asset('assets/images/home_banner.png', fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)])))),
+          Container(decoration: BoxDecoration(gradient: LinearGradient(
+            begin: Alignment.centerRight, end: Alignment.centerLeft,
+            colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)]))),
+          Positioned(left: 20, bottom: 20, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Season Offer', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 1)),
+            const SizedBox(height: 4),
+            const Text('Book Farm\nServices Today!', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.2)),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(color: _accentGold, borderRadius: BorderRadius.circular(20)),
+              child: const Text('Explore Now', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ])),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildEquipmentSection() {
+    final items = _getAllItems(context).where((i) => i.category == 'Rentals').take(4).toList();
+    return _buildSectionWrapper(
+      title: AppLocalizations.of(context)!.rentEquipment,
+      emoji: '🚜',
+      accentColor: _primaryGreen,
+      onViewMore: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EquipmentRentalsScreen(userRole: widget.userRole))),
+      onAdd: ['Owner', 'Provider'].contains(_userRole) ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Equipment'))) : null,
+      child: GridView.count(
+        shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14,
+        childAspectRatio: 1.2,
+        children: items.map((item) => _buildVisualCard(item)).toList(),
+      ),
+    );
+  }
+
+  Widget _buildServicesSection() {
+    final items = _getAllItems(context).where((i) => i.category == 'Services').take(4).toList();
+    return _buildSectionWrapper(
+      title: AppLocalizations.of(context)!.bookServices,
+      emoji: '🧑‍🌾',
+      accentColor: const Color(0xFF1565C0),
+      onViewMore: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AgriServicesScreen(userRole: widget.userRole))),
+      onAdd: ['Owner', 'Provider'].contains(_userRole) ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Services'))) : null,
+      child: GridView.count(
+        shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14,
+        childAspectRatio: 1.2,
+        children: items.map((item) => _buildVisualCard(item)).toList(),
+      ),
+    );
+  }
+
+  Widget _buildTransportSection() {
+    final items = _getAllItems(context).where((i) => i.category == 'Transport').take(4).toList();
+    return _buildSectionWrapper(
+      title: AppLocalizations.of(context)!.bookTransport,
+      emoji: '🚛',
+      accentColor: const Color(0xFFE65100),
+      onViewMore: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BookTransportScreen(userRole: widget.userRole))),
+      onAdd: ['Owner', 'Provider'].contains(_userRole) ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Transport'))) : null,
+      child: SizedBox(
+        height: 160,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 14),
+          itemBuilder: (_, i) => _buildTransportCard(items[i]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildListYourAssetsSection() {
+    return _buildSectionWrapper(
+      title: AppLocalizations.of(context)!.listYourAssets,
+      accentColor: const Color(0xFF6A1B9A),
+      showViewMore: false,
+      child: Row(children: [
+        Expanded(child: _buildUploadCard('List\nEquipment', Icons.agriculture, const Color(0xFFE8F5E9), const Color(0xFF2E7D32), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Equipment'))))),
+        const SizedBox(width: 14),
+        Expanded(child: _buildUploadCard('List\nVehicle', Icons.local_shipping_outlined, const Color(0xFFFFF3E0), const Color(0xFFE65100), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Transport'))))),
+        const SizedBox(width: 14),
+        Expanded(child: _buildUploadCard('List\nService', Icons.handyman_outlined, const Color(0xFFEDE7F6), const Color(0xFF6A1B9A), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Services'))))),
+      ]),
+    );
+  }
+
+  Widget _buildToolsSection() {
+    return _buildSectionWrapper(
+      title: AppLocalizations.of(context)!.tools,
+      emoji: '🛠️',
+      accentColor: const Color(0xFF00838F),
+      showViewMore: false,
+      child: Row(children: [
+        Expanded(child: _buildToolTile('Weather', Icons.wb_sunny_outlined, const Color(0xFFFFF8E1), const Color(0xFFF57F17), () => UiUtils.showCenteredToast(context, 'Coming Soon!'))),
+        const SizedBox(width: 10),
+        Expanded(child: _buildToolTile('Crop\nAdvice', Icons.grass, const Color(0xFFE8F5E9), const Color(0xFF2E7D32), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CropAdvisoryScreen())))),
+        const SizedBox(width: 10),
+        Expanded(child: _buildToolTile('Mandi\nPrices', Icons.show_chart, const Color(0xFFE3F2FD), const Color(0xFF1565C0), () => UiUtils.showCenteredToast(context, 'Coming Soon!'))),
+        const SizedBox(width: 10),
+        Expanded(child: _buildToolTile('Calculator', Icons.calculate_outlined, const Color(0xFFF3E5F5), const Color(0xFF6A1B9A), () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FarmingCalculatorScreen())))),
+      ]),
+    );
+  }
+
+  Widget _buildToolTile(String label, IconData icon, Color bg, Color fg, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(16)),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: fg, size: 28),
+          const SizedBox(height: 8),
+          Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg, height: 1.2)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildCommunitySection() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4))]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFFF3E5F5), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.forum, color: Color(0xFF7B1FA2), size: 20)),
+          const SizedBox(width: 12),
+          const Text('Community Questions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ]),
+        const SizedBox(height: 16),
+        _buildCommunityQuestion('What is the best fertilizer for cotton in black soil?', '24 answers • 2 hours ago'),
+        const SizedBox(height: 12),
+        const Divider(height: 1),
+        const SizedBox(height: 12),
+        _buildCommunityQuestion('How to treat leaf curl in tomato?', '12 answers • 2h ago'),
+        const SizedBox(height: 12),
+        const Divider(height: 1),
+        const SizedBox(height: 12),
+        _buildCommunityQuestion('Best time for wheat sowing?', '8 answers • 5h ago'),
+      ]),
+    );
+  }
+
+  Widget _buildCommunityQuestion(String question, String meta) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(question, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
+      const SizedBox(height: 4),
+      Text(meta, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+    ]);
+  }
+
+  Widget _buildSectionWrapper({
+    required String title, String? emoji, required Color accentColor,
+    required Widget child, VoidCallback? onViewMore, VoidCallback? onAdd, bool showViewMore = true,
+  }) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Row(children: [
+            if (emoji != null) ...[
+              Text(emoji, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+            ],
+            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1A1A2E))),
+            if (['Owner', 'Provider'].contains(_userRole) && onAdd != null) ...[ 
+              const SizedBox(width: 8),
+              GestureDetector(onTap: onAdd, child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(color: _primaryGreen.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                child: const Icon(Icons.add, size: 18, color: _primaryGreen),
+              )),
+            ],
+          ]),
+          if (showViewMore && onViewMore != null)
+            GestureDetector(onTap: onViewMore, child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+              child: Row(children: [
+                Text('View All', style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                const SizedBox(width: 2),
+                Icon(Icons.chevron_right, color: accentColor, size: 16),
+              ]),
+            )),
+        ]),
+        const SizedBox(height: 14),
+        child,
+      ]),
+    );
+  }
+
+  Widget _buildVisualCard(HomeServiceItem item) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.navigationTarget)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 5))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(fit: StackFit.expand, children: [
+            // Background image or colored bg
+            if (item.imagePath != null)
+              Image.asset(item.imagePath!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: item.bgColor))
+            else
+              Container(color: item.bgColor, child: Center(child: Icon(item.icon, color: item.iconColor, size: 48))),
+            // Gradient overlay for text
+            DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.68)],
+              stops: const [0.35, 1.0],
+            ))),
+            // Labels at bottom
+            Positioned(left: 12, right: 8, bottom: 10, child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(item.title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, height: 1.1), maxLines: 2),
+              if (item.subtitle != null) ...[
+                const SizedBox(height: 2),
+                Text(item.subtitle!, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w400)),
+              ],
+            ])),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransportCard(HomeServiceItem item) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.navigationTarget)),
+      child: Container(
+        width: 140,
+        decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 12, offset: const Offset(0, 4))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(fit: StackFit.expand, children: [
+            if (item.imagePath != null)
+              Image.asset(item.imagePath!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: item.bgColor))
+            else
+              Container(color: item.bgColor, child: Center(child: Icon(item.icon, color: item.iconColor, size: 42))),
+            DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
+              stops: const [0.3, 1.0],
+            ))),
+            Positioned(left: 12, right: 8, bottom: 10, child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text(item.title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, height: 1.1), maxLines: 2),
+              if (item.subtitle != null) Text(item.subtitle!, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+            ])),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUploadCard(String label, IconData icon, Color bg, Color fg, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+        decoration: BoxDecoration(
+          color: bg, borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: fg.withValues(alpha: 0.25), width: 1.5),
+        ),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: fg.withValues(alpha: 0.1), shape: BoxShape.circle),
+            child: Icon(icon, color: fg, size: 22)),
+          const SizedBox(height: 8),
+          Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg, height: 1.1), maxLines: 2),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildSearchResults() {
+    final rentals = _getFilteredItems(context, 'Rentals');
+    final services = _getFilteredItems(context, 'Services');
+    final transport = _getFilteredItems(context, 'Transport');
+
+    if (rentals.isEmpty && services.isEmpty && transport.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(40),
+        child: Center(child: Column(children: [
+          Icon(Icons.search_off, size: 56, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text(AppLocalizations.of(context)!.noMatchFound, style: TextStyle(fontSize: 15, color: Colors.grey[500])),
+        ])),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (rentals.isNotEmpty) ...[
+          _searchSectionHeader(AppLocalizations.of(context)!.rentEquipment),
+          GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.2,
+            children: rentals.map((i) => _buildVisualCard(i)).toList()),
+          const SizedBox(height: 20),
+        ],
+        if (services.isNotEmpty) ...[
+          _searchSectionHeader(AppLocalizations.of(context)!.bookServices),
+          GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.2,
+            children: services.map((i) => _buildVisualCard(i)).toList()),
+          const SizedBox(height: 20),
+        ],
+        if (transport.isNotEmpty) ...[
+          _searchSectionHeader(AppLocalizations.of(context)!.bookTransport),
+          GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.2,
+            children: transport.map((i) => _buildVisualCard(i)).toList()),
+          const SizedBox(height: 20),
+        ],
+      ]),
+    );
+  }
+
+  Widget _searchSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 4),
+      child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+    );
+  }
+
   List<HomeServiceItem> _getFilteredItems(BuildContext context, String category) {
     var allItems = _getAllItems(context);
     if (_searchQuery.isEmpty) return [];
     final query = _searchQuery.toLowerCase();
-    return allItems.where((item) => 
-      item.category == category && item.title.replaceAll('\n', ' ').toLowerCase().contains(query)
-    ).toList();
-  }
-
-  Widget _buildSectionContainer(Widget child) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-
-  Widget _buildSectionHeader(String title, VoidCallback onViewMore, {VoidCallback? onAdd}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-             if (['Owner', 'Provider'].contains(_userRole) && onAdd != null) ...[
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: onAdd,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00AA55).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.add, size: 20, color: Color(0xFF00AA55)), // Add Icon
-                  ),
-                ),
-             ],
-          ],
-        ),
-        TextButton(
-          onPressed: onViewMore,
-          child: Text(AppLocalizations.of(context)!.viewMore),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildArrowButton({required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: 30,
-        height: 60,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black54),
-      ),
-    );
-  }
-
-  Widget _buildServiceItem(IconData icon, String title, Color bgColor, Color iconColor, {VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque, // Ensure tap is detected
-      child: Container(
-        // width: 100, // Removed fixed width
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: iconColor, size: 28),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, height: 1.2),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildToolCard(BuildContext context, String title, IconData icon, Color bgColor, Color iconColor, {bool isNew = false, VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Stack(
-        children: [
-          Container(
-            width: 140, // Fixed width for horizontal scrolling
-            height: 140, // Fixed height for square shape
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
-            children: [
-              Container(
-                 padding: const EdgeInsets.all(10), // Larger icon bg
-                 decoration: BoxDecoration(
-                   color: bgColor,
-                   borderRadius: BorderRadius.circular(12),
-                 ),
-                 child: Icon(icon, color: iconColor, size: 28), // Larger icon
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.black87),
-              ),
-            ],
-          ),
-        ),
-        if (isNew)
-          Positioned(
-            top: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: const BoxDecoration(
-                color: Color(0xFFA020F0), // Purple color for New badge
-                borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(16),
-                  bottomLeft: Radius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'New',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-
-  Widget _buildCommunityQuestion(String question, String meta) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          question,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          meta,
-          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-        ),
-      ],
-    );
+    return allItems.where((item) => item.category == category && item.title.replaceAll('\n', ' ').toLowerCase().contains(query)).toList();
   }
 }

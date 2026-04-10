@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
@@ -33,6 +34,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   
 
   Future<bool> _requestMediaPermission() async {
+    if (kIsWeb) return true;
     PermissionStatus status;
     if (Platform.isAndroid) {
       // In Android 13+ (API 33+), READ_EXTERNAL_STORAGE is deprecated.
@@ -163,7 +165,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     if (_selectedImage == null) return null;
     setState(() => _isUploading = true);
     try {
-      final response = await ApiService().uploadImage(File(_selectedImage!.path));
+      final response = await ApiService().uploadImage(_selectedImage!);
       final String? relativeUrl = response['url'];
       if (relativeUrl != null) {
         return relativeUrl;
@@ -500,7 +502,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   ? Stack(
                       fit: StackFit.expand,
                       children: [
-                        Image.file(File(_selectedImage!.path), fit: BoxFit.cover),
+                        kIsWeb 
+                          ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
+                          : Image.file(File(_selectedImage!.path), fit: BoxFit.cover),
                         Container(
                            color: Colors.black26,
                            alignment: Alignment.center,

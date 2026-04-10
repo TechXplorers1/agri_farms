@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -77,7 +78,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (_selectedImage != null) {
           setState(() => _isUploading = true);
           try {
-            final uploadResponse = await apiService.uploadImage(File(_selectedImage!.path));
+            final uploadResponse = await apiService.uploadImage(_selectedImage!);
             finalImageUrl = uploadResponse['url'];
           } catch (e) {
             debugPrint("Error uploading image: $e");
@@ -189,7 +190,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               color: Colors.grey[100],
                               shape: BoxShape.circle,
                               image: _selectedImage != null 
-                                ? DecorationImage(image: FileImage(File(_selectedImage!.path)), fit: BoxFit.cover)
+                                ? (kIsWeb 
+                                    ? DecorationImage(image: NetworkImage(_selectedImage!.path), fit: BoxFit.cover)
+                                    : DecorationImage(image: FileImage(File(_selectedImage!.path)), fit: BoxFit.cover))
                                 : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty
                                   ? DecorationImage(image: NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl)), fit: BoxFit.cover)
                                   : null),

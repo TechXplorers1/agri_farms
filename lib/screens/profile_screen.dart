@@ -387,7 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final apiService = ApiService();
-      final uploadResponse = await apiService.uploadImage(File(image.path));
+      final uploadResponse = await apiService.uploadImage(image);
       final String? relativeUrl = uploadResponse['url'];
 
       if (relativeUrl != null) {
