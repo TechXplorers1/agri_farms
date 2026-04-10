@@ -11,7 +11,6 @@ import 'service_providers_screen.dart';
 import 'tools/farming_calculator_screen.dart';
 import 'tools/crop_advisory_screen.dart';
 import 'provider/provider_requests_screen.dart';
-import 'community_screen.dart';
 import 'upload_item_screen.dart';
 import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
@@ -348,7 +347,6 @@ class _HomeScreenState extends State<HomeScreen> {
         categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
         showBackButton: false,
       ),
-      const CommunityScreen(),
       const ProfileScreen(),
     ];
 
@@ -373,7 +371,6 @@ class _HomeScreenState extends State<HomeScreen> {
           items: [
             BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), activeIcon: const Icon(Icons.home), label: AppLocalizations.of(context)!.navHome),
             BottomNavigationBarItem(icon: const Icon(Icons.history_outlined), activeIcon: const Icon(Icons.history), label: AppLocalizations.of(context)!.activity),
-            BottomNavigationBarItem(icon: const Icon(Icons.forum_outlined), activeIcon: const Icon(Icons.forum), label: AppLocalizations.of(context)!.navCommunity),
             BottomNavigationBarItem(icon: const Icon(Icons.person_outline), activeIcon: const Icon(Icons.person), label: AppLocalizations.of(context)!.navProfile),
           ],
         ),
@@ -401,7 +398,6 @@ class _HomeScreenState extends State<HomeScreen> {
           if (['Owner', 'Provider'].contains(_userRole))
             SliverToBoxAdapter(child: _buildListYourAssetsSection()),
           SliverToBoxAdapter(child: _buildToolsSection()),
-          SliverToBoxAdapter(child: _buildCommunitySection()),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
         ],
       ],
@@ -646,40 +642,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildCommunitySection() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4))]),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFFF3E5F5), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.forum, color: Color(0xFF7B1FA2), size: 20)),
-          const SizedBox(width: 12),
-          const Text('Community Questions', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        ]),
-        const SizedBox(height: 16),
-        _buildCommunityQuestion('What is the best fertilizer for cotton in black soil?', '24 answers • 2 hours ago'),
-        const SizedBox(height: 12),
-        const Divider(height: 1),
-        const SizedBox(height: 12),
-        _buildCommunityQuestion('How to treat leaf curl in tomato?', '12 answers • 2h ago'),
-        const SizedBox(height: 12),
-        const Divider(height: 1),
-        const SizedBox(height: 12),
-        _buildCommunityQuestion('Best time for wheat sowing?', '8 answers • 5h ago'),
-      ]),
-    );
-  }
 
-  Widget _buildCommunityQuestion(String question, String meta) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(question, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
-      const SizedBox(height: 4),
-      Text(meta, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-    ]);
-  }
 
   Widget _buildSectionWrapper({
     required String title, String? emoji, required Color accentColor,

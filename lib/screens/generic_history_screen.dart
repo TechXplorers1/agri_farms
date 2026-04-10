@@ -108,24 +108,27 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: Colors.grey[50],
+        backgroundColor: const Color(0xFFF9FBF9),
         appBar: AppBar(
           title: Text(
             widget.title,
-            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
           ),
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.white,
           automaticallyImplyLeading: widget.showBackButton,
           leading: widget.showBackButton ? IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black, size: 20),
             onPressed: () => Navigator.pop(context),
           ) : null,
           elevation: 0,
           bottom: const TabBar(
-            labelColor: Color(0xFF00AA55),
-            indicatorColor: Color(0xFF00AA55),
+            labelColor: Color(0xFF2E7D32),
+            indicatorColor: Color(0xFF2E7D32),
+            indicatorSize: TabBarIndicatorSize.label,
             unselectedLabelColor: Colors.grey,
+            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
             tabs: [
               Tab(text: 'My Booking'),
               Tab(text: 'Accepted'),
@@ -147,9 +150,9 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
               color: const Color(0xFF00AA55),
               child: TabBarView(
                 children: [
-                  _buildBookingList(allBookings, ['pending', 'requested'], 'No pending bookings'),
-                  _buildBookingList(allBookings, ['confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings'),
-                  _buildBookingList(allBookings, ['completed', 'cancelled', 'rejected', 'finished'], 'No past bookings'),
+                   _buildBookingList(allBookings, ['pending', 'requested'], 'No pending bookings', Icons.hourglass_empty_rounded),
+                   _buildBookingList(allBookings, ['confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings', Icons.event_available_rounded),
+                   _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past bookings', Icons.history_rounded),
                 ],
               ),
             );
@@ -159,22 +162,22 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
     );
   }
 
-  Widget _buildBookingList(List<BookingDetails> bookings, List<String> statuses, String emptyMessage) {
+  Widget _buildBookingList(List<BookingDetails> bookings, List<String> statuses, String emptyMessage, IconData emptyIcon) {
     final filtered = bookings.where((b) {
       final s = b.status.trim().toLowerCase();
       return statuses.contains(s);
     }).toList();
 
     if (statuses.contains('pending') || statuses.contains('requested')) {
-      filtered.sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate)); // Latest requested first
+      filtered.sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate));
     } else if (statuses.contains('scheduled') || statuses.contains('confirmed') || statuses.contains('accepted')) {
       filtered.sort((a, b) {
         final aDate = a.rawScheduledStartTime ?? a.rawBookingDate;
         final bDate = b.rawScheduledStartTime ?? b.rawBookingDate;
-        return aDate.compareTo(bDate); // Earliest actual activity first
+        return aDate.compareTo(bDate);
       });
     } else {
-      filtered.sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate)); // Latest finished first
+      filtered.sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate));
     }
 
     if (filtered.isEmpty) {
@@ -182,16 +185,20 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.history, size: 60, color: Colors.grey[300]),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
+              child: Icon(emptyIcon, size: 48, color: Colors.grey[300]),
+            ),
             const SizedBox(height: 16),
-            Text(emptyMessage, style: TextStyle(color: Colors.grey[500], fontSize: 16)),
+            Text(emptyMessage, style: TextStyle(color: Colors.grey[500], fontSize: 15, fontWeight: FontWeight.w500)),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         return _buildServiceCard(filtered[index]);
@@ -200,149 +207,129 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   }
 
   Widget _buildServiceCard(BookingDetails booking) {
-    Color statusColor = Colors.grey[200]!;
-    Color statusTextColor = Colors.black87;
-
-    final statusLower = booking.status.toLowerCase();
-    if (statusLower == 'scheduled' || statusLower == 'active' || statusLower == 'confirmed' || statusLower == 'accepted' || statusLower == 'approve') {
-      statusColor = const Color(0xFFE8F5E9);
-      statusTextColor = const Color(0xFF00AA55);
-    } else if (statusLower == 'completed' || statusLower == 'finished') {
-      statusColor = Colors.blue[50]!;
-      statusTextColor = Colors.blue[700]!;
-    } else if (statusLower == 'rejected' || statusLower == 'cancelled') {
-      statusColor = Colors.red[50]!;
-      statusTextColor = Colors.red[700]!;
-    } else {
-      statusColor = Colors.orange[50]!;
-      statusTextColor = Colors.orange[800]!;
+    statusColor(String status) {
+      final s = status.toLowerCase();
+      if (['scheduled', 'active', 'confirmed', 'accepted', 'approved', 'approve'].contains(s)) return const Color(0xFF2E7D32);
+      if (['completed', 'finished'].contains(s)) return const Color(0xFF1565C0);
+      if (['rejected', 'cancelled'].contains(s)) return const Color(0xFFC62828);
+      return const Color(0xFFF9A825);
     }
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      color: Colors.white,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
+    final accentColor = statusColor(booking.status);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
+        border: Border.all(color: Colors.grey[100]!),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    booking.title, 
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    booking.status.toUpperCase(),
-                    style: TextStyle(
-                      color: statusTextColor, 
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    'Booked for : ${_formatBookingDate(booking.date)}', 
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                  )
-                ),
-                if (booking.price.isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  Text(booking.price, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                ]
-              ],
-            ),
-            if (booking.id.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
+            _buildCardHeader(booking, accentColor),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.confirmation_number_outlined, size: 13, color: Colors.grey[400]),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Booking ID: #${booking.id.length > 6 ? booking.id.substring(booking.id.length - 6).toUpperCase() : booking.id.toUpperCase()}',
-                    style: TextStyle(color: Colors.grey[400], fontSize: 11, fontFamily: 'monospace'),
-                  ),
-                ],
-              ),
-            ],
-            if (booking.details.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Divider(),
-              const SizedBox(height: 8),
-              Text('Request Details:', style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.w600, fontSize: 13)),
-              const SizedBox(height: 8),
-              ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Count', 'Vehicle Count'].contains(e.key)).map((e) =>
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                  _buildCardRow(Icons.calendar_today_rounded, 'Booking Date', _formatBookingDate(booking.date)),
+                  if (booking.price.isNotEmpty)
+                    _buildCardRow(Icons.payments_outlined, 'Price Info', booking.price),
+                  
+                  if (booking.details.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    const Divider(height: 1),
+                    const SizedBox(height: 12),
+                    Text('REQUEST DETAILS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Count', 'Vehicle Count'].contains(e.key)).map((e) =>
                       Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Icon(Icons.circle, size: 6, color: Colors.grey[400]),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('${e.key}: ', style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 13)),
-                      Expanded(child: Text('${e.value}', style: TextStyle(color: Colors.grey[700], fontSize: 13))),
-                    ],
-                  ),
-                )
-              ),
-            ],
-            if (statusLower == 'scheduled' || statusLower == 'active' || statusLower == 'confirmed') ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoadingContact ? null : () => _contactUser(booking, true),
-                      icon: const Icon(Icons.call, size: 18),
-                      label: const Text('Call'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.green,
-                        side: const BorderSide(color: Colors.green),
-                      ),
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(margin: const EdgeInsets.only(top: 6), width: 4, height: 4, decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.5), shape: BoxShape.circle)),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text.rich(TextSpan(children: [
+                              TextSpan(text: '${e.key}: ', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2C3E50))),
+                              TextSpan(text: '${e.value}', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+                            ]))),
+                          ],
+                        ),
+                      )
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoadingContact ? null : () => _contactUser(booking, false),
-                      icon: const Icon(Icons.chat, size: 18),
-                      label: const Text('Chat'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                      ),
+                  ],
+                  
+                  if (['scheduled', 'active', 'confirmed', 'accepted', 'approved'].contains(booking.status.toLowerCase())) ...[
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(child: _buildContactButton('Call', Icons.call_rounded, accentColor, () => _contactUser(booking, true))),
+                        const SizedBox(width: 12),
+                        Expanded(child: _buildContactButton('Chat', Icons.chat_bubble_rounded, accentColor, () => _contactUser(booking, false), isPrimary: true)),
+                      ],
                     ),
-                  ),
+                  ],
                 ],
               ),
-            ],
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCardHeader(BookingDetails booking, Color accentColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: accentColor.withValues(alpha: 0.05),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(booking.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF2C3E50))),
+            const SizedBox(height: 2),
+            Text('ID: #${booking.id.length > 8 ? booking.id.substring(booking.id.length-8).toUpperCase() : booking.id.toUpperCase()}', style: TextStyle(fontSize: 10, color: Colors.grey[500], letterSpacing: 0.5, fontWeight: FontWeight.w600)),
+          ])),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(color: accentColor, borderRadius: BorderRadius.circular(10)),
+            child: Text(booking.status.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.5)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCardRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.grey[400]),
+          const SizedBox(width: 8),
+          Text('$label : ', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContactButton(String label, IconData icon, Color color, VoidCallback onTap, {bool isPrimary = false}) {
+    return ElevatedButton.icon(
+      onPressed: _isLoadingContact ? null : onTap,
+      icon: Icon(icon, size: 16),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isPrimary ? color : Colors.white,
+        foregroundColor: isPrimary ? Colors.white : color,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color, width: 1.5)),
       ),
     );
   }

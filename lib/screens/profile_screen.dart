@@ -8,13 +8,13 @@ import 'help_support_screen.dart';
 import 'terms_privacy_screen.dart';
 import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
-import '../../services/api_service.dart'; // Import ApiService
+import '../../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../config/api_config.dart';
 
 import 'provider/provider_requests_screen.dart';
-import 'manage_items_screen.dart'; // Import ManageItemsScreen
+import 'manage_items_screen.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/ui_utils.dart';
 
@@ -26,7 +26,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String _selectedLanguage = 'English'; // Default
+  String _selectedLanguage = 'English';
   String _userName = 'User';
   String _userVillage = 'Your Village';
   String _userDistrict = 'Your District';
@@ -42,8 +42,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    // First load from local storage immediately so UI doesn't look empty
     setState(() {
       _selectedLanguage = prefs.getString('selected_language') ?? 'English';
       _userName = prefs.getString('user_name') ?? 'User';
@@ -53,14 +51,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _profileImageUrl = prefs.getString('user_profile_image');
     });
 
-    // Then fetch latest from backend if user_id exists
     final userId = prefs.getString('user_id');
     if (userId != null) {
       try {
         final apiService = ApiService();
         final userData = await apiService.getUser(userId);
-        
-        // Update local session to keep it in sync
         await prefs.setString('user_name', userData['fullName'] ?? _userName);
         await prefs.setString('user_village', userData['village'] ?? _userVillage);
         await prefs.setString('user_district', userData['district'] ?? _userDistrict);
@@ -68,7 +63,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (userData['profileImageUrl'] != null) {
           await prefs.setString('user_profile_image', userData['profileImageUrl']);
         }
-
         if (mounted) {
           setState(() {
             _userName = userData['fullName'] ?? _userName;
@@ -79,293 +73,163 @@ class _ProfileScreenState extends State<ProfileScreen> {
           });
         }
       } catch (e) {
-        // If it fails, we gracefully fall back to what we already loaded from SharedPreferences
-        print('Error fetching updated profile: $e');
+        debugPrint('Error fetching updated profile: $e');
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    var appLocalizations = AppLocalizations.of(context)!;
+    var l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Light background
+      backgroundColor: const Color(0xFFF9FBF9),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Custom Header with Stats Card overlapping
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
               children: [
-                // Green Header Background
                 Container(
-                  height: 280, // Adjust height as needed
-                  width: double.infinity,
+                  height: 260, width: double.infinity,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF66BB6A), // Lighter Green matching Home
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(30),
-                      bottomRight: Radius.circular(30),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      colors: [Color(0xFF1B5E20), Color(0xFF388E3C), Color(0xFF66BB6A)],
                     ),
+                    borderRadius: BorderRadius.only(bottomLeft: Radius.circular(36), bottomRight: Radius.circular(36)),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      const SizedBox(height: 20),
                       GestureDetector(
                         onTap: _pickAndUploadImage,
                         child: Stack(
                           children: [
-                            CircleAvatar(
-                              radius: 40,
-                              backgroundColor: Colors.white,
-                              backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                                  ? NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl))
-                                  : null,
-                              child: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                                  ? (_isUploading 
-                                      ? const CircularProgressIndicator(color: Color(0xFF00AA55))
-                                      : const Icon(Icons.person_outline, size: 40, color: Color(0xFF00AA55)))
-                                  : null,
-                            ),
-                            if (_isUploading)
-                              const Positioned.fill(
-                                child: Center(
-                                  child: CircularProgressIndicator(color: Colors.white),
-                                ),
-                              ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.camera_alt, size: 16, color: Color(0xFF00AA55)),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                              child: CircleAvatar(
+                                radius: 44,
+                                backgroundColor: const Color(0xFFF1F8E9),
+                                backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                                    ? NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl))
+                                    : null,
+                                child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                                    ? (_isUploading ? const CircularProgressIndicator(color: Color(0xFF00AA55)) : const Icon(Icons.person, size: 48, color: Color(0xFF2E7D32)))
+                                    : null,
                               ),
                             ),
+                            Positioned(bottom: 2, right: 2, child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]),
+                              child: const Icon(Icons.edit, size: 14, color: Color(0xFF2E7D32)),
+                            )),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        _userName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 12),
+                      Text(_userName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 4),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.location_on_outlined, color: Colors.white70, size: 16),
+                          const Icon(Icons.location_on, color: Colors.white70, size: 14),
                           const SizedBox(width: 4),
-                          Text(
-                            '$_userVillage, $_userDistrict',
-                            style: const TextStyle(color: Colors.white70, fontSize: 14),
-                          ),
+                          Text('$_userVillage, $_userDistrict', style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
                         ],
                       ),
-                      const SizedBox(height: 40), // Space for the card overlap
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
-
-                // Floating Stats Card
                 Positioned(
-                  bottom: -40,
-                  left: 20,
-                  right: 20,
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildStatItem('12', AppLocalizations.of(context)!.orders, Icons.shopping_bag_outlined, Colors.green),
-                          _buildDivider(),
-                          _buildStatItem('5', AppLocalizations.of(context)!.rentals, Icons.build_outlined, Colors.green),
-                          _buildDivider(),
-                          _buildStatItem('8', AppLocalizations.of(context)!.services, Icons.cases_outlined, Colors.green),
-                        ],
-                      ),
+                  bottom: -35, left: 20, right: 20,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.white, borderRadius: BorderRadius.circular(20),
+                      boxShadow: [BoxShadow(color: Colors.green.withValues(alpha: 0.1), blurRadius: 20, offset: const Offset(0, 8))],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildStatItem('12', l10n.orders, Icons.shopping_bag_outlined, const Color(0xFF2E7D32)),
+                        _buildDivider(),
+                        _buildStatItem('5', l10n.rentals, Icons.agriculture_outlined, const Color(0xFFF9A825)),
+                        _buildDivider(),
+                        _buildStatItem('8', l10n.services, Icons.handyman_outlined, const Color(0xFF1565C0)),
+                      ],
                     ),
                   ),
                 ),
               ],
             ),
-
-            const SizedBox(height: 60), // Space for the overlapping card
-
-            // Activity Section
-            _buildSectionHeader(AppLocalizations.of(context)!.activity),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: _boxDecoration(),
-              child: Column(
-                children: [
-                  _buildListTile(
-                    Icons.history, 
-                    'Activity Bookings', // Generic Activity
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-                          title: 'Activity Bookings',
-                          categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
-                        )),
-                      );
-                    },
-                  ),
-
- 
-                ],
-              ),
-            ),
-
+            const SizedBox(height: 55),
+            _buildSectionHeader(l10n.activity),
+            _buildActionCard([
+              _buildListTile(Icons.history_rounded, 'Activity Bookings', subtitle: 'View your booking history', onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                  title: 'Activity Bookings',
+                  categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
+                )));
+              }),
+            ]),
             const SizedBox(height: 20),
-
-            // Account Section
-            _buildSectionHeader(AppLocalizations.of(context)!.account),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: _boxDecoration(),
-              child: Column(
-                children: [
-
-                  _buildListTile(
-                    Icons.person_outline, 
-                    AppLocalizations.of(context)!.editProfile,
-                    onTap: () async {
-                      final result = await Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const EditProfileScreen()),
-                      );
-                      if (result == true) {
-                        _loadProfileData();
-                      }
-                    },
-                  ),
-                  if (['Owner', 'Provider'].contains(_userRole)) ...[
-                    _buildListTile(
-                      Icons.inventory_2_outlined,
-                      'My Registered Items',
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (context) => const ManageItemsScreen()),
-                        );
-                      },
-                    ),
-                    _buildDividerLine(),
-                    _buildListTile(
-                      Icons.work_outline,
-                      AppLocalizations.of(context)!.serviceRequests, // Generalized for providers
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()),
-                        );
-                      },
-                    ),
-                    _buildDividerLine(),
-                  ],
-                  _buildDividerLine(),
-                  _buildListTile(
-                    Icons.notifications_outlined, 
-                    AppLocalizations.of(context)!.notifications,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const NotificationSettingsScreen()),
-                      );
-                    },
-                  ),
-                  _buildDividerLine(),
-                  _buildListTile(
-                    Icons.language,
-                    AppLocalizations.of(context)!.language,
-                    trailingText: _selectedLanguage,
-                    onTap: () async {
-                      final result = await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const LanguageSelectionScreen(isFromProfile: true),
-                        ),
-                      );
-                      if (result == true) {
-                        _loadProfileData(); // Reloading profile data actually reloads language too
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-
+            _buildSectionHeader(l10n.account),
+            _buildActionCard([
+              _buildListTile(Icons.person_outline_rounded, l10n.editProfile, onTap: () async {
+                final result = await Navigator.of(context).push(MaterialPageRoute(builder: (context) => const EditProfileScreen()));
+                if (result == true) _loadProfileData();
+              }),
+              if (['Owner', 'Provider'].contains(_userRole)) ...[
+                _buildDividerLine(),
+                _buildListTile(Icons.inventory_2_outlined, 'My Registered Items', onTap: () {
+                  Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
+                }),
+                _buildDividerLine(),
+                _buildListTile(Icons.work_outline_rounded, l10n.serviceRequests, onTap: () {
+                  Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
+                }),
+              ],
+              _buildDividerLine(),
+              _buildListTile(Icons.notifications_none_rounded, l10n.notifications, onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const NotificationSettingsScreen()));
+              }),
+              _buildDividerLine(),
+              _buildListTile(Icons.language_rounded, l10n.language, trailingText: _selectedLanguage, onTap: () async {
+                final result = await Navigator.of(context).push(MaterialPageRoute(builder: (context) => const LanguageSelectionScreen(isFromProfile: true)));
+                if (result == true) _loadProfileData();
+              }),
+            ]),
             const SizedBox(height: 20),
-
-            // Support Section
-            _buildSectionHeader(AppLocalizations.of(context)!.support),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: _boxDecoration(),
-              child: Column(
-                children: [
-                  _buildListTile(
-                    Icons.help_outline, 
-                    AppLocalizations.of(context)!.helpSupport,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const HelpSupportScreen()),
-                      );
-                    },
-                  ),
-                  _buildDividerLine(),
-                  _buildListTile(
-                    Icons.description_outlined, 
-                    AppLocalizations.of(context)!.termsPrivacy,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (context) => const TermsPrivacyScreen()),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 30),
-
-            // Logout Button
+            _buildSectionHeader(l10n.support),
+            _buildActionCard([
+              _buildListTile(Icons.help_outline_rounded, l10n.helpSupport, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const HelpSupportScreen()))),
+              _buildDividerLine(),
+              _buildListTile(Icons.description_outlined, l10n.termsPrivacy, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TermsPrivacyScreen()))),
+            ]),
+            const SizedBox(height: 32),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: OutlinedButton.icon(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: TextButton.icon(
                 onPressed: () async {
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.remove('user_id');
-                  await prefs.remove('user_name');
-                  await prefs.remove('user_mobile');
-                  await prefs.remove('user_role');
-
-                  if (context.mounted) {
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => const AuthScreen()),
-                      (route) => false,
-                    );
-                  }
+                  await prefs.clear();
+                  if (context.mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const AuthScreen()), (route) => false);
                 },
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.red), // Red border
-                  foregroundColor: Colors.red, // Red text & icon
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red[700],
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.red[100]!)),
+                  backgroundColor: Colors.red[50], minimumSize: const Size(double.infinity, 54),
                 ),
-                icon: const Icon(Icons.logout),
-                label: Text(AppLocalizations.of(context)!.logout),
+                icon: const Icon(Icons.logout_rounded),
+                label: Text(l10n.logout, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
             ),
-
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -374,51 +238,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickAndUploadImage() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 85,
-    );
-
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1024, maxHeight: 1024, imageQuality: 85);
     if (image == null) return;
-
     setState(() => _isUploading = true);
-
     try {
       final apiService = ApiService();
       final uploadResponse = await apiService.uploadImage(image);
       final String? relativeUrl = uploadResponse['url'];
-
       if (relativeUrl != null) {
         final prefs = await SharedPreferences.getInstance();
         final userId = prefs.getString('user_id');
         if (userId != null) {
-          // Update user profile on backend
-          await apiService.updateUser(userId, {
-            'profileImageUrl': relativeUrl,
-          });
-
-          // Update local state and storage
+          await apiService.updateUser(userId, {'profileImageUrl': relativeUrl});
           await prefs.setString('user_profile_image', relativeUrl);
-          setState(() {
-            _profileImageUrl = relativeUrl;
-          });
-
-          if (mounted) {
-            UiUtils.showCenteredToast(context, 'Profile photo updated successfully!');
-          }
+          setState(() => _profileImageUrl = relativeUrl);
+          if (mounted) UiUtils.showCenteredToast(context, 'Profile photo updated successfully!');
         }
       }
     } catch (e) {
-      print('Error uploading profile photo: $e');
-      if (mounted) {
-        UiUtils.showCustomAlert(context, 'Failed to upload profile photo: $e', isError: true);
-      }
+      if (mounted) UiUtils.showCustomAlert(context, 'Failed to upload profile photo: $e', isError: true);
     } finally {
-      if (mounted) {
-        setState(() => _isUploading = false);
-      }
+      if (mounted) setState(() => _isUploading = false);
     }
   }
 
@@ -426,75 +266,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       children: [
         Icon(icon, color: color, size: 24),
-        const SizedBox(height: 8),
-        Text(
-          count,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.grey, fontSize: 12),
-        ),
+        const SizedBox(height: 6),
+        Text(count, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF1B5E20))),
+        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
       ],
     );
   }
 
-  Widget _buildDivider() {
-    return Container(
-      height: 40,
-      width: 1,
-      color: Colors.grey[300],
-    );
-  }
+  Widget _buildDivider() => Container(height: 30, width: 1, color: Colors.grey[200]);
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 20, right: 20, bottom: 10),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.normal, color: Colors.black87),
-        ),
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+      child: Align(alignment: Alignment.centerLeft, child: Text(title.toUpperCase(), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey[500], letterSpacing: 1.2))),
+    );
+  }
+
+  Widget _buildActionCard(List<Widget> children) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white, borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
       ),
+      child: Column(children: children),
     );
   }
 
-  BoxDecoration _boxDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(15),
-      border: Border.all(color: Colors.grey[200]!),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.grey.withOpacity(0.05),
-          blurRadius: 5,
-        )
-      ],
-    );
-  }
-
-  Widget _buildListTile(IconData icon, String title, {String? trailingText, VoidCallback? onTap}) {
+  Widget _buildListTile(IconData icon, String title, {String? subtitle, String? trailingText, VoidCallback? onTap}) {
     return ListTile(
-      leading: Icon(icon, color: Colors.grey[700]),
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, color: const Color(0xFF2E7D32), size: 20),
       ),
+      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50))),
+      subtitle: subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[500])) : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (trailingText != null) 
-             Text(trailingText, style: const TextStyle(color: Colors.grey, fontSize: 14)),
-          if (trailingText != null) const SizedBox(width: 8),
-          const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+          if (trailingText != null) Text(trailingText, style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500)),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
         ],
       ),
-      onTap: onTap ?? () {},
+      onTap: onTap,
     );
   }
-  
-  Widget _buildDividerLine() {
-    return const Divider(height: 1, indent: 16, endIndent: 16, thickness: 0.5);
-  }
+
+  Widget _buildDividerLine() => const Divider(height: 1, indent: 64, endIndent: 20, thickness: 0.8, color: Color(0xFFF1F1F1));
 }
