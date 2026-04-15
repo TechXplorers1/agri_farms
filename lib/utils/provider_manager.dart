@@ -4,11 +4,11 @@ abstract class ServiceProvider {
   final String id;
   final String? providerId;
   final String name;
-  final String serviceName; // 'Farm Workers', 'Ploughing', etc.
+  String serviceName; // 'Farm Workers', 'Ploughing', etc.
   final String distance;
   final double rating;
   final String approvalStatus; // 'Pending', 'Approved', 'Rejected'
-  final String location;
+  String location;
   final bool isAvailable;
   final int jobsCompleted;
   final String? image; // New image field
@@ -31,7 +31,7 @@ abstract class ServiceProvider {
 }
 
 class ServiceListing extends ServiceProvider {
-  final String equipmentUsed;
+  String equipmentUsed;
   final String price; // e.g., '₹1200 / acre'
   final bool operatorIncluded;
 
@@ -61,8 +61,8 @@ class FarmWorkerListing extends ServiceProvider {
   final int femalePrice;
   final int malePriceHourly;
   final int femalePriceHourly;
-  final String skills; // e.g., 'Sowing, Harvesting'
-  final List<String> roleDistribution; // e.g. ["5 Men - Sowing", "4 Women - Weeding"]
+  String skills; // e.g., 'Sowing, Harvesting'
+  List<String> roleDistribution; // e.g. ["5 Men - Sowing", "4 Women - Weeding"]
   final String? groupName;
 
   FarmWorkerListing({
@@ -91,8 +91,8 @@ class FarmWorkerListing extends ServiceProvider {
 }
 
 class TransportListing extends ServiceProvider {
-  final String vehicleType; // Duplicate of serviceName usually, e.g. 'Mini Truck'
-  final String loadCapacity; // '1 ton'
+  String vehicleType; // Duplicate of serviceName usually, e.g. 'Mini Truck'
+  String loadCapacity; // '1 ton'
   final String price; // '₹1200 / trip'
   final bool driverIncluded;
   final String? vehicleNumber; // Optional / Private
@@ -121,10 +121,10 @@ class TransportListing extends ServiceProvider {
 }
 
 class EquipmentListing extends ServiceProvider {
-  final String brandModel;
+  String brandModel;
   final String price; // '₹500 / hour'
   final bool operatorAvailable;
-  final String condition; // 'Good', 'New'
+  String condition; // 'Good', 'New'
   final String? yearOfManufacture;
 
   EquipmentListing({

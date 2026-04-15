@@ -29,15 +29,18 @@ class HomeServiceItem {
   final Widget navigationTarget;
   final String? imagePath;
   final String? subtitle;
+  final bool isComingSoon;
 
   HomeServiceItem(this.title, this.icon, this.bgColor, this.iconColor,
       this.category, this.navigationTarget,
-      {this.imagePath, this.subtitle});
+      {this.imagePath, this.subtitle, this.isComingSoon = false});
 }
 
 class HomeScreen extends StatefulWidget {
   final String? userRole;
-  const HomeScreen({super.key, this.userRole});
+  final int? initialIndex;
+
+  const HomeScreen({super.key, this.userRole, this.initialIndex});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -54,6 +57,22 @@ class _HomeScreenState extends State<HomeScreen> {
   String _searchQuery = '';
   bool _isFetchingLocation = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex ?? 0;
+    _loadUserData();
+    _fetchUnreadCount();
+    _fetchCurrentLocation();
+    _verifyApiConnection();
+    NotificationService().updateFCMToken();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
+  }
+
   static const Color _primaryGreen = Color(0xFF2E7D32);
   static const Color _accentGold = Color(0xFFF9A825);
   static const Color _bgColor = Color(0xFFF5F7F2);
@@ -63,72 +82,62 @@ class _HomeScreenState extends State<HomeScreen> {
     return [
       HomeServiceItem(l10n.tractors, Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals',
           ServiceProvidersScreen(serviceKey: 'Tractors', title: l10n.tractors, userRole: widget.userRole),
-          imagePath: 'assets/images/tractor_card.png', subtitle: 'Plough & Cultivate'),
+          imagePath: 'assets/images/tractor_card.webp', subtitle: 'Plough & Cultivate'),
       HomeServiceItem(l10n.harvesters, Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals',
           ServiceProvidersScreen(serviceKey: 'Harvesters', title: l10n.harvesters, userRole: widget.userRole),
-          imagePath: 'assets/images/harvester_card.png', subtitle: 'Wheat & Paddy Harvest'),
+          imagePath: 'assets/images/harvester_card.webp', subtitle: 'Wheat & Paddy Harvest'),
       HomeServiceItem(l10n.sprayers, Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals',
           ServiceProvidersScreen(serviceKey: 'Sprayers', title: l10n.sprayers, userRole: widget.userRole),
-          imagePath: 'assets/images/sprayer_card.png', subtitle: 'Pest Control'),
+          imagePath: 'assets/images/sprayer_card.webp', subtitle: 'Pest Control'),
       HomeServiceItem(l10n.trolleys, Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals',
           ServiceProvidersScreen(serviceKey: 'Trolleys', title: l10n.trolleys, userRole: widget.userRole),
-          imagePath: 'assets/images/trolley_card.png', subtitle: 'Load & Carry'),
+          imagePath: 'assets/images/trolley_card.webp', subtitle: 'Load & Carry'),
       HomeServiceItem(l10n.jcb, Icons.construction, Colors.orange[50]!, Colors.orange, 'Rentals',
           ServiceProvidersScreen(serviceKey: 'JCB', title: l10n.jcb, userRole: widget.userRole),
-          imagePath: 'assets/images/jcb_card.png', subtitle: 'Digging & Leveling'),
+          imagePath: 'assets/images/jcb_card.webp', subtitle: 'Digging & Leveling'),
       HomeServiceItem(l10n.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services',
           ServiceProvidersScreen(serviceKey: 'Ploughing', title: l10n.ploughing, userRole: widget.userRole),
-          imagePath: 'assets/images/agri_services_card.png', subtitle: 'Field Preparation'),
-      HomeServiceItem(l10n.soilTesting, Icons.science, const Color(0xFFE8F5E9), Colors.green, 'Services',
-          ServiceProvidersScreen(serviceKey: 'Soil Testing', title: l10n.soilTesting, userRole: widget.userRole),
-          imagePath: 'assets/images/soil_testing_card.png', subtitle: 'Know Your Soil'),
+          imagePath: 'assets/images/agri_services_card.webp', subtitle: 'Field Preparation'),
       HomeServiceItem(l10n.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services',
           ServiceProvidersScreen(serviceKey: 'Harvesting', title: l10n.harvesting, userRole: widget.userRole),
-          imagePath: 'assets/images/harvester_card.png', subtitle: 'Crop Collection'),
+          imagePath: 'assets/images/harvester_card.webp', subtitle: 'Crop Collection'),
       HomeServiceItem(l10n.farmWorkers, Icons.groups, const Color(0xFFF3E5F5), Colors.purple, 'Services',
           ServiceProvidersScreen(serviceKey: 'Farm Workers', title: l10n.farmWorkers, userRole: widget.userRole),
-          imagePath: 'assets/images/farm_workers_card.png', subtitle: 'Skilled Labour'),
+          imagePath: 'assets/images/farm_workers_card.webp', subtitle: 'Skilled Labour'),
+      HomeServiceItem('Electricians', Icons.electrical_services, const Color(0xFFE8F5E9), Colors.green, 'Services',
+          ServiceProvidersScreen(serviceKey: 'Electricians', title: 'Electricians', userRole: widget.userRole),
+          imagePath: 'assets/images/electrician_card.webp', subtitle: 'Expert Repairs'),
       HomeServiceItem(l10n.droneSpraying, Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services',
           ServiceProvidersScreen(serviceKey: 'Drone Spraying', title: l10n.droneSpraying, userRole: widget.userRole),
-          imagePath: 'assets/images/drone_spraying_card.png', subtitle: 'Modern Spraying'),
+          imagePath: 'assets/images/drone_spraying_card.webp', subtitle: 'Modern Spraying'),
+      HomeServiceItem(l10n.soilTesting, Icons.science, const Color(0xFFE8F5E9), Colors.green, 'Services',
+          ServiceProvidersScreen(serviceKey: 'Soil Testing', title: l10n.soilTesting, userRole: widget.userRole),
+          imagePath: 'assets/images/soil_testing_card.webp', subtitle: 'Know Your Soil', isComingSoon: true),
       HomeServiceItem(l10n.irrigation, Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, 'Services',
           ServiceProvidersScreen(serviceKey: 'Irrigation', title: l10n.irrigation, userRole: widget.userRole),
-          imagePath: 'assets/images/irrigation_card.png', subtitle: 'Water Management'),
+          imagePath: 'assets/images/irrigation_card.webp', subtitle: 'Water Management', isComingSoon: true),
       HomeServiceItem(l10n.vetCare, Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services',
           ServiceProvidersScreen(serviceKey: 'Vet Care', title: l10n.vetCare, userRole: widget.userRole),
-          imagePath: 'assets/images/vet_care_card.png', subtitle: 'Animal Health'),
+          imagePath: 'assets/images/vet_care_card.webp', subtitle: 'Animal Health'),
       HomeServiceItem(l10n.miniTruck, Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue, 'Transport',
           ServiceProvidersScreen(serviceKey: 'Mini Truck', title: l10n.miniTruck, userRole: widget.userRole),
-          imagePath: 'assets/images/transport_truck_card.png', subtitle: 'Fast Delivery'),
+          imagePath: 'assets/images/transport_truck_card.webp', subtitle: 'Fast Delivery'),
       HomeServiceItem(l10n.tractorTrolley, Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport',
           ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: l10n.tractorTrolley, userRole: widget.userRole),
-          imagePath: 'assets/images/tractor_trolley_card.png', subtitle: 'Bulk Carry'),
+          imagePath: 'assets/images/tractor_trolley_card.webp', subtitle: 'Bulk Carry'),
       HomeServiceItem(l10n.fullTruck, Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport',
           ServiceProvidersScreen(serviceKey: 'Full Truck', title: l10n.fullTruck, userRole: widget.userRole),
-          imagePath: 'assets/images/full_truck_card.png', subtitle: 'Long Distance'),
+          imagePath: 'assets/images/full_truck_card.webp', subtitle: 'Long Distance'),
       HomeServiceItem(l10n.tempo, Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport',
           ServiceProvidersScreen(serviceKey: 'Tempo', title: l10n.tempo, userRole: widget.userRole),
-          imagePath: 'assets/images/tractor_trolley_card.png', subtitle: 'City & Village'),
+          imagePath: 'assets/images/tractor_trolley_card.webp', subtitle: 'City & Village'),
       HomeServiceItem(l10n.pickupVan, Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport',
           ServiceProvidersScreen(serviceKey: 'Pickup Van', title: l10n.pickupVan, userRole: widget.userRole),
-          imagePath: 'assets/images/pickup_van_card.png', subtitle: 'Quick Pickup'),
+          imagePath: 'assets/images/pickup_van_card.webp', subtitle: 'Quick Pickup'),
       HomeServiceItem(l10n.container, Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport',
           ServiceProvidersScreen(serviceKey: 'Container', title: l10n.container, userRole: widget.userRole),
-          imagePath: 'assets/images/full_truck_card.png', subtitle: 'Large Cargo'),
+          imagePath: 'assets/images/full_truck_card.webp', subtitle: 'Large Cargo'),
     ];
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUserData();
-    _verifyApiConnection();
-    NotificationService().updateFCMToken();
-    _searchController.addListener(() {
-      setState(() {
-        _searchQuery = _searchController.text;
-      });
-    });
   }
 
   @override
@@ -519,7 +528,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Stack(fit: StackFit.expand, children: [
-          Image.asset('assets/images/home_banner.png', fit: BoxFit.cover,
+          Image.asset('assets/images/home_banner.webp', fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => Container(decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)])))),
           Container(decoration: BoxDecoration(gradient: LinearGradient(
             begin: Alignment.centerRight, end: Alignment.centerLeft,
@@ -686,35 +695,78 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildVisualCard(HomeServiceItem item) {
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.navigationTarget)),
+      onTap: item.isComingSoon ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.navigationTarget)),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 14, offset: const Offset(0, 5))],
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20, offset: const Offset(0, 8)),
+          ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Stack(fit: StackFit.expand, children: [
-            // Background image or colored bg
-            if (item.imagePath != null)
-              Image.asset(item.imagePath!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: item.bgColor))
-            else
-              Container(color: item.bgColor, child: Center(child: Icon(item.icon, color: item.iconColor, size: 48))),
-            // Gradient overlay for text
-            DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
-              begin: Alignment.topCenter, end: Alignment.bottomCenter,
-              colors: [Colors.transparent, Colors.black.withValues(alpha: 0.68)],
-              stops: const [0.35, 1.0],
-            ))),
-            // Labels at bottom
-            Positioned(left: 12, right: 8, bottom: 10, child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text(item.title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, height: 1.1), maxLines: 2),
-              if (item.subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(item.subtitle!, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w400)),
-              ],
-            ])),
-          ]),
+          borderRadius: BorderRadius.circular(22),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Background image or colored bg
+              if (item.imagePath != null)
+                Opacity(
+                  opacity: item.isComingSoon ? 0.6 : 1.0,
+                  child: Image.asset(item.imagePath!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: item.bgColor)),
+                )
+              else
+                Container(color: item.bgColor, child: Center(child: Icon(item.icon, color: item.iconColor, size: 48))),
+              // Deeper gradient overlay for text readability
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.85)],
+                    stops: const [0.4, 1.0],
+                  ),
+                ),
+              ),
+              // Labels at bottom
+              Positioned(
+                left: 14,
+                right: 14,
+                bottom: 14,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      item.title,
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, height: 1.1),
+                      maxLines: 2,
+                    ),
+                    if (item.subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        item.isComingSoon ? 'COMING SOON' : item.subtitle!,
+                        style: TextStyle(
+                          color: item.isComingSoon ? Colors.orangeAccent : Colors.white.withOpacity(0.7),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (item.isComingSoon) 
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+                    child: const Icon(Icons.lock_clock_rounded, color: Colors.white, size: 28),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

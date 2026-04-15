@@ -3,6 +3,9 @@ import '../utils/booking_manager.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/translation_service.dart';
+import '../utils/language_provider.dart';
+import 'package:provider/provider.dart';
 import '../utils/ui_utils.dart';
 
 String _formatBookingDate(String raw) {
@@ -34,18 +37,51 @@ class GenericHistoryScreen extends StatefulWidget {
 class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   final BookingManager _bookingManager = BookingManager();
   bool _isLoadingContact = false;
+  Locale? _lastLocale;
 
   @override
   void initState() {
     super.initState();
-    _loadBookings();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Provider.of<LanguageProvider>(context).locale;
+    if (_lastLocale != locale) {
+      _lastLocale = locale;
+      _loadBookings();
+    }
   }
 
   Future<void> _loadBookings() async {
+    final langProvider = Provider.of<LanguageProvider>(context, listen: false);
+    final targetLang = langProvider.languageCode;
+    final trans = TranslationService();
+
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('user_id');
     if (userId != null) {
       await _bookingManager.fetchFarmerBookings(userId);
+      
+      // Apply translation to all loaded bookings
+      if (targetLang != 'en') {
+        for (var b in _bookingManager.bookings) {
+          b.title = await trans.translate(b.title, targetLang);
+          b.status = await trans.translate(b.status, targetLang);
+          
+          // Translate dynamic details map keys and values
+          Map<String, dynamic> translatedDetails = {};
+          for (var entry in b.details.entries) {
+            final translatedKey = await trans.translate(entry.key, targetLang);
+            final translatedValue = await trans.translate(entry.value.toString(), targetLang);
+            translatedDetails[translatedKey] = translatedValue;
+          }
+          b.details = translatedDetails;
+        }
+        // Force rebuild of manager listeners
+        _bookingManager.forceRefresh();
+      }
     }
   }
 
@@ -108,32 +144,42 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF9FBF9),
+        backgroundColor: const Color(0xFFF5F7F2),
         appBar: AppBar(
           title: Text(
             widget.title,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+            style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
           ),
           backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
           automaticallyImplyLeading: widget.showBackButton,
+          centerTitle: true,
           leading: widget.showBackButton ? IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black, size: 20),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
             onPressed: () => Navigator.pop(context),
           ) : null,
           elevation: 0,
-          bottom: const TabBar(
-            labelColor: Color(0xFF2E7D32),
-            indicatorColor: Color(0xFF2E7D32),
-            indicatorSize: TabBarIndicatorSize.label,
-            unselectedLabelColor: Colors.grey,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-            tabs: [
-              Tab(text: 'My Booking'),
-              Tab(text: 'Accepted'),
-              Tab(text: 'History'),
-            ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(50),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.grey[100]!, width: 1)),
+              ),
+              child: const TabBar(
+                labelColor: Color(0xFF00AA55),
+                indicatorColor: Color(0xFF00AA55),
+                indicatorWeight: 3,
+                unselectedLabelColor: Color(0xFF90A4AE),
+                labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.3),
+                unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                indicatorSize: TabBarIndicatorSize.label,
+                tabs: [
+                  Tab(text: 'Requests'),
+                  Tab(text: 'Active'),
+                  Tab(text: 'History'),
+                ],
+              ),
+            ),
           ),
         ),
         body: AnimatedBuilder(
@@ -150,9 +196,9 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
               color: const Color(0xFF00AA55),
               child: TabBarView(
                 children: [
-                   _buildBookingList(allBookings, ['pending', 'requested'], 'No pending bookings', Icons.hourglass_empty_rounded),
+                   _buildBookingList(allBookings, ['pending', 'requested'], 'No pending requests', Icons.hourglass_empty_rounded),
                    _buildBookingList(allBookings, ['confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings', Icons.event_available_rounded),
-                   _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past bookings', Icons.history_rounded),
+                   _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past history', Icons.history_rounded),
                 ],
               ),
             );
@@ -186,19 +232,23 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
-              child: Icon(emptyIcon, size: 48, color: Colors.grey[300]),
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20)],
+              ),
+              child: Icon(emptyIcon, size: 54, color: Colors.grey[200]),
             ),
-            const SizedBox(height: 16),
-            Text(emptyMessage, style: TextStyle(color: Colors.grey[500], fontSize: 15, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 24),
+            Text(emptyMessage, style: TextStyle(color: Colors.grey[400], fontSize: 16, fontWeight: FontWeight.w700)),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         return _buildServiceCard(filtered[index]);
@@ -209,96 +259,137 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   Widget _buildServiceCard(BookingDetails booking) {
     statusColor(String status) {
       final s = status.toLowerCase();
-      if (['scheduled', 'active', 'confirmed', 'accepted', 'approved', 'approve'].contains(s)) return const Color(0xFF2E7D32);
+      if (['scheduled', 'active', 'confirmed', 'accepted', 'approved', 'approve'].contains(s)) return const Color(0xFF00AA55);
       if (['completed', 'finished'].contains(s)) return const Color(0xFF1565C0);
-      if (['rejected', 'cancelled'].contains(s)) return const Color(0xFFC62828);
+      if (['rejected', 'cancelled'].contains(s)) return const Color(0xFFE57373);
       return const Color(0xFFF9A825);
     }
 
     final accentColor = statusColor(booking.status);
 
     return Container(
-      margin: const EdgeInsets.only(top: 16),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
-        border: Border.all(color: Colors.grey[100]!),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05), 
+            blurRadius: 20, 
+            offset: const Offset(0, 4)
+          )
+        ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCardHeader(booking, accentColor),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildCardRow(Icons.calendar_today_rounded, 'Booking Date', _formatBookingDate(booking.date)),
-                  if (booking.price.isNotEmpty)
-                    _buildCardRow(Icons.payments_outlined, 'Price Info', booking.price),
-                  
-                  if (booking.details.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    const Divider(height: 1),
-                    const SizedBox(height: 12),
-                    Text('REQUEST DETAILS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5)),
-                    const SizedBox(height: 8),
-                    ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Count', 'Vehicle Count'].contains(e.key)).map((e) =>
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(margin: const EdgeInsets.only(top: 6), width: 4, height: 4, decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.5), shape: BoxShape.circle)),
-                            const SizedBox(width: 10),
-                            Expanded(child: Text.rich(TextSpan(children: [
-                              TextSpan(text: '${e.key}: ', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2C3E50))),
-                              TextSpan(text: '${e.value}', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
-                            ]))),
-                          ],
-                        ),
-                      )
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCardHeader(booking, accentColor),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCardRow(Icons.calendar_today_rounded, 'Scheduled For', _formatBookingDate(booking.date)),
+                if (booking.price.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: _buildCardRow(Icons.payments_rounded, 'Rate Info', booking.price),
+                  ),
+                
+                if (booking.details.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF9FBF9),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ],
-                  
-                  if (['scheduled', 'active', 'confirmed', 'accepted', 'approved'].contains(booking.status.toLowerCase())) ...[
-                    const SizedBox(height: 20),
-                    Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: _buildContactButton('Call', Icons.call_rounded, accentColor, () => _contactUser(booking, true))),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildContactButton('Chat', Icons.chat_bubble_rounded, accentColor, () => _contactUser(booking, false), isPrimary: true)),
+                        Text(
+                          'BOOKING DETAILS', 
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.grey[500], letterSpacing: 0.8)
+                        ),
+                        const SizedBox(height: 12),
+                        ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Count', 'Vehicle Count'].contains(e.key)).map((e) =>
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(top: 6), 
+                                  width: 5, height: 5, 
+                                  decoration: BoxDecoration(color: accentColor.withOpacity(0.3), shape: BoxShape.circle)
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(child: Text.rich(
+                                  TextSpan(children: [
+                                    TextSpan(text: '${e.key}: ', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF1B5E20))),
+                                    TextSpan(text: '${e.value}', style: TextStyle(color: Colors.grey[700], fontSize: 13, fontWeight: FontWeight.w500)),
+                                  ]),
+                                )),
+                              ],
+                            ),
+                          )
+                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ],
-              ),
+                
+                if (['scheduled', 'active', 'confirmed', 'accepted', 'approved'].contains(booking.status.toLowerCase())) ...[
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(child: _buildContactButton('Call Owner', Icons.call_rounded, accentColor, () => _contactUser(booking, true))),
+                      const SizedBox(width: 12),
+                      Expanded(child: _buildContactButton('WhatsApp', Icons.chat_bubble_rounded, accentColor, () => _contactUser(booking, false), isPrimary: true)),
+                    ],
+                  ),
+                ],
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildCardHeader(BookingDetails booking, Color accentColor) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      color: accentColor.withValues(alpha: 0.05),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: accentColor.withOpacity(0.06),
+        border: Border(bottom: BorderSide(color: accentColor.withOpacity(0.1), width: 1)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(booking.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF2C3E50))),
-            const SizedBox(height: 2),
-            Text('ID: #${booking.id.length > 8 ? booking.id.substring(booking.id.length-8).toUpperCase() : booking.id.toUpperCase()}', style: TextStyle(fontSize: 10, color: Colors.grey[500], letterSpacing: 0.5, fontWeight: FontWeight.w600)),
+            Text(
+              booking.title, 
+              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF1B5E20), letterSpacing: -0.3)
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'ID #${booking.id.length > 8 ? booking.id.substring(booking.id.length-8).toUpperCase() : booking.id.toUpperCase()}', 
+              style: TextStyle(fontSize: 10, color: Colors.grey[500], letterSpacing: 1, fontWeight: FontWeight.w800)
+            ),
           ])),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(color: accentColor, borderRadius: BorderRadius.circular(10)),
-            child: Text(booking.status.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.5)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: accentColor, 
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: accentColor.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 2))],
+            ),
+            child: Text(
+              booking.status.toUpperCase(), 
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 0.5)
+            ),
           ),
         ],
       ),
@@ -306,30 +397,37 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   }
 
   Widget _buildCardRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: Colors.grey[400]),
-          const SizedBox(width: 8),
-          Text('$label : ', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
-          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
-        ],
-      ),
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(color: const Color(0xFFF5F7F2), borderRadius: BorderRadius.circular(8)),
+          child: Icon(icon, size: 14, color: const Color(0xFF00AA55)),
+        ),
+        const SizedBox(width: 12),
+        Text('$label : ', style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF2C3E50))),
+      ],
     );
   }
 
   Widget _buildContactButton(String label, IconData icon, Color color, VoidCallback onTap, {bool isPrimary = false}) {
-    return ElevatedButton.icon(
-      onPressed: _isLoadingContact ? null : onTap,
-      icon: Icon(icon, size: 16),
-      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: isPrimary ? color : Colors.white,
-        foregroundColor: isPrimary ? Colors.white : color,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color, width: 1.5)),
+    return Container(
+      height: 50,
+      child: ElevatedButton.icon(
+        onPressed: _isLoadingContact ? null : onTap,
+        icon: Icon(icon, size: 18),
+        label: Text(label, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isPrimary ? color : Colors.white,
+          foregroundColor: isPrimary ? Colors.white : color,
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16), 
+            side: BorderSide(color: color, width: 2)
+          ),
+        ),
       ),
     );
   }

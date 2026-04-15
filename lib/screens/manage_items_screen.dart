@@ -104,26 +104,36 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
     return DefaultTabController(
       length: 4,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF9FBF9),
+        backgroundColor: const Color(0xFFF5F7F2),
         appBar: AppBar(
-          title: const Text('Manage My Assets', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+          title: const Text('Manage Assets', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20))),
           backgroundColor: Colors.white,
-          surfaceTintColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
           elevation: 0,
-          bottom: const TabBar(
-            isScrollable: true,
-            labelColor: Color(0xFF2E7D32),
-            indicatorColor: Color(0xFF2E7D32),
-            unselectedLabelColor: Colors.grey,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-            unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-            indicatorSize: TabBarIndicatorSize.label,
-            tabs: [
-              Tab(text: 'Vehicles'),
-              Tab(text: 'Equipment'),
-              Tab(text: 'Services'),
-              Tab(text: 'Workers'),
-            ],
+          centerTitle: true,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(50),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Colors.grey[100]!, width: 1)),
+              ),
+              child: const TabBar(
+                isScrollable: true,
+                labelColor: Color(0xFF00AA55),
+                indicatorColor: Color(0xFF00AA55),
+                indicatorWeight: 3,
+                unselectedLabelColor: Color(0xFF90A4AE),
+                labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 0.3),
+                unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                indicatorSize: TabBarIndicatorSize.label,
+                tabs: [
+                  Tab(text: 'Vehicles'),
+                  Tab(text: 'Equipment'),
+                  Tab(text: 'Services'),
+                  Tab(text: 'Workers'),
+                ],
+              ),
+            ),
           ),
         ),
         body: _isLoading
@@ -146,55 +156,96 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text('No $category registered yet.', style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w500)),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20)],
+              ),
+              child: Icon(Icons.inventory_2_rounded, size: 64, color: Colors.grey[300]),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No $category registered yet', 
+              style: const TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.w800, fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Add your assets to start earning', 
+              style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w500, fontSize: 14),
+            ),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       itemCount: items.length,
       itemBuilder: (context, index) {
         final item = items[index] as Map<String, dynamic>;
         String? imgPath = item['imageUrl'];
 
         return Container(
-          margin: const EdgeInsets.only(top: 12),
+          margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(18),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 10, offset: const Offset(0, 4))],
-            border: Border.all(color: Colors.grey[100]!),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.all(12),
-            leading: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                ApiConfig.getFullImageUrl(imgPath),
-                width: 60, height: 60, fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(width: 60, height: 60, color: const Color(0xFFF1F8F1), child: const Icon(Icons.image_outlined, color: Colors.grey)),
+            color: Colors.white, 
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05), 
+                blurRadius: 20, 
+                offset: const Offset(0, 4),
               ),
-            ),
-            title: Text(titleGetter(item), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF2C3E50))),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(subtitleGetter(item), style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500)),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
               children: [
-                IconButton(
-                  icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF1565C0)),
-                  onPressed: () => _navigateToEdit(category, item),
-                  tooltip: 'Edit',
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    ApiConfig.getFullImageUrl(imgPath),
+                    width: 75, height: 75, fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 75, height: 75, 
+                      color: const Color(0xFFF1F8F1), 
+                      child: const Icon(Icons.image_outlined, color: Color(0xFF00AA55)),
+                    ),
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFC62828)),
-                  onPressed: () => _deleteItem(category, item[idKey]),
-                  tooltip: 'Delete',
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        titleGetter(item), 
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF1B5E20), letterSpacing: -0.2),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitleGetter(item), 
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_rounded, color: Color(0xFF00AA55), size: 22),
+                      onPressed: () => _navigateToEdit(category, item),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFE57373), size: 22),
+                      onPressed: () => _deleteItem(category, item[idKey]),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
                 ),
               ],
             ),

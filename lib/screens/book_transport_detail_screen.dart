@@ -367,40 +367,56 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.bookTransportTitle(widget.vehicleType)),
+        title: Text(l10n.bookTransportTitle(widget.vehicleType), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), fontSize: 18)),
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Provider Info Card
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 4)),
+                ],
               ),
               child: Row(
                 children: [
                    GestureDetector(
                      onTap: () => _showFullImage(context, widget.ownerProfileImage, widget.providerName),
-                     child: CircleAvatar(
-                       radius: 30, // Increased size
-                       backgroundColor: Colors.white,
-                       backgroundImage: widget.ownerProfileImage != null
-                           ? NetworkImage(ApiConfig.getFullImageUrl(widget.ownerProfileImage))
-                           : null,
-                       child: widget.ownerProfileImage == null
-                           ? const Icon(Icons.local_shipping, color: Colors.blue, size: 30)
-                           : null,
+                     child: Container(
+                       padding: const EdgeInsets.all(3),
+                       decoration: BoxDecoration(
+                         shape: BoxShape.circle,
+                         border: Border.all(color: const Color(0xFF00AA55).withOpacity(0.2), width: 2),
+                       ),
+                       child: CircleAvatar(
+                         radius: 32,
+                         backgroundColor: const Color(0xFFF5F7F2),
+                         backgroundImage: widget.ownerProfileImage != null && widget.ownerProfileImage!.isNotEmpty
+                             ? NetworkImage(ApiConfig.getFullImageUrl(widget.ownerProfileImage))
+                             : null,
+                         child: widget.ownerProfileImage == null || widget.ownerProfileImage!.isEmpty
+                             ? const Icon(Icons.local_shipping_rounded, color: Color(0xFF00AA55), size: 32)
+                             : null,
+                       ),
                      ),
                    ),
                    const SizedBox(width: 16),
@@ -410,12 +426,19 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                        children: [
                          Text(
                            widget.providerName,
-                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                          ),
                          const SizedBox(height: 4),
-                         Text(
-                           '${widget.vehicleType} • ₹${widget.rate.toStringAsFixed(0)} / trip',
-                           style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                         Container(
+                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                           decoration: BoxDecoration(
+                             color: const Color(0xFFE8F5E9),
+                             borderRadius: BorderRadius.circular(8),
+                           ),
+                           child: Text(
+                             '₹${widget.rate.toStringAsFixed(0)} / trip',
+                             style: const TextStyle(color: Color(0xFF00AA55), fontSize: 12, fontWeight: FontWeight.w800),
+                           ),
                          ),
                        ],
                      ),
@@ -425,326 +448,383 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Goods Type
-            Text(
+            // Goods Selection
+            _buildSectionCard(
               key: _goodsSectionKey,
-              AppLocalizations.of(context)!.goodsType,
-              style: TextStyle(
-                fontSize: 16, 
-                fontWeight: FontWeight.bold, 
-                color: _fieldErrors.containsKey('goods') ? Colors.red : Colors.black87
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _fieldErrors.containsKey('goods') ? Colors.red : Colors.grey[300]!),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  isExpanded: true,
-                  hint: Text(AppLocalizations.of(context)!.selectGoodsType),
-                  value: _selectedGoodsType,
-                  items: _goodsTypes.map((String type) {
-                    return DropdownMenuItem<String>(
-                      value: type,
-                      child: Text(type),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedGoodsType = newValue;
-                      if (newValue != null && _fieldErrors.containsKey('goods')) {
-                        _fieldErrors.remove('goods');
-                      }
-                    });
-                  },
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Pickup/Drop Address
-            Text(
-              key: _addressSectionKey,
-              'Pickup/Drop Address',
-              style: TextStyle(
-                fontSize: 16, 
-                fontWeight: FontWeight.bold, 
-                color: _fieldErrors.containsKey('address') ? Colors.red : Colors.black87
-              ),
-            ),
-             const SizedBox(height: 12),
-            TextField(
-              controller: _addressController,
-              maxLines: 3,
-              onChanged: (_) {
-                if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
-              },
-              decoration: InputDecoration(
-                hintText: 'Enter pickup or drop location address...',
-                suffixIcon: Padding(
-                  padding: const EdgeInsets.only(bottom: 40),
-                  child: _isFetchingLocation
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blue)),
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.my_location, color: Colors.blue),
-                        tooltip: 'Use my current location',
-                        onPressed: _fetchCurrentLocation,
-                      ),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.blue, width: 2),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-             // Date Selection
-            Text(
-              key: _dateSectionKey,
-              AppLocalizations.of(context)!.selectDate,
-              style: TextStyle(
-                fontSize: 16, 
-                fontWeight: FontWeight.bold, 
-                color: _fieldErrors.containsKey('date') ? Colors.red : Colors.black87
-              ),
-            ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () async {
-                await _selectDate(context);
-                if (_selectedDate != null && _fieldErrors.containsKey('date')) {
-                  setState(() => _fieldErrors.remove('date'));
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: _fieldErrors.containsKey('date') ? Colors.red : Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today, color: _selectedDate == null ? Colors.grey[400] : Colors.blue),
-                    const SizedBox(width: 12),
-                    Text(
-                      _selectedDate == null 
-                          ? AppLocalizations.of(context)!.chooseDate 
-                          : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
-                        fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w500,
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-
-
-
-
-            // Time Selection
-            Text(
-              key: _timeSectionKey,
-              AppLocalizations.of(context)!.preferredTime,
-              style: TextStyle(
-                fontSize: 16, 
-                fontWeight: FontWeight.bold, 
-                color: _fieldErrors.containsKey('slots') ? Colors.red : Colors.black87
-              ),
-            ),
-            if (_selectedDate == null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text('Select a date first to view available slots', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-              ),
-            const SizedBox(height: 12),
-            
-            // Slots Grid
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3, 
-                childAspectRatio: 2.5,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              itemCount: _endHour - _startHour, 
-              itemBuilder: (context, index) {
-                int hour = _startHour + index;
-                bool isBlocked = _isSlotBlocked(hour);
-                bool isSelected = _selectedSlots.contains(hour);
-
-                return InkWell(
-                  onTap: () {
-                    _onSlotTap(hour);
-                    if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) {
-                      setState(() => _fieldErrors.remove('slots'));
-                    }
-                  },
-                  child: Container(
+              title: l10n.goodsType,
+              icon: Icons.inventory_2_rounded,
+              isError: _fieldErrors.containsKey('goods'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('What are you transporting?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     decoration: BoxDecoration(
-                      color: isBlocked ? Colors.grey[200] : (isSelected ? Colors.blue : Colors.white),
-                      border: Border.all(
-                        color: isBlocked 
-                            ? Colors.transparent 
-                            : (isSelected ? Colors.blue : (_fieldErrors.containsKey('slots') ? Colors.red.withOpacity(0.5) : Colors.grey[300]!)),
-                        width: isSelected ? 2 : 1,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
+                      color: const Color(0xFFF9FBF9),
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: _fieldErrors.containsKey('goods') ? Colors.red : const Color(0xFFE8F5E9)),
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      _formatTimeRange(hour),
-                      style: TextStyle(
-                        color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : Colors.black87),
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 12,
-                        decoration: isBlocked ? TextDecoration.lineThrough : null,
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        hint: Text(l10n.selectGoodsType, style: TextStyle(color: Colors.grey[500], fontSize: 15, fontWeight: FontWeight.w500)),
+                        value: _selectedGoodsType,
+                        icon: const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
+                        items: _goodsTypes.map((String type) {
+                          return DropdownMenuItem<String>(
+                            value: type,
+                            child: Text(type),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            _selectedGoodsType = newValue;
+                            if (newValue != null && _fieldErrors.containsKey('goods')) _fieldErrors.remove('goods');
+                          });
+                        },
                       ),
                     ),
                   ),
-                );
-              },
+                ],
+              ),
             ),
 
-            if (_selectedStartHour != null) ...[
-              const SizedBox(height: 24),
-              const Text(
-                'Select Duration',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        _buildDurationButton(
-                          icon: Icons.remove,
-                          onPressed: _durationHours > 1 
-                            ? () => setState(() => _durationHours--)
-                            : null,
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Text(
-                            '$_durationHours ${_durationHours == 1 ? 'Hour' : 'Hours'}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        _buildDurationButton(
-                          icon: Icons.add,
-                          onPressed: _isRangeAvailable(_selectedStartHour!, _durationHours + 1)
-                            ? () => setState(() => _durationHours++)
-                            : null,
-                        ),
-                      ],
+            // Location Section
+            _buildSectionCard(
+              key: _addressSectionKey,
+              title: 'Lush Pickup/Drop Location',
+              icon: Icons.location_on_rounded,
+              isError: _fieldErrors.containsKey('address'),
+              child: _buildTextField(
+                controller: _addressController,
+                label: 'Location Address',
+                hint: 'Enter pickup/drop location...',
+                maxLines: 2,
+                errorKey: 'address',
+                icon: Icons.map_rounded,
+                suffixIcon: _isFetchingLocation
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                      onPressed: _fetchCurrentLocation,
                     ),
-                    Text(
-                      '${_formatTime(_selectedStartHour!)} to ${_formatTime(_selectedStartHour! + _durationHours)}',
-                      style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w600),
+              ),
+            ),
+
+            // Schedule Section
+            _buildSectionCard(
+              key: _dateSectionKey,
+              title: 'Transport Schedule',
+              icon: Icons.calendar_today_rounded,
+              isError: _fieldErrors.containsKey('date') || _fieldErrors.containsKey('slots'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Select Trip Date', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () async {
+                      await _selectDate(context);
+                      if (_selectedDate != null && _fieldErrors.containsKey('date')) {
+                        setState(() => _fieldErrors.remove('date'));
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FBF9),
+                        border: Border.all(color: _fieldErrors.containsKey('date') ? Colors.red : const Color(0xFFE8F5E9)),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_month_rounded, size: 20, color: _selectedDate == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+                          const SizedBox(width: 12),
+                          Text(
+                            _selectedDate == null 
+                                ? l10n.chooseDate 
+                                : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
+                              fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  const Text( 'Select Preferred Time', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                  if (_selectedDate == null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text('Select a date first to view availability', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
+                    )
+                  else ...[
+                    const SizedBox(height: 16),
+                    if (_isLoadingBookings)
+                      const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Color(0xFF00AA55))))
+                    else
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3, 
+                          childAspectRatio: 2.2, 
+                          crossAxisSpacing: 10, 
+                          mainAxisSpacing: 10,
+                        ),
+                        itemCount: _endHour - _startHour,
+                        itemBuilder: (context, index) {
+                          int hour = _startHour + index;
+                          bool isBlocked = _isSlotBlocked(hour);
+                          bool isSelected = _selectedSlots.contains(hour);
+
+                          return InkWell(
+                            onTap: () {
+                              _onSlotTap(hour);
+                              if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) setState(() => _fieldErrors.remove('slots'));
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              decoration: BoxDecoration(
+                                color: isBlocked ? Colors.grey[100] : (isSelected ? const Color(0xFF00AA55) : Colors.white),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9)),
+                                  width: 1.5,
+                                ),
+                                boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8)] : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                _formatTimeRange(hour),
+                                style: TextStyle(
+                                  color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
+                                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                  fontSize: 11,
+                                  decoration: isBlocked ? TextDecoration.lineThrough : null,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+
+                  if (_selectedStartHour != null) ...[
+                    const SizedBox(height: 24),
+                    const Text('Transport Duration (Est)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FBF9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE8F5E9)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              _buildDurationControl(
+                                icon: Icons.remove_rounded,
+                                onPressed: _durationHours > 1 ? () => setState(() => _durationHours--) : null,
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  '$_durationHours ${_durationHours == 1 ? 'Hour' : 'Hours'}',
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                                ),
+                              ),
+                              _buildDurationControl(
+                                icon: Icons.add_rounded,
+                                onPressed: _isRangeAvailable(_selectedStartHour!, _durationHours + 1) ? () => setState(() => _durationHours++) : null,
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5E9),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '${_formatTime(_selectedStartHour!)} - ${_formatTime(_selectedStartHour! + _durationHours)}',
+                              style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w900, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                ),
+                ],
               ),
-              if (!_isRangeAvailable(_selectedStartHour!, _durationHours + 1) && (_selectedStartHour! + _durationHours) < _endHour)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, left: 4),
-                  child: Text(
-                    'Next slot is already booked or unavailable',
-                    style: TextStyle(color: Colors.orange[800], fontSize: 12),
-                  ),
-                ),
-            ],
+            ),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 12),
 
-            // Footer
+            // Footer Total Card
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[200]!),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 30, offset: const Offset(0, 10)),
+                ],
               ),
               child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('${AppLocalizations.of(context)!.totalEstimate}:', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                      Text(l10n.totalEstimate, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF546E7A))),
                       Text(
                         '₹${_totalPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
+                  const SizedBox(height: 24),
+                  Container(
                     width: double.infinity,
-                    height: 50,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                      ],
+                    ),
                     child: ElevatedButton(
                       onPressed: _isSubmitting ? null : _confirmBooking,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue, // Transport Theme Color
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        backgroundColor: const Color(0xFF00AA55),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey[300],
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        elevation: 0,
                       ),
-                      child: _isSubmitting 
-                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      child: _isSubmitting
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
                         : Text(
-                            AppLocalizations.of(context)!.confirmRequest,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                            l10n.confirmRequest,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5),
                           ),
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildSectionCard({required String title, required IconData icon, required Widget child, GlobalKey? key, bool isError = false}) {
+    return Container(
+      key: key,
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 4))],
+        border: isError ? Border.all(color: Colors.red.withOpacity(0.5), width: 1.5) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: const Color(0xFF00AA55)),
+                const SizedBox(width: 12),
+                Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: 1.2),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required String errorKey,
+    required IconData icon,
+    int maxLines = 1,
+    Widget? suffixIcon,
+  }) {
+    final bool hasError = _fieldErrors.containsKey(errorKey);
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      onChanged: (_) { if (hasError) setState(() => _fieldErrors.remove(errorKey)); },
+      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
+        prefixIcon: Icon(icon, color: hasError ? Colors.red : const Color(0xFF00AA55), size: 20),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: const Color(0xFFF9FBF9),
+        contentPadding: const EdgeInsets.all(16),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide(color: hasError ? Colors.red.withOpacity(0.5) : Colors.transparent),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDurationControl({required IconData icon, VoidCallback? onPressed}) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: onPressed == null ? Colors.grey[100] : const Color(0xFF00AA55).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, size: 20, color: onPressed == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+      ),
+    );
+  }
+
   void _showFullImage(BuildContext context, String? imageUrl, String title) {
     if (imageUrl == null || imageUrl.isEmpty) return;
-    
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -756,7 +836,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             GestureDetector(
               onTap: () => Navigator.pop(context),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(24),
                 child: Image.network(
                   ApiConfig.getFullImageUrl(imageUrl),
                   fit: BoxFit.contain,
@@ -769,28 +849,15 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
               ),
             ),
             Positioned(
-              top: 10,
-              right: 10,
+              top: 20,
+              right: 20,
               child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 32),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildDurationButton({required IconData icon, VoidCallback? onPressed}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: onPressed == null ? Colors.grey[200] : Colors.blue[50],
-        shape: BoxShape.circle,
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: onPressed == null ? Colors.grey[400] : Colors.blue),
-        onPressed: onPressed,
       ),
     );
   }

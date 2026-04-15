@@ -147,137 +147,190 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        backgroundColor: Color(0xFFF5F7F2),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF00AA55))),
+      );
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Edit Profile',
-          style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.normal),
-        ),
-        elevation: 0,
-        bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(color: Colors.grey[200], height: 1),
+          style: TextStyle(color: Color(0xFF1B5E20), fontSize: 18, fontWeight: FontWeight.w900),
         ),
       ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Avatar
-                  Center(
-                    child: GestureDetector(
-                      onTap: _pickImage,
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              shape: BoxShape.circle,
-                              image: _selectedImage != null 
-                                ? (kIsWeb 
-                                    ? DecorationImage(image: NetworkImage(_selectedImage!.path), fit: BoxFit.cover)
-                                    : DecorationImage(image: FileImage(File(_selectedImage!.path)), fit: BoxFit.cover))
-                                : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                                  ? DecorationImage(image: NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl)), fit: BoxFit.cover)
-                                  : null),
-                            ),
-                            child: (_selectedImage == null && (_profileImageUrl == null || _profileImageUrl!.isEmpty))
-                                ? const Icon(Icons.person_outline, size: 40, color: Colors.grey)
-                                : null,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF00AA55), // Green
-                                shape: BoxShape.circle,
+                  // Avatar Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: 120,
+                                height: 120,
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: const Color(0xFF00AA55).withOpacity(0.2), width: 3),
+                                  boxShadow: [
+                                    BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.1), blurRadius: 20),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: Container(
+                                    color: const Color(0xFFF5F7F2),
+                                    child: _selectedImage != null 
+                                      ? (kIsWeb 
+                                          ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
+                                          : Image.file(File(_selectedImage!.path), fit: BoxFit.cover))
+                                      : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                                        ? Image.network(ApiConfig.getFullImageUrl(_profileImageUrl), fit: BoxFit.cover)
+                                        : const Icon(Icons.person_rounded, size: 60, color: Color(0xFFB0BEC5))),
+                                  ),
+                                ),
                               ),
-                              child: const Icon(Icons.camera_alt, size: 14, color: Colors.white),
-                            ),
-                          ),
-                          if (_isUploading)
-                            const Positioned.fill(
-                              child: Center(
-                                child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+                              Positioned(
+                                bottom: 4,
+                                right: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF00AA55),
+                                    shape: BoxShape.circle,
+                                    boxShadow: [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.4), blurRadius: 10)],
+                                  ),
+                                  child: const Icon(Icons.camera_alt_rounded, size: 18, color: Colors.white),
+                                ),
                               ),
-                            ),
-                        ],
-                      ),
+                              if (_isUploading)
+                                const Positioned.fill(
+                                  child: Center(
+                                    child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Upload Profile Photo',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Tap the icon to change your photo',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  
+                  const SizedBox(height: 24),
 
-                  // Name
-                  _buildLabel('Full Name'),
-                  _buildTextField(_nameController, 'Enter User Name'),
-                  const SizedBox(height: 20),
-
-                  // Village & District Row
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  // Info Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            _buildLabel('Village'),
-                            _buildTextField(_villageController, 'Your Village'),
+                            const Icon(Icons.person_outline_rounded, size: 20, color: Color(0xFF00AA55)),
+                            const SizedBox(width: 12),
+                            Text(
+                              'PERSONAL INFO',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: const Color(0xFF1B5E20).withOpacity(0.6), letterSpacing: 1.2),
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 24),
+                        _buildTextField(_nameController, 'Full Name', 'Enter your name...', Icons.badge_outlined),
+                        const SizedBox(height: 20),
+                        
+                        Row(
                           children: [
-                            _buildLabel('District'),
-                            _buildTextField(_districtController, 'Your District'),
+                            Expanded(child: _buildTextField(_villageController, 'Village', 'Village name...', Icons.landscape_rounded)),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildTextField(_districtController, 'District', 'District name...', Icons.location_city_rounded)),
                           ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 20),
+                        
+                        _buildTextField(_phoneController, 'Phone Number', '', Icons.phone_android_rounded, enabled: false),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // Phone
-                  _buildLabel('Phone Number'),
-                  _buildTextField(_phoneController, '', enabled: false), // Usually phone is not editable directly
                 ],
               ),
             ),
           ),
           
           // Save Button (Fixed at bottom)
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: ElevatedButton(
-              onPressed: _saveProfileData,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0C1020), // Dark color from screenshot
-                foregroundColor: Colors.white,
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -4)),
+              ],
+            ),
+            child: Container(
+              width: double.infinity,
+              height: 60,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                ],
               ),
-              child: const Text('Save Changes', style: TextStyle(fontSize: 16)),
+              child: ElevatedButton(
+                onPressed: _saveProfileData,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00AA55),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                child: const Text('Save Changes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              ),
             ),
           ),
         ],
@@ -285,33 +338,35 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.black87),
-      ),
-    );
-  }
-
-  Widget _buildTextField(TextEditingController controller, String hint, {bool enabled = true, int maxLines = 1}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[100], // Light grey background
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: TextField(
-        controller: controller,
-        enabled: enabled,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  Widget _buildTextField(TextEditingController controller, String label, String hint, IconData icon, {bool enabled = true}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
         ),
-      ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FBF9),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color(0xFFE8F5E9)),
+          ),
+          child: TextField(
+            controller: controller,
+            enabled: enabled,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
+              prefixIcon: Icon(icon, color: const Color(0xFF00AA55), size: 20),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

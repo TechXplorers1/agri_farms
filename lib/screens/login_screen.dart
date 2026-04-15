@@ -148,253 +148,366 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7F2),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 80),
-              // Icon
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9), // Light Green
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.phone_android,
-                  size: 50,
-                  color: Color(0xFF00AA55),
-                ),
-              ),
-              const SizedBox(height: 30),
-              // Title
-              Text(
-                _isLogin ? 'Welcome Back' : AppLocalizations.of(context)!.welcomeTitle,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Subtitle
-              Text(
-                _isLogin 
-                    ? 'Login to your account' 
-                    : AppLocalizations.of(context)!.enterMobile,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // Sign Up Fields (Name & Role)
-              if (!_isLogin) ...[
-                // Full Name Input
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    AppLocalizations.of(context)!.fullName,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
+        child: Column(
+          children: [
+            // Premium Brand Header
+            Stack(
+              children: [
                 Container(
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: TextField(
-                    controller: _nameController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(
-                      hintText: AppLocalizations.of(context)!.fullNameHint,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  height: 320,
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFF1B5E20),
+                        Color(0xFF2E7D32),
+                        Color(0xFF00AA55),
+                      ],
                     ),
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Role Selection
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    AppLocalizations.of(context)!.chooseRole,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(50),
+                      bottomRight: Radius.circular(50),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedRole,
-                      hint: Text(AppLocalizations.of(context)!.selectRole),
-                      isExpanded: true,
-                      icon: const Icon(Icons.arrow_drop_down),
-                      items: _getRoles(context).map((String role) {
-                        return DropdownMenuItem<String>(
-                          value: role,
-                          child: Text(role),
-                        );
-                      }).toList(),
-                      onChanged: (String? newValue) {
-                        setState(() {
-                          _selectedRole = newValue;
-                          _validateInput();
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-
-              // Mobile Number Input (Common)
-              Row(
-                children: [
-                  Text(
-                    AppLocalizations.of(context)!.mobileNumber,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  // Country Code
-                  Container(
-                    width: 70,
-                    height: 50,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      '+91',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Phone Number Input
-                  Expanded(
-                    child: Container(
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: TextField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(10),
-                        ],
-                        decoration: const InputDecoration(
-                          hintText: '9876543210',
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                SafeArea(
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 40),
+                        // Animated Logo Container
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(25),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 30),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.eco_rounded,
+                            size: 48,
+                            color: Color(0xFF00AA55),
+                          ),
                         ),
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 30),
-              
-              // Action Button (Sign Up / Get OTP)
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isButtonEnabled && !_isLoading ? _getOtp : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isButtonEnabled && !_isLoading ? Colors.black : Colors.grey,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    disabledBackgroundColor: Colors.grey,
-                  ),
-                  child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(
-                    _isLogin ? 'Login' : AppLocalizations.of(context)!.getOtp, // Or "Sign Up" if preferred
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                        const SizedBox(height: 14),
+                        const Text(
+                          'Agri Farms',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          l10n.welcomeTitle,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.white.withOpacity(0.8),
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-              
-              const SizedBox(height: 50),
+              ],
+            ),
 
-              // Toggle Auth Mode
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _isLogin ? "Don't have an account? " : "Already have an account? ",
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                  GestureDetector(
-                    onTap: _toggleAuthMode,
-                    child: Text(
-                      _isLogin ? "Sign Up" : "Login",
-                      style: const TextStyle(
-                        color: Color(0xFF00AA55),
-                        fontWeight: FontWeight.bold,
+            // Form Content
+            Transform.translate(
+              offset: const Offset(0, -50),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: Container(
+                  padding: const EdgeInsets.all(24.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 40,
+                        offset: const Offset(0, 15),
                       ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isLogin ? 'Welcome Back' : 'Get Started',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF1B5E20),
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _isLogin ? 'Login to continue' : 'Join the community',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00AA55).withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _isLogin ? Icons.login_rounded : Icons.person_add_rounded,
+                              color: const Color(0xFF00AA55),
+                              size: 24,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Sign Up Unique Fields
+                      if (!_isLogin) ...[
+                        _buildLabel(l10n.fullName),
+                        const SizedBox(height: 8),
+                        _buildInputField(
+                          controller: _nameController,
+                          hint: l10n.fullNameHint,
+                          icon: Icons.badge_outlined,
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                        const SizedBox(height: 24),
+                        _buildLabel(l10n.chooseRole),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FBF9),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE8F5E9)),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedRole,
+                              hint: Text(l10n.selectRole, style: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500)),
+                              isExpanded: true,
+                              icon: const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
+                              items: _getRoles(context).map((String role) {
+                                return DropdownMenuItem<String>(
+                                  value: role,
+                                  child: Text(role, style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                setState(() {
+                                  _selectedRole = newValue;
+                                  _validateInput();
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      _buildLabel(l10n.mobileNumber),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 52,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F8F1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE8F5E9)),
+                            ),
+                            child: const Text(
+                              '+91',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF1B5E20),
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildInputField(
+                              controller: _phoneController,
+                              hint: '0000 000 000',
+                              icon: null,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(10),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      const SizedBox(height: 40),
+                      
+                      // Action Button (Premium Lush)
+                      Container(
+                        width: double.infinity,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            if (_isButtonEnabled)
+                              BoxShadow(
+                                color: const Color(0xFF00AA55).withOpacity(0.3),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                          ],
+                        ),
+                        child: ElevatedButton(
+                          onPressed: _isButtonEnabled && !_isLoading ? _getOtp : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AA55),
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: const Color(0xFFE8F5E9),
+                            disabledForegroundColor: Colors.grey[400],
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: _isLoading 
+                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3)) 
+                            : Text(
+                                _isLogin ? 'Sign In'.toUpperCase() : 'Create Account'.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 32),
+
+                      // Toggle Auth Mode
+                      Center(
+                        child: GestureDetector(
+                          onTap: _toggleAuthMode,
+                          child: RichText(
+                            text: TextSpan(
+                              style: TextStyle(color: Colors.grey[600], fontSize: 14, fontWeight: FontWeight.w500),
+                              children: [
+                                TextSpan(text: _isLogin ? "Don't have an account? " : "Already have an account? "),
+                                TextSpan(
+                                  text: _isLogin ? "Sign Up" : "Login",
+                                  style: const TextStyle(
+                                    color: Color(0xFF00AA55),
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            
+            // Premium Footer
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Column(
+                children: [
+                  const Icon(Icons.verified_user_rounded, color: Color(0xFF00AA55), size: 20),
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.termsPolicy,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[400],
+                      height: 1.6,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
-              
-              const SizedBox(height: 20),
-              // Footer
-              Text(
-                AppLocalizations.of(context)!.termsPolicy,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                  height: 1.5,
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 48),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
+        color: Color(0xFF1B5E20),
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String hint,
+    IconData? icon,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+  }) {
+    return Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FBF9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE8F5E9)),
+      ),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        inputFormatters: inputFormatters,
+        textCapitalization: textCapitalization,
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+        decoration: InputDecoration(
+          hintText: hint,
+          prefixIcon: icon != null ? Icon(icon, size: 22, color: const Color(0xFF00AA55)) : null,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: icon != null ? 16 : 20, vertical: 14),
+          hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
         ),
       ),
     );

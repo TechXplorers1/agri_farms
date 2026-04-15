@@ -9,6 +9,9 @@ import 'book_service_detail_screen.dart';
 import '../utils/provider_manager.dart';
 
 import '../services/api_service.dart';
+import '../services/translation_service.dart';
+import '../utils/language_provider.dart';
+import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -34,11 +37,22 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   String? _selectedMake;
   String? _selectedLocation;
   late Future<List<ServiceProvider>> _providersFuture;
+  Locale? _lastLocale;
 
   @override
   void initState() {
     super.initState();
-    _providersFuture = _fetchProviders();
+    // Initial fetch will be handled by didChangeDependencies or standard flow
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Provider.of<LanguageProvider>(context).locale;
+    if (_lastLocale != locale) {
+      _lastLocale = locale;
+      _providersFuture = _fetchProviders();
+    }
   }
 
   Future<List<ServiceProvider>> _fetchProviders() async {
@@ -47,15 +61,21 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     final List<String> serviceTypes = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Vet Care', 'Crop Advisory', 'Electricians', 'Mechanics', 'Soil Testing'];
 
     try {
+      final langProvider = Provider.of<LanguageProvider>(context, listen: false);
+      final targetLang = langProvider.languageCode;
+      final trans = TranslationService();
+      
       final prefs = await SharedPreferences.getInstance();
       final currentUserId = prefs.getString('user_id');
       final apiService = ApiService();
+
+      List<ServiceProvider> providers = [];
 
       if (transportTypes.contains(widget.serviceKey)) {
         final vehiclesRaw = await apiService.getVehicles(type: widget.serviceKey) as List;
         final vehicles = vehiclesRaw.where((v) => v['ownerId']?.toString() != currentUserId).toList();
         
-        return vehicles.map<ServiceProvider>((v) => TransportListing(
+        providers = vehicles.map<ServiceProvider>((v) => TransportListing(
           id: v['vehicleId'].toString(),
           providerId: v['ownerId']?.toString(),
           name: v['ownerName'] ?? 'Unknown Owner',
@@ -77,7 +97,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         final equipmentRaw = await apiService.getEquipment(category: widget.serviceKey) as List;
         final equipment = equipmentRaw.where((e) => e['ownerId']?.toString() != currentUserId).toList();
 
-        return equipment.map<ServiceProvider>((e) => EquipmentListing(
+        providers = equipment.map<ServiceProvider>((e) => EquipmentListing(
           id: e['equipmentId'].toString(),
           providerId: e['ownerId']?.toString(),
           name: e['ownerName'] ?? 'Unknown Owner',
@@ -97,7 +117,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
          final servicesRaw = await apiService.getServices(type: widget.serviceKey) as List;
          final services = servicesRaw.where((s) => s['ownerId']?.toString() != currentUserId).toList();
 
-         return services.map<ServiceProvider>((s) => ServiceListing(
+         providers = services.map<ServiceProvider>((s) => ServiceListing(
            id: s['serviceId'].toString(),
            providerId: s['ownerId']?.toString(),
            name: s['ownerName'] ?? s['businessName'] ?? 'Unknown Owner',
@@ -117,7 +137,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
          final workersRaw = await apiService.getWorkerGroups() as List;
          final workers = workersRaw.where((w) => w['ownerId']?.toString() != currentUserId).toList();
 
-         return workers.map<ServiceProvider>((w) => FarmWorkerListing(
+         providers = workers.map<ServiceProvider>((w) => FarmWorkerListing(
              id: w['groupId'].toString(),
              providerId: w['ownerId']?.toString(),
              name: w['ownerName'] ?? w['groupName'] ?? 'Unknown Leader',
@@ -139,8 +159,31 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
              ownerProfileImage: w['ownerProfileImageUrl']
          )).toList();
       } else {
-         return ProviderManager().getProvidersByService(widget.serviceKey);
+         providers = ProviderManager().getProvidersByService(widget.serviceKey);
       }
+
+      // Apply Translation if not English
+      if (targetLang != 'en') {
+        for (var p in providers) {
+          p.serviceName = await trans.translate(p.serviceName, targetLang);
+          p.location = await trans.translate(p.location, targetLang);
+          
+          if (p is EquipmentListing) {
+            p.brandModel = await trans.translate(p.brandModel, targetLang);
+            p.condition = await trans.translate(p.condition, targetLang);
+          } else if (p is TransportListing) {
+            p.vehicleType = await trans.translate(p.vehicleType, targetLang);
+            p.loadCapacity = await trans.translate(p.loadCapacity, targetLang);
+          } else if (p is ServiceListing) {
+            p.equipmentUsed = await trans.translate(p.equipmentUsed, targetLang);
+          } else if (p is FarmWorkerListing) {
+            p.skills = await trans.translate(p.skills, targetLang);
+            p.roleDistribution = await Future.wait(p.roleDistribution.map((r) => trans.translate(r, targetLang)));
+          }
+        }
+      }
+      
+      return providers;
     } catch (e) {
       debugPrint('Error fetching providers for ${widget.serviceKey}: $e');
       return ProviderManager().getProvidersByService(widget.serviceKey);

@@ -20,119 +20,143 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
     {'name': 'Kannada', 'native': 'ಕನ್ನಡ'},
     {'name': 'Marathi', 'native': 'मराठी'},
   ];
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7F2),
       appBar: widget.isFromProfile 
           ? AppBar(
-              title: const Text('Select Language'),
+              title: const Text('Select Language', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20))),
               backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              centerTitle: true,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
+                onPressed: () => Navigator.pop(context),
+              ),
             )
           : null,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              if (!widget.isFromProfile) ...[
-                const SizedBox(height: 40),
-                // Logo
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00AA55),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.eco,
-                    size: 35,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Agri Farms',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF00AA55),
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 40),
-                // Headers
-                const Text(
-                  'Select Your Language',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Choose your preferred language',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 30),
-              ],
-              
-              // Language List
-              Expanded(
-                child: ListView.separated(
-                  itemCount: languages.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final language = languages[index];
-                    return Container(
+        child: Column(
+          children: [
+            if (!widget.isFromProfile) ...[
+              const SizedBox(height: 40),
+              // Brand Header
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 100,
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.15), blurRadius: 30, offset: const Offset(0, 10)),
+                        ],
                       ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                        title: Text(
-                          language['native']!,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        trailing: Text(
-                          language['name']!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        onTap: () {
-                          // Update Language via Provider
-                          Provider.of<LanguageProvider>(context, listen: false).setLanguage(language['name']!);
-
-                          if (widget.isFromProfile) {
-                            Navigator.pop(context, true); // Return true to indicate change
-                          } else {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-                            );
-                          }
-                        },
+                      child: const Icon(
+                        Icons.eco_rounded,
+                        size: 50,
+                        color: Color(0xFF00AA55),
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Agri Farms',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF1B5E20),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Select Your Preferred Language',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(height: 48),
             ],
-          ),
+            
+            // Language Grid/List
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: languages.length,
+                itemBuilder: (context, index) {
+                  final language = languages[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      title: Text(
+                        language['native']!,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF1B5E20),
+                        ),
+                      ),
+                      subtitle: Text(
+                        language['name']!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00AA55).withOpacity(0.08),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.chevron_right_rounded, color: Color(0xFF00AA55), size: 20),
+                      ),
+                      onTap: () {
+                        // Update Language via Provider
+                        Provider.of<LanguageProvider>(context, listen: false).setLanguage(language['name']!);
+
+                        if (widget.isFromProfile) {
+                          Navigator.pop(context, true); // Return true to indicate change
+                        } else {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+                          );
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+            
+            if (!widget.isFromProfile)
+              Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Text(
+                   'You can change this anytime from Profile',
+                   style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ),
+          ],
         ),
       ),
     );

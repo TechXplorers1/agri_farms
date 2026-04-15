@@ -622,455 +622,434 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.bookWorkers),
+        title: Text(l10n.bookWorkers, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20))),
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Provider Info
+            // Provider Info Card
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.withOpacity(0.2)),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 4)),
+                ],
               ),
               child: Row(
                 children: [
-                   const CircleAvatar(
-                     backgroundColor: Colors.green,
-                     child: Icon(Icons.person, color: Colors.white),
+                   Container(
+                     padding: const EdgeInsets.all(12),
+                     decoration: BoxDecoration(
+                       color: const Color(0xFFE8F5E9),
+                       borderRadius: BorderRadius.circular(16),
+                     ),
+                     child: const Icon(Icons.people_alt_rounded, color: Color(0xFF00AA55), size: 28),
                    ),
-                   const SizedBox(width: 12),
-                   Column(
-                     crossAxisAlignment: CrossAxisAlignment.start,
-                     children: [
-                       Text(
-                         widget.providerName,
-                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                       ),
-                       Text(
-                         AppLocalizations.of(context)!.availableWorkers(widget.maxMale, widget.maxFemale),
-                         style: TextStyle(color: Colors.grey[700], fontSize: 13),
-                       ),
-                     ],
+                   const SizedBox(width: 16),
+                   Expanded(
+                     child: Column(
+                       crossAxisAlignment: CrossAxisAlignment.start,
+                       children: [
+                         Text(
+                           widget.providerName,
+                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF1B5E20), letterSpacing: -0.5),
+                         ),
+                         const SizedBox(height: 4),
+                         Text(
+                           l10n.availableWorkers(widget.maxMale, widget.maxFemale),
+                           style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w600),
+                         ),
+                       ],
+                     ),
                    ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
 
-            // Booking Mode Selection
-            const Text(
-              'Booking Mode',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () { 
-                         setState(() {
-                           _bookingMode = 'Daily';
-                           _selectedSlots.clear(); // Clear hourly slots on switch
-                         });
-                         _recalculateAvailability();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _bookingMode == 'Daily' ? const Color(0xFF00AA55) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Daily',
-                          style: TextStyle(
-                            color: _bookingMode == 'Daily' ? Colors.white : Colors.grey.shade700,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () { 
-                         setState(() => _bookingMode = 'Hourly');
-                         _recalculateAvailability();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _bookingMode == 'Hourly' ? const Color(0xFF00AA55) : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Hourly',
-                          style: TextStyle(
-                            color: _bookingMode == 'Hourly' ? Colors.white : Colors.grey.shade700,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-
-            // Worker selection restored and improved
-            Text(
-              key: _workerSectionKey,
-              AppLocalizations.of(context)!.selectWorkers,
-              style: TextStyle(
-                fontSize: 16, 
-                fontWeight: FontWeight.bold, 
-                color: _fieldErrors.containsKey('workers') ? Colors.red : Colors.black87
-              ),
-            ),
-            if (_fieldErrors.containsKey('workers'))
-              Padding(
-                padding: const EdgeInsets.only(top: 4.0),
-                child: Text(_fieldErrors['workers']!, style: const TextStyle(color: Colors.red, fontSize: 12)),
-              ),
-            const SizedBox(height: 12),
-            if (widget.roleDistribution.isNotEmpty)
-              ...widget.roleDistribution.map((role) {
-                final skill = _getSkillForRole(role);
-                final gender = _getGenderForRole(role);
-                final maxCount = _getMaxCountForRole(role);
-                final dynamicMax = _dynamicMaxRoles[role] ?? maxCount;
-                final currentCount = _selectedRoleCounts[role] ?? 0;
-                final price = gender == 'Male' ? widget.priceMale : widget.priceFemale;
-
-                return _buildCounter(
-                  label: skill,
-                  subtitle: '$gender | ₹$price ${AppLocalizations.of(context)!.perDay} | ' + (dynamicMax < maxCount ? 'Available: $dynamicMax (${maxCount - dynamicMax} booked)' : 'Available: $maxCount'),
-                  count: currentCount,
-                  max: dynamicMax,
-                  onChanged: (val) => setState(() => _selectedRoleCounts[role] = val),
-                );
-              })
-            else ...[
-               _buildCounter(
-                 label: AppLocalizations.of(context)!.maleWorkers,
-                 subtitle: '₹${widget.priceMale} ${AppLocalizations.of(context)!.perDay} | ' + (_dynamicMaxMale < widget.maxMale ? 'Available: $_dynamicMaxMale (${widget.maxMale - _dynamicMaxMale} booked)' : '${AppLocalizations.of(context)!.available}: ${widget.maxMale}'),
-                 count: _maleCount,
-                 max: _dynamicMaxMale,
-                 onChanged: (val) => setState(() => _maleCount = val),
-               ),
-               _buildCounter(
-                 label: AppLocalizations.of(context)!.femaleWorkers,
-                 subtitle: '₹${widget.priceFemale} ${AppLocalizations.of(context)!.perDay} | ' + (_dynamicMaxFemale < widget.maxFemale ? 'Available: $_dynamicMaxFemale (${widget.maxFemale - _dynamicMaxFemale} booked)' : '${AppLocalizations.of(context)!.available}: ${widget.maxFemale}'),
-                 count: _femaleCount,
-                 max: _dynamicMaxFemale,
-                 onChanged: (val) => setState(() => _femaleCount = val),
-               ),
-            ],
-
-            const SizedBox(height: 32),
-
-            // Address Section
-            Text(
-              key: _addressSectionKey,
-              'Work Location Address',
-              style: TextStyle(
-                fontSize: 16, 
-                fontWeight: FontWeight.bold, 
-                color: _fieldErrors.containsKey('address') ? Colors.red : Colors.black87
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _addressController,
-              maxLines: 3,
-              onChanged: (_) {
-                if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
-              },
-              decoration: InputDecoration(
-                hintText: 'Enter farm address/location...',
-                suffixIcon: Padding(
-                  padding: const EdgeInsets.only(bottom: 40),
-                  child: _isFetchingLocation
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.my_location, color: Color(0xFF00AA55)),
-                        tooltip: 'Use my current location',
-                        onPressed: _fetchCurrentLocation,
-                      ),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: _fieldErrors.containsKey('address') ? Colors.red : const Color(0xFF00AA55), width: 2),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Date Selection
-            Text(
-              key: _dateSectionKey,
-              AppLocalizations.of(context)!.selectDate,
-              style: TextStyle(
-                fontSize: 16, 
-                fontWeight: FontWeight.bold, 
-                color: _fieldErrors.containsKey('date') ? Colors.red : Colors.black87
-              ),
-            ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () async {
-                await _selectDate(context);
-                if (_selectedDate != null && _fieldErrors.containsKey('date')) {
-                  setState(() => _fieldErrors.remove('date'));
-                }
-              },
+            // Booking Mode Section
+            _buildSectionCard(
+              title: 'Booking Mode',
+              icon: Icons.settings_suggest_rounded,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: _fieldErrors.containsKey('date') ? Colors.red : Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFF5F7F2),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.calendar_today, color: _selectedDate == null ? Colors.grey[400] : const Color(0xFF00AA55)),
-                    const SizedBox(width: 12),
-                    Text(
-                      _selectedDate == null 
-                          ? AppLocalizations.of(context)!.chooseDate 
-                          : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
-                        fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w500,
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () { 
+                           setState(() {
+                             _bookingMode = 'Daily';
+                             _selectedSlots.clear();
+                           });
+                           _recalculateAvailability();
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _bookingMode == 'Daily' ? const Color(0xFF00AA55) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: _bookingMode == 'Daily' ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Daily',
+                            style: TextStyle(
+                              color: _bookingMode == 'Daily' ? Colors.white : Colors.grey[600],
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    const Spacer(),
-                    Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () { 
+                           setState(() => _bookingMode = 'Hourly');
+                           _recalculateAvailability();
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _bookingMode == 'Hourly' ? const Color(0xFF00AA55) : Colors.transparent,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: _bookingMode == 'Hourly' ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))] : null,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Hourly',
+                            style: TextStyle(
+                              color: _bookingMode == 'Hourly' ? Colors.white : Colors.grey[600],
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 32),
-            if (_bookingMode == 'Daily') ...[
-              Text(
-                key: _dailyTimeSectionKey,
-                'Required Start Time',
-                style: TextStyle(
-                  fontSize: 16, 
-                  fontWeight: FontWeight.bold, 
-                  color: _fieldErrors.containsKey('dailyTime') ? Colors.red : Colors.black87
-                ),
-              ),
-              const SizedBox(height: 12),
-              GestureDetector(
-                onTap: () async {
-                  final TimeOfDay? picked = await showTimePicker(
-                    context: context,
-                    initialTime: _selectedStartTime ?? const TimeOfDay(hour: 8, minute: 0),
-                    builder: (context, child) {
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.light(
-                            primary: Color(0xFF00AA55),
-                            onPrimary: Colors.white,
-                            onSurface: Colors.black,
-                          ),
-                        ),
-                        child: child!,
-                      );
-                    },
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _selectedStartTime = picked;
-                      if (_fieldErrors.containsKey('dailyTime')) {
-                        _fieldErrors.remove('dailyTime');
-                      }
-                    });
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: _fieldErrors.containsKey('dailyTime') ? Colors.red : Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.access_time, color: _selectedStartTime == null ? Colors.grey[400] : const Color(0xFF00AA55)),
-                      const SizedBox(width: 12),
-                      Text(
-                        _selectedStartTime == null 
-                            ? 'Select preferred start time' 
-                            : _selectedStartTime!.format(context),
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: _selectedStartTime == null ? Colors.grey[500] : Colors.black87,
-                          fontWeight: _selectedStartTime == null ? FontWeight.normal : FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-            if (_bookingMode == 'Hourly') ...[
-              // Time Selection Slots
-              Text(
-                key: _timeSectionKey,
-                'Select Duration (Time Slots)',
-                style: TextStyle(
-                  fontSize: 16, 
-                  fontWeight: FontWeight.bold, 
-                  color: _fieldErrors.containsKey('slots') ? Colors.red : Colors.black87
-                ),
-              ),
-            if (_selectedDate == null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text('Select a date to view available time slots', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-              ),
-            const SizedBox(height: 12),
-            
-            if (_isLoadingBookings)
-              const Center(child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: CircularProgressIndicator(color: Color(0xFF00AA55)),
-              ))
-            else
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 2.5,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: _endHour - _startHour,
-                itemBuilder: (context, index) {
-                  final hour = _startHour + index;
-                  final isBlocked = _isSlotBlocked(hour);
-                  final isSelected = _selectedSlots.contains(hour);
 
-                  return GestureDetector(
-                    onTap: () {
-                      _onSlotTap(hour);
-                      if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) {
-                         setState(() => _fieldErrors.remove('slots'));
+            // Worker Selection Section
+            _buildSectionCard(
+              key: _workerSectionKey,
+              title: l10n.selectWorkers,
+              icon: Icons.person_add_rounded,
+              isError: _fieldErrors.containsKey('workers'),
+              child: Column(
+                children: [
+                  if (widget.roleDistribution.isNotEmpty)
+                    ...widget.roleDistribution.map((role) {
+                      final skill = _getSkillForRole(role);
+                      final gender = _getGenderForRole(role);
+                      final maxCount = _getMaxCountForRole(role);
+                      final dynamicMax = _dynamicMaxRoles[role] ?? maxCount;
+                      final currentCount = _selectedRoleCounts[role] ?? 0;
+                      final price = gender == 'Male' ? widget.priceMale : widget.priceFemale;
+
+                      return _buildCounter(
+                        label: skill,
+                        subtitle: '$gender | ₹$price ${l10n.perDay} | Available: $dynamicMax',
+                        count: currentCount,
+                        max: dynamicMax,
+                        onChanged: (val) => setState(() => _selectedRoleCounts[role] = val),
+                      );
+                    })
+                  else ...[
+                     _buildCounter(
+                       label: l10n.maleWorkers,
+                       subtitle: '₹${widget.priceMale} ${l10n.perDay} | ${l10n.available}: $_dynamicMaxMale',
+                       count: _maleCount,
+                       max: _dynamicMaxMale,
+                       onChanged: (val) => setState(() => _maleCount = val),
+                     ),
+                     _buildCounter(
+                       label: l10n.femaleWorkers,
+                       subtitle: '₹${widget.priceFemale} ${l10n.perDay} | ${l10n.available}: $_dynamicMaxFemale',
+                       count: _femaleCount,
+                       max: _dynamicMaxFemale,
+                       onChanged: (val) => setState(() => _femaleCount = val),
+                     ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Address Section
+            _buildSectionCard(
+              key: _addressSectionKey,
+              title: 'Work Location',
+              icon: Icons.location_on_rounded,
+              isError: _fieldErrors.containsKey('address'),
+              child: _buildTextField(
+                controller: _addressController,
+                label: 'Service Address',
+                hint: 'Enter farm address...',
+                maxLines: 3,
+                errorKey: 'address',
+                icon: Icons.map_rounded,
+                suffixIcon: _isFetchingLocation
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                      onPressed: _fetchCurrentLocation,
+                    ),
+              ),
+            ),
+
+            // Date & Time Section
+            _buildSectionCard(
+              key: _dateSectionKey,
+              title: 'Schedule',
+              icon: Icons.calendar_today_rounded,
+              isError: _fieldErrors.containsKey('date') || _fieldErrors.containsKey('slots') || _fieldErrors.containsKey('dailyTime'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Select Date', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () async {
+                      await _selectDate(context);
+                      if (_selectedDate != null && _fieldErrors.containsKey('date')) {
+                        setState(() => _fieldErrors.remove('date'));
                       }
                     },
                     child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       decoration: BoxDecoration(
-                        color: isBlocked 
-                            ? Colors.grey[200] 
-                            : isSelected ? const Color(0xFF00AA55) : Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: isBlocked 
-                              ? Colors.grey[300]! 
-                              : isSelected 
-                                  ? const Color(0xFF00AA55) 
-                                  : (_fieldErrors.containsKey('slots') ? Colors.red.withOpacity(0.5) : Colors.grey[300]!),
-                        ),
+                        color: const Color(0xFFF9FBF9),
+                        border: Border.all(color: _fieldErrors.containsKey('date') ? Colors.red : const Color(0xFFE8F5E9)),
+                        borderRadius: BorderRadius.circular(15),
                       ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        _formatTimeRange(hour),
-                        style: TextStyle(
-                          color: isBlocked 
-                              ? Colors.grey[400] 
-                              : isSelected ? Colors.white : Colors.black87,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 12,
-                          decoration: isBlocked ? TextDecoration.lineThrough : null,
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_month_rounded, size: 20, color: _selectedDate == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+                          const SizedBox(width: 12),
+                          Text(
+                            _selectedDate == null 
+                                ? l10n.chooseDate 
+                                : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
+                              fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  if (_bookingMode == 'Daily') ...[
+                    Text(
+                      'Preferred Start Time',
+                      key: _dailyTimeSectionKey,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                    ),
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: () async {
+                        final TimeOfDay? picked = await showTimePicker(
+                          context: context,
+                          initialTime: _selectedStartTime ?? const TimeOfDay(hour: 8, minute: 0),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.light(primary: Color(0xFF00AA55), onPrimary: Colors.white, onSurface: Colors.black),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _selectedStartTime = picked;
+                            if (_fieldErrors.containsKey('dailyTime')) _fieldErrors.remove('dailyTime');
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9FBF9),
+                          border: Border.all(color: _fieldErrors.containsKey('dailyTime') ? Colors.red : const Color(0xFFE8F5E9)),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.access_time_filled_rounded, size: 20, color: _selectedStartTime == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+                            const SizedBox(width: 12),
+                            Text(
+                              _selectedStartTime == null ? 'Select starting time' : _selectedStartTime!.format(context),
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: _selectedStartTime == null ? Colors.grey[500] : Colors.black87,
+                                fontWeight: _selectedStartTime == null ? FontWeight.normal : FontWeight.w600,
+                              ),
+                            ),
+                            const Spacer(),
+                            const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
+                          ],
                         ),
                       ),
                     ),
-                  );
-                },
+                  ],
+                  if (_bookingMode == 'Hourly') ...[
+                    Text(
+                      'Select Time Slots',
+                      key: _timeSectionKey,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                    ),
+                    if (_selectedDate == null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 2),
+                        child: Text('Please select a date first', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
+                      )
+                    else ...[
+                      const SizedBox(height: 16),
+                      if (_isLoadingBookings)
+                        const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Color(0xFF00AA55))))
+                      else
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3, 
+                            childAspectRatio: 2.2, 
+                            crossAxisSpacing: 10, 
+                            mainAxisSpacing: 10,
+                          ),
+                          itemCount: _endHour - _startHour,
+                          itemBuilder: (context, index) {
+                            final hour = _startHour + index;
+                            final isBlocked = _isSlotBlocked(hour);
+                            final isSelected = _selectedSlots.contains(hour);
+
+                            return InkWell(
+                              onTap: () {
+                                _onSlotTap(hour);
+                                if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) setState(() => _fieldErrors.remove('slots'));
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                decoration: BoxDecoration(
+                                  color: isBlocked ? Colors.grey[100] : (isSelected ? const Color(0xFF00AA55) : Colors.white),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9)),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8)] : null,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  _formatTimeRange(hour),
+                                  style: TextStyle(
+                                    color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
+                                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                    fontSize: 11,
+                                    decoration: isBlocked ? TextDecoration.lineThrough : null,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ],
+                ],
               ),
-            ],
+            ),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 12),
 
-            // Footer / Total
+            // Footer Total Card
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey[200]!),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 30, offset: const Offset(0, 10)),
+                ],
               ),
               child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('${AppLocalizations.of(context)!.totalEstimate}:', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                      Text(l10n.totalEstimate, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF546E7A))),
                       Text(
                         '₹$_totalPrice',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF00AA55)),
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
+                  const SizedBox(height: 24),
+                  Container(
                     width: double.infinity,
-                    height: 50,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                      ],
+                    ),
                     child: ElevatedButton(
                       onPressed: _isSubmitting ? null : _confirmBooking,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF00AA55),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey[300],
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        elevation: 0,
                       ),
                       child: _isSubmitting
-                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
                         : Text(
-                            AppLocalizations.of(context)!.confirmBooking,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                            l10n.confirmBooking,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5),
                           ),
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -1078,14 +1057,93 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   }
 
 
-  Widget _buildCounter({required String label, required int count, required int max, required Function(int) onChanged, String? subtitle}) {
+  Widget _buildSectionCard({required String title, required IconData icon, required Widget child, GlobalKey? key, bool isError = false}) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
+      key: key,
+      margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 4)),
+        ],
+        border: isError ? Border.all(color: Colors.red.withOpacity(0.5), width: 1.5) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: const Color(0xFF00AA55)),
+                const SizedBox(width: 12),
+                Text(
+                  title.toUpperCase(),
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: 1.2),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: child,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required String errorKey,
+    required IconData icon,
+    int maxLines = 1,
+    Widget? suffixIcon,
+  }) {
+    final bool hasError = _fieldErrors.containsKey(errorKey);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          onChanged: (_) {
+            if (hasError) setState(() => _fieldErrors.remove(errorKey));
+          },
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
+            prefixIcon: Icon(icon, color: hasError ? Colors.red : const Color(0xFF00AA55), size: 20),
+            suffixIcon: suffixIcon,
+            filled: true,
+            fillColor: const Color(0xFFF9FBF9),
+            contentPadding: const EdgeInsets.all(16),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide(color: hasError ? Colors.red.withOpacity(0.5) : Colors.transparent),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCounter({required String label, required int count, required int max, required Function(int) onChanged, String? subtitle}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FBF9),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
@@ -1093,24 +1151,27 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                Text(label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B5E20))),
                 if (subtitle != null)
-                   Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                   Padding(
+                     padding: const EdgeInsets.only(top: 4.0),
+                     child: Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w600)),
+                   ),
               ],
             ),
           ),
           Row(
             children: [
-              _buildIconButton(Icons.remove, () => onChanged(count - 1), isDisabled: count <= 0),
-              SizedBox(
-                width: 40,
+              _buildIconButton(Icons.remove_rounded, () => onChanged(count - 1), isDisabled: count <= 0),
+              Container(
+                width: 44,
+                alignment: Alignment.center,
                 child: Text(
                   '$count',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
                 ),
               ),
-              _buildIconButton(Icons.add, () => onChanged(count + 1), isDisabled: count >= max),
+              _buildIconButton(Icons.add_rounded, () => onChanged(count + 1), isDisabled: count >= max),
             ],
           ),
         ],
@@ -1119,17 +1180,17 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   }
 
   Widget _buildIconButton(IconData icon, VoidCallback onPressed, {bool isDisabled = false}) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: isDisabled ? Colors.grey[200] : const Color(0xFFE8F5E9),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        icon: Icon(icon, size: 18, color: isDisabled ? Colors.grey : const Color(0xFF00AA55)),
-        onPressed: isDisabled ? null : onPressed,
+    return InkWell(
+      onTap: isDisabled ? null : onPressed,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: isDisabled ? Colors.grey[100] : const Color(0xFF00AA55).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, size: 20, color: isDisabled ? Colors.grey[400] : const Color(0xFF00AA55)),
       ),
     );
   }

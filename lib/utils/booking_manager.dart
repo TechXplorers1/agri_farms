@@ -14,12 +14,12 @@ enum BookingCategory {
 
 class BookingDetails {
   final String id;
-  final String title;
-  final String date;
-  final String price;
-  final String status;
+  String title;
+  String date;
+  String price;
+  String status;
   final BookingCategory category;
-  final Map<String, dynamic> details;
+  Map<String, dynamic> details;
   final String? providerId;
   final String? farmerId;
   final DateTime rawBookingDate;
@@ -158,6 +158,10 @@ class BookingManager extends ChangeNotifier {
   
   void clearBookings() {
     _bookings.clear();
+    notifyListeners();
+  }
+
+  void forceRefresh() {
     notifyListeners();
   }
 

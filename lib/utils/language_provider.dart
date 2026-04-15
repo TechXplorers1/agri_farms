@@ -5,6 +5,7 @@ class LanguageProvider extends ChangeNotifier {
   Locale _locale = const Locale('en');
 
   Locale get locale => _locale;
+  String get languageCode => _locale.languageCode;
 
   // Constructor
   LanguageProvider({String? initialLanguage}) {

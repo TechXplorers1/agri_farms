@@ -474,52 +474,80 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
-        title: Text(_getScreenTitle()),
-        surfaceTintColor: Colors.white,
+        title: Text(_getScreenTitle(), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20))),
+        surfaceTintColor: Colors.transparent,
         backgroundColor: Colors.white,
+        centerTitle: true,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Photo Upload Placeholder
-            GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                height: 180,
-                width: double.infinity,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[300]!, style: BorderStyle.solid),
+            // Photo Upload Section Card
+            _buildSectionCard(
+              title: AppLocalizations.of(context)!.addPhotos,
+              icon: Icons.camera_alt_rounded,
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 180,
+                  width: double.infinity,
+                  clipBehavior: Clip.antiAlias,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F8F1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE8F5E9), width: 2),
+                  ),
+                  child: _selectedImage != null 
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          kIsWeb 
+                            ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
+                            : Image.file(File(_selectedImage!.path), fit: BoxFit.cover),
+                          Container(
+                             color: Colors.black38,
+                             alignment: Alignment.center,
+                             child: const Column(
+                               mainAxisAlignment: MainAxisAlignment.center,
+                               children: [
+                                 Icon(Icons.edit_rounded, color: Colors.white, size: 32),
+                                 SizedBox(height: 8),
+                                 Text('Change Photo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                               ],
+                             ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                           Container(
+                             padding: const EdgeInsets.all(16),
+                             decoration: BoxDecoration(
+                               color: Colors.white,
+                               shape: BoxShape.circle,
+                               boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.1), blurRadius: 10)],
+                             ),
+                             child: const Icon(Icons.add_a_photo_rounded, size: 40, color: Color(0xFF00AA55)),
+                           ),
+                           const SizedBox(height: 16),
+                           Text(
+                             'Click to upload high quality photos', 
+                             style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500, fontSize: 13),
+                           ),
+                        ],
+                      ),
                 ),
-                child: _selectedImage != null 
-                  ? Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        kIsWeb 
-                          ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
-                          : Image.file(File(_selectedImage!.path), fit: BoxFit.cover),
-                        Container(
-                           color: Colors.black26,
-                           alignment: Alignment.center,
-                           child: const Icon(Icons.edit, color: Colors.white, size: 30),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                         Icon(Icons.add_a_photo, size: 40, color: Colors.grey[400]),
-                         const SizedBox(height: 8),
-                         Text(AppLocalizations.of(context)!.addPhotos, style: TextStyle(color: Colors.grey[600])),
-                      ],
-                    ),
               ),
             ),
             const SizedBox(height: 24),
@@ -530,37 +558,65 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             if (!['Farm Workers', 'Transport', 'Equipment'].contains(widget.category)) _buildServicesForm(),
 
             if (!(widget.category == 'Farm Workers' || (widget.category == 'Services' && _selectedServiceType == 'Farm Workers'))) ...[
-              const SizedBox(height: 24),
-               _buildTextField(
-                 AppLocalizations.of(context)!.locationLabel, 
-                 _locationController, 
-                 'e.g. Rampur, Nagpur',
-                 suffixIcon: _isFetchingLocation 
-                   ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
-                   : IconButton(
-                       icon: const Icon(Icons.my_location, color: Color(0xFF00AA55)),
-                       onPressed: _fetchCurrentLocation,
-                     ),
+               _buildSectionCard(
+                 title: 'Extra Details', 
+                 icon: Icons.info_outline_rounded,
+                 child: Column(
+                   children: [
+                      _buildTextField(
+                        AppLocalizations.of(context)!.locationLabel, 
+                        _locationController, 
+                        'e.g. Rampur, Nagpur',
+                        icon: Icons.location_on_rounded,
+                        suffixIcon: _isFetchingLocation 
+                          ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
+                          : IconButton(
+                              icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                              onPressed: _fetchCurrentLocation,
+                            ),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildTextField(
+                        AppLocalizations.of(context)!.descriptionLabel, 
+                        _descriptionController, 
+                        'Any extra info...', 
+                        icon: Icons.description_rounded,
+                        maxLines: 3,
+                      ),
+                   ],
+                 ),
                ),
-              const SizedBox(height: 16),
-               _buildTextField(AppLocalizations.of(context)!.descriptionLabel, _descriptionController, 'Any extra info...', maxLines: 3),
             ],
 
             const SizedBox(height: 40),
-            SizedBox(
+            Container(
               width: double.infinity,
-              height: 50,
+              height: 60,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF00AA55).withOpacity(0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00AA55),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  elevation: 0,
                 ),
                 child: _isSubmitting 
-                  ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)))
-                  : Text(AppLocalizations.of(context)!.submitListing, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3)))
+                  : Text(AppLocalizations.of(context)!.submitListing, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
               ),
             ),
+            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -570,142 +626,166 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   // --- FORMS ---
 
   Widget _buildFarmWorkerForm() {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle(AppLocalizations.of(context)!.groupDetails),
-        const SizedBox(height: 12),
-        _buildTextField('Group Name / Leader Name', _nameController, AppLocalizations.of(context)!.groupNameHint, errorKey: 'name'),
-        const SizedBox(height: 16),
+        _buildSectionCard(
+          title: 'Group Identity',
+          icon: Icons.groups_rounded,
+          child: _buildTextField(
+            'Group Name / Leader Name', 
+            _nameController, 
+            l10n.groupNameHint, 
+            errorKey: 'name',
+            icon: Icons.badge_rounded,
+          ),
+        ),
         
-        // Skills selection removed as per request. Skills are now derived from Role Distribution.
+        _buildSectionCard(
+          title: 'Staffing & Wages',
+          icon: Icons.payments_rounded,
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _buildTextField(l10n.maleWorkers, _maleCountController, 'Count', keyboardType: TextInputType.number, errorKey: 'maleCount', icon: Icons.male_rounded)),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildTextField(l10n.priceMale, _malePriceController, l10n.dailyWage, keyboardType: TextInputType.number, errorKey: 'malePrice', icon: Icons.currency_rupee_rounded)),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                 children: [
+                  Expanded(child: _buildTextField(l10n.femaleWorkers, _femaleCountController, 'Count', keyboardType: TextInputType.number, errorKey: 'femaleCount', icon: Icons.female_rounded)),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildTextField(l10n.priceFemale, _femalePriceController, l10n.dailyWage, keyboardType: TextInputType.number, errorKey: 'femalePrice', icon: Icons.currency_rupee_rounded)),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(child: _buildTextField('Hourly Rate (Male)', _malePriceHourlyController, 'e.g. 50/hr', keyboardType: TextInputType.number, errorKey: 'malePriceHourly')),
+                  const SizedBox(width: 16),
+                   Expanded(child: _buildTextField('Hourly Rate (Female)', _femalePriceHourlyController, 'e.g. 40/hr', keyboardType: TextInputType.number, errorKey: 'femalePriceHourly')),
+                ],
+              ),
+            ],
+          ),
+        ),
 
-        const SizedBox(height: 20),
-        
-        _buildSectionTitle(AppLocalizations.of(context)!.staffPricing),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: _buildTextField(AppLocalizations.of(context)!.maleWorkers, _maleCountController, 'Count', keyboardType: TextInputType.number, errorKey: 'maleCount')),
-            const SizedBox(width: 16),
-             Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceMale, _malePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number, errorKey: 'malePrice')),
-          ],
+        _buildSectionCard(
+          title: 'Role Allocation',
+          icon: Icons.assignment_ind_rounded,
+          child: _buildRoleDistributionForm(),
         ),
-        const SizedBox(height: 16),
-        Row(
-           children: [
-            Expanded(child: _buildTextField(AppLocalizations.of(context)!.femaleWorkers, _femaleCountController, 'Count', keyboardType: TextInputType.number, errorKey: 'femaleCount')),
-            const SizedBox(width: 16),
-            Expanded(child: _buildTextField(AppLocalizations.of(context)!.priceFemale, _femalePriceController, AppLocalizations.of(context)!.dailyWage, keyboardType: TextInputType.number, errorKey: 'femalePrice')),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(child: _buildTextField('Hourly Rate (Male)', _malePriceHourlyController, 'e.g. 50/hr', keyboardType: TextInputType.number, errorKey: 'malePriceHourly')),
-            const SizedBox(width: 16),
-             Expanded(child: _buildTextField('Hourly Rate (Female)', _femalePriceHourlyController, 'e.g. 40/hr', keyboardType: TextInputType.number, errorKey: 'femalePriceHourly')),
-          ],
-        ),
-        _buildRoleDistributionForm(),
       ],
     );
   }
 
 
   Widget _buildTransportForm() {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle(AppLocalizations.of(context)!.vehicleDetails),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          value: _selectedTransportType,
-          decoration: _inputDecoration(AppLocalizations.of(context)!.vehicleType),
-          items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-          onChanged: (v) {
-            setState(() {
-              _selectedTransportType = v;
-              _selectedVehicleMake = null;
-              _selectedVehicleModel = null;
-              // we don't clear name as user might have typed custom title
-            });
-          },
-        ),
-        const SizedBox(height: 16),
-        
-        // MAKE & MODEL SELECTION
-        Builder(
-          builder: (context) {
-             List<String> makes = [];
-             if (_selectedTransportType != null) {
-               makes = VehicleData.getMakes(_selectedTransportType!);
-             }
-             
-             List<String> models = [];
-             if (_selectedTransportType != null && _selectedVehicleMake != null) {
-               models = VehicleData.getModels(_selectedTransportType!, _selectedVehicleMake!);
-             }
-             
-             return Column(
-               children: [
-                 if (makes.isNotEmpty) ...[
-                    DropdownButtonFormField<String>(
-                      value: _selectedVehicleMake,
-                      decoration: _inputDecoration('Select Make'),
-                      items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                      onChanged: (v) {
-                        setState(() {
-                          _selectedVehicleMake = v;
-                          _selectedVehicleModel = null;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                 ],
-                 if (models.isNotEmpty) ...[
-                    DropdownButtonFormField<String>(
-                      value: _selectedVehicleModel,
-                      decoration: _inputDecoration('Select Model'),
-                      items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                      onChanged: (v) {
-                        setState(() {
-                          _selectedVehicleModel = v;
-                          if (v != 'Other' && _selectedVehicleMake != null) {
-                             _nameController.text = "${_selectedVehicleMake} $v";
-                          }
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                 ],
-               ],
-             );
-          }
+        _buildSectionCard(
+          title: l10n.vehicleDetails,
+          icon: Icons.local_shipping_rounded,
+          child: Column(
+            children: [
+              DropdownButtonFormField<String>(
+                value: _selectedTransportType,
+                decoration: _inputDecoration(l10n.vehicleType, icon: Icons.category_rounded),
+                items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                onChanged: (v) {
+                  setState(() {
+                    _selectedTransportType = v;
+                    _selectedVehicleMake = null;
+                    _selectedVehicleModel = null;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              
+              // MAKE & MODEL SELECTION
+              Builder(
+                builder: (context) {
+                   List<String> makes = [];
+                   if (_selectedTransportType != null) {
+                     makes = VehicleData.getMakes(_selectedTransportType!);
+                   }
+                   
+                   List<String> models = [];
+                   if (_selectedTransportType != null && _selectedVehicleMake != null) {
+                     models = VehicleData.getModels(_selectedTransportType!, _selectedVehicleMake!);
+                   }
+                   
+                   return Column(
+                     children: [
+                       if (makes.isNotEmpty) ...[
+                          DropdownButtonFormField<String>(
+                            value: _selectedVehicleMake,
+                            decoration: _inputDecoration('Select Make', icon: Icons.branding_watermark_rounded),
+                            items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                            onChanged: (v) {
+                              setState(() {
+                                _selectedVehicleMake = v;
+                                _selectedVehicleModel = null;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                       ],
+                       if (models.isNotEmpty) ...[
+                          DropdownButtonFormField<String>(
+                            value: _selectedVehicleModel,
+                            decoration: _inputDecoration('Select Model', icon: Icons.model_training_rounded),
+                            items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                            onChanged: (v) {
+                              setState(() {
+                                _selectedVehicleModel = v;
+                                if (v != 'Other' && _selectedVehicleMake != null) {
+                                   _nameController.text = "${_selectedVehicleMake} $v";
+                                }
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                       ],
+                     ],
+                   );
+                }
+              ),
+
+              _buildTextField('Vehicle Name / Title', _nameController, l10n.vehicleNameHint, errorKey: 'name', icon: Icons.title_rounded),
+              const SizedBox(height: 16),
+              _buildTextField(l10n.vehicleNumber, _vehicleNumberController, 'e.g. MH 40 AB 1234', errorKey: 'number', icon: Icons.numbers_rounded),
+              const SizedBox(height: 16),
+              _buildTextField(l10n.loadCapacity, _capacityController, 'e.g. 1.5 Ton', errorKey: 'capacity', icon: Icons.line_weight_rounded),
+              const SizedBox(height: 16),
+              _buildTextField(l10n.serviceArea, _serviceAreaController, 'e.g. Within 50km', icon: Icons.map_rounded),
+            ],
+          ),
         ),
 
-        _buildTextField('Vehicle Name / Title', _nameController, AppLocalizations.of(context)!.vehicleNameHint, errorKey: 'name'),
-        const SizedBox(height: 16),
-        _buildTextField(AppLocalizations.of(context)!.vehicleNumber, _vehicleNumberController, 'e.g. MH 40 AB 1234', errorKey: 'number'),
-        const SizedBox(height: 16),
-        _buildTextField(AppLocalizations.of(context)!.loadCapacity, _capacityController, 'e.g. 1.5 Ton', errorKey: 'capacity'),
-        const SizedBox(height: 16),
-        _buildTextField(AppLocalizations.of(context)!.serviceArea, _serviceAreaController, 'e.g. Within 50km or specific districts'),
-        
-        const SizedBox(height: 20),
-        _buildSectionTitle(AppLocalizations.of(context)!.pricingAvailability),
-        const SizedBox(height: 12),
-        _buildTextField(AppLocalizations.of(context)!.priceLabel, _priceController, 'e.g. ₹20/km or ₹1000/trip', keyboardType: TextInputType.text, errorKey: 'price'),
-        
-        const SizedBox(height: 20),
-        _buildSectionTitle(AppLocalizations.of(context)!.options),
-        CheckboxListTile(
-          title: Text(AppLocalizations.of(context)!.driverIncluded),
-          value: _driverIncluded,
-          onChanged: (v) => setState(() => _driverIncluded = v!),
-          controlAffinity: ListTileControlAffinity.leading,
-          contentPadding: EdgeInsets.zero,
-           activeColor: const Color(0xFF00AA55),
+        _buildSectionCard(
+          title: 'Pricing & Options',
+          icon: Icons.sell_rounded,
+          child: Column(
+            children: [
+              _buildTextField(l10n.priceLabel, _priceController, 'e.g. ₹20/km or ₹1000/trip', keyboardType: TextInputType.text, errorKey: 'price', icon: Icons.payments_rounded),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                title: Text(l10n.driverIncluded, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                value: _driverIncluded,
+                onChanged: (v) => setState(() => _driverIncluded = v!),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+                activeColor: const Color(0xFF00AA55),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -848,59 +928,79 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Service Details'),
-        const SizedBox(height: 12),
-        // If category is generic 'Services', show dropdown
-        if (widget.category == 'Services') 
-           DropdownButtonFormField<String>(
-             value: null, 
-             decoration: _inputDecoration('Select Service Type'),
-             items: _serviceCategories.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-             onChanged: (val) {
-                setState(() => _selectedServiceType = val);
-             },
-           )
-        else
-           Text('Service Type: ${widget.category}', style: const TextStyle(fontSize: 14, color: Colors.grey)), 
-        
-        // If Farm Workers is selected, show Farm Workers form instead of generic service form
-        if (_selectedServiceType == 'Farm Workers') ...[
-           const SizedBox(height: 24),
-           _buildFarmWorkerForm(),
-        ] else ...[
-           const SizedBox(height: 16),
-           _buildTextField('Provider Name / Business Name', _nameController, 'e.g. Ramesh Services', errorKey: 'name'),
-           const SizedBox(height: 16),
-           _buildTextField('Equipment Used', _equipmentUsedController, 'e.g. John Deere Tractor + Plough'),
-           
-           const SizedBox(height: 20),
-           _buildSectionTitle('Pricing & Terms'),
-           const SizedBox(height: 12),
-           _buildTextField(
-             'Price / Rate', 
-             _priceController, 
-             (_selectedServiceType == 'Electricians' || _selectedServiceType == 'Vet Care' || _selectedServiceType == 'Mechanics') 
-               ? 'e.g. ₹200 / visit' 
-               : (_selectedServiceType == 'Harvesting' || _selectedServiceType == 'Drone Spraying' || widget.category == 'Harvesting')
-                 ? 'e.g. ₹2000 / hour'
-                 : 'e.g. ₹1200 / acre', 
-             errorKey: 'price'
-           ),
-           
-           const SizedBox(height: 20),
-           SwitchListTile(
-             title: const Text('Operator Included?'),
-             value: _operatorIncludedService,
-             onChanged: (v) => setState(() => _operatorIncludedService = v),
-             activeColor: const Color(0xFF00AA55),
-             contentPadding: EdgeInsets.zero,
-           ),
-        ],
+        _buildSectionCard(
+          title: 'Service Scope',
+          icon: Icons.work_rounded,
+          child: Column(
+            children: [
+              // If category is generic 'Services', show dropdown
+              if (widget.category == 'Services') 
+                 DropdownButtonFormField<String>(
+                   value: null, 
+                   decoration: _inputDecoration('Select Service Type', icon: Icons.category_rounded),
+                   items: _serviceCategories.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                   onChanged: (val) {
+                      setState(() => _selectedServiceType = val);
+                   },
+                 )
+              else
+                 Row(
+                   children: [
+                     const Icon(Icons.check_circle_rounded, color: Color(0xFF00AA55), size: 18),
+                     const SizedBox(width: 8),
+                     Text('Category: ${widget.category}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1B5E20))),
+                   ],
+                 ), 
+              
+              // If Farm Workers is selected, show Farm Workers form instead of generic service form
+              if (_selectedServiceType == 'Farm Workers') ...[
+                 const SizedBox(height: 24),
+                 _buildFarmWorkerForm(),
+              ] else ...[
+                 const SizedBox(height: 20),
+                 _buildTextField('Provider / Business Name', _nameController, 'e.g. Ramesh Services', errorKey: 'name', icon: Icons.business_rounded),
+                 const SizedBox(height: 20),
+                 _buildTextField('Equipment Used', _equipmentUsedController, 'e.g. John Deere Tractor + Plough', icon: Icons.handyman_rounded),
+              ],
+            ],
+          ),
+        ),
+
+        if (_selectedServiceType != 'Farm Workers')
+          _buildSectionCard(
+            title: 'Pricing & Details',
+            icon: Icons.sell_rounded,
+            child: Column(
+              children: [
+                _buildTextField(
+                  'Your Rate', 
+                  _priceController, 
+                  (_selectedServiceType == 'Electricians' || _selectedServiceType == 'Vet Care' || _selectedServiceType == 'Mechanics') 
+                    ? 'e.g. ₹200 / visit' 
+                    : (_selectedServiceType == 'Harvesting' || _selectedServiceType == 'Drone Spraying' || widget.category == 'Harvesting')
+                      ? 'e.g. ₹2000 / hour'
+                      : 'e.g. ₹1200 / acre', 
+                  errorKey: 'price',
+                  icon: Icons.payments_rounded,
+                ),
+                
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  title: const Text('Operator Included?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  value: _operatorIncludedService,
+                  onChanged: (v) => setState(() => _operatorIncludedService = v),
+                  activeColor: const Color(0xFF00AA55),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildEquipmentForm() {
+    final l10n = AppLocalizations.of(context)!;
     List<String> makes = [];
     if (_selectedEquipmentType != null) {
       makes = VehicleData.getMakes(_selectedEquipmentType!);
@@ -917,89 +1017,101 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle(AppLocalizations.of(context)!.equipmentInfo),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<String>(
-          value: _selectedEquipmentType,
-          decoration: _inputDecoration('Category'),
-          items: _equipmentCategories.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-          onChanged: (v) {
-            setState(() {
-              _selectedEquipmentType = v;
-              _selectedMake = null;
-              _selectedModel = null;
-              _brandModelController.clear();
-            });
-          },
-        ),
-        const SizedBox(height: 16),
-         _buildTextField('Owner Name / Business', _nameController, AppLocalizations.of(context)!.ownerNameHint),
-        const SizedBox(height: 16),
+        _buildSectionCard(
+          title: l10n.equipmentInfo,
+          icon: Icons.settings_rounded,
+          child: Column(
+            children: [
+              DropdownButtonFormField<String>(
+                value: _selectedEquipmentType,
+                decoration: _inputDecoration('Category', icon: Icons.category_rounded),
+                items: _equipmentCategories.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                onChanged: (v) {
+                  setState(() {
+                    _selectedEquipmentType = v;
+                    _selectedMake = null;
+                    _selectedModel = null;
+                    _brandModelController.clear();
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              _buildTextField('Owner / Business Name', _nameController, l10n.ownerNameHint, icon: Icons.person_rounded),
+              const SizedBox(height: 20),
+              
+              // MAKE SELECTION
+              if (makes.isNotEmpty) ...[
+                DropdownButtonFormField<String>(
+                  value: _selectedMake,
+                  decoration: _inputDecoration('Select Make', icon: Icons.branding_watermark_rounded),
+                  items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                  onChanged: (v) {
+                    setState(() {
+                      _selectedMake = v;
+                      _selectedModel = null;
+                      _brandModelController.clear();
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
 
-        // MAKE SELECTION
-        if (makes.isNotEmpty) ...[
-          DropdownButtonFormField<String>(
-            value: _selectedMake,
-            decoration: _inputDecoration('Select Make'),
-            items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-            onChanged: (v) {
-              setState(() {
-                _selectedMake = v;
-                _selectedModel = null;
-                _brandModelController.clear();
-              });
-            },
+              // MODEL SELECTION
+              if (models.isNotEmpty) ...[
+                DropdownButtonFormField<String>(
+                  value: _selectedModel,
+                  decoration: _inputDecoration('Select Model', icon: Icons.model_training_rounded),
+                  items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                  onChanged: (v) {
+                    setState(() {
+                      _selectedModel = v;
+                      if (v != 'Other') {
+                         _brandModelController.text = "${_selectedMake} $v"; 
+                      } else {
+                         _brandModelController.clear();
+                      }
+                    });
+                  },
+                ),
+                 const SizedBox(height: 16),
+              ],
+              
+              // Manual Entry Fallback
+              if (showManualMake || showManualModel) 
+                 _buildTextField(l10n.brandModel, _brandModelController, 'e.g. John Deere 5310', icon: Icons.edit_note_rounded),
+
+              if (showManualMake || showManualModel) 
+                 const SizedBox(height: 20),
+
+              _buildTextField(l10n.yearManufacture, _yearController, 'e.g. 2021', keyboardType: TextInputType.number, icon: Icons.calendar_today_rounded),
+            ],
           ),
-          const SizedBox(height: 16),
-        ],
-
-        // MODEL SELECTION
-        if (models.isNotEmpty) ...[
-          DropdownButtonFormField<String>(
-            value: _selectedModel,
-            decoration: _inputDecoration('Select Model'),
-            items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-            onChanged: (v) {
-              setState(() {
-                _selectedModel = v;
-                if (v != 'Other') {
-                   // If not other, we set the manual controller to this value for submission logic compatibility
-                   _brandModelController.text = "${_selectedMake} $v"; 
-                } else {
-                   _brandModelController.clear();
-                }
-              });
-            },
-          ),
-           const SizedBox(height: 16),
-        ],
-        
-        // Manual Entry Fallback
-        if (showManualMake || showManualModel) 
-           _buildTextField(AppLocalizations.of(context)!.brandModel, _brandModelController, 'e.g. John Deere 5310'),
-
-        if (showManualMake || showManualModel) 
-           const SizedBox(height: 16),
-
-        _buildTextField(AppLocalizations.of(context)!.yearManufacture, _yearController, 'e.g. 2021', keyboardType: TextInputType.number),
-        const SizedBox(height: 16),
-        _buildTextField(AppLocalizations.of(context)!.rentalPrice, _priceController, 'e.g. ₹500 / hour'),
-        const SizedBox(height: 16),
-        DropdownButtonFormField<String>(
-          value: _condition,
-          decoration: _inputDecoration(AppLocalizations.of(context)!.condition),
-          items: _conditions.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-          onChanged: (v) => setState(() => _condition = v!),
         ),
 
-        const SizedBox(height: 20),
-        SwitchListTile(
-          title: Text(AppLocalizations.of(context)!.operatorAvailable),
-          subtitle: Text(AppLocalizations.of(context)!.operatorAvailableSubtitle),
-          value: _operatorAvailable,
-          onChanged: (v) => setState(() => _operatorAvailable = v),
-          activeColor: const Color(0xFF00AA55),
-          contentPadding: EdgeInsets.zero,
+        _buildSectionCard(
+          title: 'Rental Terms & Condition',
+          icon: Icons.fact_check_rounded,
+          child: Column(
+            children: [
+              _buildTextField(l10n.rentalPrice, _priceController, 'e.g. ₹500 / hour', icon: Icons.payments_rounded),
+              const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                value: _condition,
+                decoration: _inputDecoration(l10n.condition, icon: Icons.info_outline_rounded),
+                items: _conditions.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                onChanged: (v) => setState(() => _condition = v!),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                title: Text(l10n.operatorAvailable, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                subtitle: Text(l10n.operatorAvailableSubtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                value: _operatorAvailable,
+                onChanged: (v) => setState(() => _operatorAvailable = v),
+                activeColor: const Color(0xFF00AA55),
+                contentPadding: EdgeInsets.zero,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1007,14 +1119,49 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   // --- HELPERS ---
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+  Widget _buildSectionCard({required String title, required IconData icon, required Widget child}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: const Color(0xFF00AA55)),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          child,
+        ],
+      ),
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey, Widget? suffixIcon}) {
+  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey, Widget? suffixIcon, IconData? icon}) {
     bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1022,12 +1169,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         Text(
           label,
           style: TextStyle(
-            fontSize: 14, 
-            fontWeight: FontWeight.w500, 
-            color: hasError ? Colors.red : Colors.black87
+            fontSize: 13, 
+            fontWeight: FontWeight.w700, 
+            color: hasError ? Colors.red : const Color(0xFF2C3E50),
+            letterSpacing: 0.2,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         TextField(
           controller: controller,
           maxLines: maxLines,
@@ -1035,35 +1183,38 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           onChanged: (_) {
             if (hasError) setState(() => _fieldErrors.remove(errorKey));
           },
-          decoration: _inputDecoration(hint, isError: hasError).copyWith(suffixIcon: suffixIcon),
+          decoration: _inputDecoration(hint, isError: hasError, icon: icon).copyWith(suffixIcon: suffixIcon),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
         ),
         if (hasError && _fieldErrors[errorKey] != null)
            Padding(
-             padding: const EdgeInsets.only(top: 4.0),
-             child: Text(_fieldErrors[errorKey]!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+             padding: const EdgeInsets.only(top: 6.0, left: 4),
+             child: Text(_fieldErrors[errorKey]!, style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500)),
            ),
       ],
     );
   }
 
-  InputDecoration _inputDecoration(String hint, {bool isError = false}) {
+  InputDecoration _inputDecoration(String hint, {bool isError = false, IconData? icon}) {
     return InputDecoration(
       hintText: hint,
+      prefixIcon: icon != null ? Icon(icon, size: 20, color: const Color(0xFF00AA55)) : null,
       hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: isError ? Colors.red : Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: isError ? Colors.red : const Color(0xFFE8F5E9)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: isError ? Colors.red : const Color(0xFFE8F5E9)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFF00AA55)),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
       ),
       filled: true,
-      fillColor: Colors.grey[50],
+      fillColor: const Color(0xFFF9FBF9),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
   // Multi-select skills
@@ -1279,5 +1430,19 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 ),
           ],
       );
+  }
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w900,
+          color: Color(0xFF1B5E20),
+          letterSpacing: -0.5,
+        ),
+      ),
+    );
   }
 }
