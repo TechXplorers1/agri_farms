@@ -198,6 +198,28 @@ class NotificationService {
     }
   }
 
+  Future<void> clearFCMToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('user_id');
+
+    if (userId == null || userId.isEmpty) {
+      return;
+    }
+
+    try {
+      final response = await http.put(
+        Uri.parse('$_backendUrl/$userId/fcm-token'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'fcmToken': ''}), // Empty string to clear it
+      );
+      if (response.statusCode == 200) {
+        print('FCM token forcefully cleared in backend for user $userId');
+      }
+    } catch (e) {
+      print('Error clearing FCM token: $e');
+    }
+  }
+
   Future<void> _saveTokenToBackend(String token) async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('user_id');

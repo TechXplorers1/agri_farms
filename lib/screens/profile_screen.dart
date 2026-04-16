@@ -17,6 +17,8 @@ import 'provider/provider_requests_screen.dart';
 import 'manage_items_screen.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../utils/ui_utils.dart';
+import '../services/notification_service.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -215,6 +217,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: TextButton.icon(
                 onPressed: () async {
+                  await NotificationService().clearFCMToken();
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.clear();
                   if (context.mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const AuthScreen()), (route) => false);
