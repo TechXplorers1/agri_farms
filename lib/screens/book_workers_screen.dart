@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/booking_manager.dart'; // Import BookingManager
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -209,9 +209,9 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.05),
+                color: Colors.green.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.withOpacity(0.2)),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
@@ -299,7 +299,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
             const SizedBox(height: 32),
 
             // Address Section
-            const Text(
+            Text(
               'Work Location Address',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
             ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:agriculture/l10n/app_localizations.dart';
 
 import 'upload_item_screen.dart';
 import 'book_workers_screen.dart';
@@ -60,6 +60,10 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         builder: (context, _) {
           final allProviders = ProviderManager().getProvidersByService(widget.serviceKey);
           
+          if (ProviderManager().isLoading) {
+             return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
+          }
+
           // --- Filter Logic ---
           // 1. Get Unique Locations from current providers
           final uniqueLocations = allProviders

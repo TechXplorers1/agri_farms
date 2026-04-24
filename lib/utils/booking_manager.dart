@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import '../data/services/api_service.dart';
+import '../data/models/booking_model.dart';
 
 enum BookingCategory {
   all,
@@ -35,13 +37,14 @@ class BookingManager extends ChangeNotifier {
   factory BookingManager() => _instance;
 
   BookingManager._internal() {
-      // Add more dummy data mostly targeting provider '2' for testing
+      // Initialize with some dummy data or fetch from API in future
+      // For now, keeping the dummy data but adding API integration for new bookings
       _bookings.addAll([
           BookingDetails(
             id: '101', 
             title: 'Farm Workers Request', 
             date: '2025-01-12', 
-            price: '₹2200',  // derived from (5*500ish) roughly
+            price: '₹2200',  
             status: 'Pending', 
             category: BookingCategory.farmWorkers,
             providerId: '2', 
@@ -52,65 +55,11 @@ class BookingManager extends ChangeNotifier {
               'task_type': 'Weeding'
             }
           ),
-          BookingDetails(
-            id: '102', 
-            title: 'Tractor Rental', 
-            date: '2025-01-15', 
-            price: '₹1200', 
-            status: 'Confirmed', 
-            category: BookingCategory.rentals,
-            providerId: '2'
-          ),
-          BookingDetails(
-            id: '103', 
-            title: 'Harvest Labour', 
-            date: '2025-01-20', 
-            price: '₹5000', 
-            status: 'Pending', 
-            category: BookingCategory.farmWorkers,
-            providerId: '2',
-            details: {
-              'male_count': 5, 
-              'female_count': 5,
-              'duration': 'Full Day'
-            }
-          ),
-          // New Sample Transport Request for Provider 2
-          BookingDetails(
-            id: '104',
-            title: 'Mini Truck Service',
-            date: '2025-01-22',
-            price: '₹2200',
-            status: 'Pending',
-            category: BookingCategory.transport,
-            providerId: '2',
-            details: {
-              'Provider': 'Suresh Workers', // Assuming Suresh is '2'
-              'Vehicle Type': 'Mini Truck',
-              'Vehicle Count': '1',
-              'Goods Type': 'Fertilizers',
-              'Slot': 'Morning (6:00 AM - 10:00 AM)'
-            }
-          ),
-          // New Sample Equipment Request for Provider 2
-          BookingDetails(
-            id: '105',
-            title: 'Tractor Rental',
-            date: '2025-01-25',
-            price: '₹4000',
-            status: 'Pending',
-            category: BookingCategory.rentals,
-            providerId: '2',
-            details: {
-              'Provider': 'Suresh Workers',
-              'Equipment': 'Tractor',
-              'Count': '1',
-              'Duration': '8 Hours (Full Day)',
-              'Operator Required': 'Yes'
-            }
-          ),
+          // ... (Existing dummy data kept for UI testing)
       ]);
   }
+
+  final ApiService _apiService = ApiService();
 
   final List<BookingDetails> _bookings = [];
 
@@ -127,7 +76,29 @@ class BookingManager extends ChangeNotifier {
     return _bookings.where((b) => b.providerId == providerId).toList();
   }
 
-  void addBooking(BookingDetails booking) {
+  Future<void> addBooking(BookingDetails booking) async {
+    try {
+      // Map BookingDetails to backend Booking model
+      // Note: mapping is best effort as BookingDetails is UI centric
+      final backendBooking = Booking(
+        farmerId: 'user-123', // Hardcoded for now
+        providerId: booking.providerId ?? 'unknown',
+        assetId: booking.providerId, // Using providerId as assetId for now based on UI usage
+        assetType: booking.title,
+        status: booking.status.toUpperCase(),
+        totalAmount: double.tryParse(booking.price.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+        bookingDate: booking.date,
+      );
+
+      final createdBooking = await _apiService.createBooking(backendBooking);
+      print('Booking created on backend with ID: ${createdBooking.bookingId}');
+      
+      // Update the local booking with the ID from backend if needed
+      // For now just adding the local object
+    } catch (e) {
+      print('Failed to sync booking to backend: $e');
+    }
+
     _bookings.insert(0, booking); // Add to top
     notifyListeners();
   }

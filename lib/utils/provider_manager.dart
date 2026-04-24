@@ -1,4 +1,8 @@
 import 'package:flutter/foundation.dart';
+import '../data/services/api_service.dart';
+import '../data/models/equipment_model.dart';
+import '../data/models/transport_vehicle_model.dart';
+import '../data/models/service_offering_model.dart';
 
 abstract class ServiceProvider {
   final String id;
@@ -135,7 +139,98 @@ class ProviderManager extends ChangeNotifier {
   factory ProviderManager() => _instance;
 
   ProviderManager._internal() {
-    _initializeMockData();
+    fetchProvidersFromApi();
+  }
+
+  final ApiService _apiService = ApiService();
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  Future<void> fetchProvidersFromApi() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // 1. Keep Mock Workers (as we don't have API for them yet)
+      _providers.clear();
+      _initializeMockData(); // Adds workers
+
+      // 2. Fetch Equipment
+      try {
+        final equipmentList = await _apiService.getEquipment();
+        for (var eq in equipmentList) {
+          _providers.add(EquipmentListing(
+            id: eq.equipmentId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            name: 'Provider ${eq.ownerId.substring(0, 4)}', // Placeholder name
+            serviceName: eq.category ?? 'Equipment',
+            brandModel: eq.brandModel ?? 'Unknown Model',
+            distance: eq.location ?? 'Unknown',
+            rating: eq.rating ?? 0.0,
+            price: '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / hour',
+            operatorAvailable: eq.operatorAvailable ?? false,
+            condition: 'Good', // Default
+            location: eq.location ?? '',
+            isAvailable: eq.isAvailable ?? true,
+            image: eq.imageUrl,
+          ));
+        }
+      } catch (e) {
+        print('Error fetching equipment: $e');
+      }
+
+      // 3. Fetch Vehicles
+      try {
+        final vehicleList = await _apiService.getVehicles();
+        for (var v in vehicleList) {
+          _providers.add(TransportListing(
+            id: v.vehicleId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            name: 'Provider ${v.ownerId.substring(0, 4)}',
+            serviceName: v.vehicleType ?? 'Transport',
+            vehicleType: v.vehicleType ?? 'Unknown',
+            loadCapacity: v.loadCapacity ?? 'Unknown',
+            price: '₹${v.pricePerKmOrTrip?.toStringAsFixed(0) ?? 0} / trip',
+            distance: v.location ?? 'Unknown',
+            rating: v.rating ?? 0.0,
+            driverIncluded: v.driverIncluded ?? true,
+            vehicleNumber: v.vehicleNumber,
+            serviceArea: v.location,
+            location: v.location ?? '',
+            isAvailable: v.isAvailable ?? true,
+            image: v.imageUrl,
+          ));
+        }
+      } catch (e) {
+        print('Error fetching vehicles: $e');
+      }
+
+      // 4. Fetch Services
+      try {
+        final serviceList = await _apiService.getServices();
+        for (var s in serviceList) {
+          _providers.add(ServiceListing(
+            id: s.serviceId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+            name: s.businessName ?? 'Provider ${s.ownerId.substring(0, 4)}',
+            serviceName: s.serviceType ?? 'Service',
+            distance: s.location ?? 'Unknown',
+            rating: s.rating ?? 0.0,
+            price: '₹${s.priceRate?.toStringAsFixed(0) ?? 0} ${s.priceUnit ?? ""}',
+            equipmentUsed: s.description ?? 'Standard Equipment',
+            operatorIncluded: true,
+            location: s.location ?? '',
+            isAvailable: s.isAvailable ?? true,
+            image: s.imageUrl,
+          ));
+        }
+      } catch (e) {
+        print('Error fetching services: $e');
+      }
+
+    } catch (e) {
+      print('Error in fetchProvidersFromApi: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   final List<ServiceProvider> _providers = [];
@@ -150,7 +245,51 @@ class ProviderManager extends ChangeNotifier {
     return _providers.where((p) => p.approvalStatus == 'Pending').toList();
   }
 
-  void addProvider(ServiceProvider provider) {
+  Future<void> addProvider(ServiceProvider provider) async {
+    try {
+      if (provider is EquipmentListing) {
+        await _apiService.addEquipment(Equipment(
+          ownerId: 'user-123', // Placeholder until Auth is ready
+          category: provider.serviceName,
+          brandModel: provider.brandModel,
+          pricePerHour: double.tryParse(provider.price.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+          operatorAvailable: provider.operatorAvailable,
+          location: provider.location,
+          isAvailable: provider.isAvailable,
+          imageUrl: provider.image,
+          rating: provider.rating,
+        ));
+      } else if (provider is TransportListing) {
+        await _apiService.addVehicle(TransportVehicle(
+           ownerId: 'user-123',
+           vehicleType: provider.vehicleType,
+           vehicleNumber: provider.vehicleNumber,
+           loadCapacity: provider.loadCapacity,
+           pricePerKmOrTrip: double.tryParse(provider.price.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+           driverIncluded: provider.driverIncluded,
+           location: provider.location,
+           isAvailable: provider.isAvailable,
+           imageUrl: provider.image,
+           rating: provider.rating,
+        ));
+      } else if (provider is ServiceListing) {
+         await _apiService.addService(ServiceOffering(
+           ownerId: 'user-123',
+           serviceType: provider.serviceName,
+           businessName: provider.name,
+           description: provider.equipmentUsed,
+           priceRate: double.tryParse(provider.price.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0,
+           location: provider.location,
+           isAvailable: provider.isAvailable,
+           imageUrl: provider.image,
+           rating: provider.rating,
+           priceUnit: provider.price.contains('/') ? "/" + provider.price.split('/').last.trim() : null,
+         ));
+      }
+    } catch (e) {
+      print('Error adding provider to API: $e');
+    }
+
     _providers.insert(0, provider);
     notifyListeners();
   }
@@ -207,6 +346,7 @@ class ProviderManager extends ChangeNotifier {
   }
 
   void _initializeMockData() {
+    // Only adding workers mock data now, others are fetched from API
     _providers.addAll([
       // --- Farm Workers ---
       FarmWorkerListing(
@@ -240,213 +380,6 @@ class ProviderManager extends ChangeNotifier {
         image: 'https://images.unsplash.com/photo-1628155985854-443b740523bb?q=80&w=200&auto=format&fit=crop',
       ),
 
-      // --- Agricultural Services (Ploughing/Harvesting) ---
-      ServiceListing(
-        id: '101',
-        name: 'Green Field Ploughing',
-        serviceName: 'Ploughing',
-        distance: '4 km',
-        rating: 4.7,
-        price: '₹1200 / acre',
-        equipmentUsed: 'Mahindra 575 DI',
-        operatorIncluded: true,
-        jobsCompleted: 85,
-        location: 'Rampur',
-        image: 'https://images.unsplash.com/photo-1530267981375-f0de93fe1e91?q=80&w=200&auto=format&fit=crop',
-      ),
-      ServiceListing(
-        id: '102',
-        name: 'Mahindra Ploughers',
-        serviceName: 'Ploughing',
-        distance: '6 km',
-        rating: 4.5,
-        price: '₹1100 / acre',
-        equipmentUsed: 'Swaraj 855',
-        operatorIncluded: true,
-        jobsCompleted: 60,
-        image: 'https://plus.unsplash.com/premium_photo-1661963248881-22920c743fe5?q=80&w=200&auto=format&fit=crop',
-      ),
-      ServiceListing(
-        id: '103',
-        name: 'Royal Harvesters',
-        serviceName: 'Harvesting',
-        distance: '10 km',
-        rating: 4.9,
-        price: '₹2000 / hour',
-        equipmentUsed: 'Kartar 4000',
-        operatorIncluded: true,
-        jobsCompleted: 110,
-      ),
-      ServiceListing(
-        id: '107',
-        name: 'Jal Shakti Irrigation',
-        serviceName: 'Irrigation',
-        distance: '5 km',
-        rating: 4.5,
-        price: '₹300 / hour',
-        equipmentUsed: 'Diesel Pump 5HP',
-        operatorIncluded: true,
-        jobsCompleted: 200,
-        image: 'https://images.unsplash.com/photo-1595843472097-dfd63ff444d1?q=80&w=200&auto=format&fit=crop', // Irrigation - just using worker image for now or placeholder
-      ),
-      ServiceListing(
-        id: '108',
-        name: 'Quick Fix Electric',
-        serviceName: 'Electricians',
-        distance: '2 km',
-        rating: 4.8,
-        price: '₹200 / visit',
-        equipmentUsed: 'Standard Toolkit',
-        operatorIncluded: true,
-        jobsCompleted: 150,
-        image: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=200&auto=format&fit=crop',
-      ),
-      ServiceListing(
-        id: '109',
-        name: 'Sharma Motor Works',
-        serviceName: 'Mechanics',
-        distance: '3 km',
-        rating: 4.6,
-        price: '₹300 / visit',
-        equipmentUsed: 'Garage Tools',
-        operatorIncluded: true,
-        jobsCompleted: 120,
-        image: 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?q=80&w=200&auto=format&fit=crop',
-      ),
-
-      // --- Transport Services ---
-      TransportListing(
-        id: '3',
-        name: 'Speedy Transport',
-        serviceName: 'Mini Truck',
-        vehicleType: 'Mini Truck',
-        distance: '2 km',
-        rating: 4.6,
-        price: '₹1200 / trip',
-        loadCapacity: '1 ton',
-        driverIncluded: true,
-        jobsCompleted: 50,
-        image: 'https://images.unsplash.com/photo-1605218427306-022ba951dd0c?q=80&w=200&auto=format&fit=crop', 
-      ),
-      TransportListing(
-        id: '4',
-        name: 'Kisan Logistics',
-        serviceName: 'Mini Truck',
-        vehicleType: 'Mini Truck',
-        distance: '4 km',
-        rating: 4.2,
-        price: '₹1100 / trip',
-        loadCapacity: '1.5 ton',
-        driverIncluded: true,
-        jobsCompleted: 42,
-        image: 'https://images.unsplash.com/photo-1626847037657-fd3622613ce3?q=80&w=200&auto=format&fit=crop',
-      ),
-      TransportListing(
-        id: '5',
-        name: 'Heavy Haulers',
-        serviceName: 'Tractor Trolley',
-        vehicleType: 'Tractor Trolley',
-        distance: '3 km',
-        rating: 4.8,
-        price: '₹800 / trip',
-        loadCapacity: '3 ton',
-        driverIncluded: true,
-        jobsCompleted: 120,
-        image: 'https://images.unsplash.com/photo-1588665313070-653606f5712e?q=80&w=200&auto=format&fit=crop', // Tractor Trolleyish
-      ),
-      TransportListing(
-        id: '201',
-        name: 'Highway Kings',
-        serviceName: 'Full Truck',
-        vehicleType: 'Full Truck',
-        distance: '15 km',
-        rating: 4.5,
-        price: '₹5000 / trip',
-        loadCapacity: '10 ton',
-        driverIncluded: true,
-        jobsCompleted: 80,
-         image: 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?q=80&w=200&auto=format&fit=crop', // Truck
-      ),
-
-      // --- Equipment Rentals ---
-      EquipmentListing(
-        id: '6',
-        name: 'AgriMachinery Hub',
-        serviceName: 'Tractors',
-        brandModel: 'John Deere 5310',
-        distance: '5 km',
-        rating: 4.7,
-        price: '₹500 / hour',
-        operatorAvailable: true, // "With or Without"
-        condition: 'Good',
-        jobsCompleted: 200,
-        image: 'https://images.unsplash.com/photo-1592860956971-555df6d915c7?q=80&w=200&auto=format&fit=crop',
-      ),
-       EquipmentListing(
-        id: '7',
-        name: 'Local Rentals',
-        serviceName: 'Tractors',
-        brandModel: 'Sonalika 745',
-        distance: '1 km',
-        rating: 4.0,
-        price: '₹450 / hour',
-        operatorAvailable: false,
-        condition: 'Average',
-        jobsCompleted: 80,
-        image: 'https://images.unsplash.com/photo-1628155985854-443b740523bb?q=80&w=200&auto=format&fit=crop',
-      ),
-      EquipmentListing(
-        id: '301',
-        name: 'Super Harvest',
-        serviceName: 'Harvesters',
-        brandModel: 'Class Crop Tiger',
-        distance: '12 km',
-        rating: 4.8,
-        price: '₹2000 / hour',
-        operatorAvailable: true,
-        condition: 'New',
-        jobsCompleted: 65,
-        image: 'https://images.unsplash.com/photo-1632152862822-7776104bc179?q=80&w=200&auto=format&fit=crop', // Harvester
-      ),
-      EquipmentListing(
-        id: '302',
-        name: 'Spray Master',
-        serviceName: 'Sprayers',
-        brandModel: 'Mitra Sprayer',
-        distance: '4 km',
-        rating: 4.4,
-        price: '₹200 / hour',
-        operatorAvailable: false,
-        condition: 'Good',
-        jobsCompleted: 180,
-        image: 'https://images.unsplash.com/photo-1559304822-9eb2813c9844?q=80&w=200&auto=format&fit=crop', // Sprayer
-      ),
-      EquipmentListing(
-        id: '401',
-        name: 'Earth Movers Ltd',
-        serviceName: 'JCB',
-        brandModel: 'JCB 3DX',
-        distance: '8 km',
-        rating: 4.9,
-        price: '₹1200 / hour',
-        operatorAvailable: true,
-        condition: 'Excellent',
-        jobsCompleted: 300,
-        image: 'https://images.unsplash.com/photo-1579621970795-87facc2f976d?q=80&w=200&auto=format&fit=crop', // Construction/JCB
-      ),
-      EquipmentListing(
-        id: '402',
-        name: 'Village Excavators',
-        serviceName: 'JCB',
-        brandModel: 'JCB 4DX',
-        distance: '3 km',
-        rating: 4.5,
-        price: '₹1100 / hour',
-        operatorAvailable: true,
-        condition: 'Good',
-        jobsCompleted: 150,
-        image: 'https://images.unsplash.com/photo-1605218427306-022ba951dd0c?q=80&w=200&auto=format&fit=crop', // Placeholder
-      ),
     ]);
   }
 }

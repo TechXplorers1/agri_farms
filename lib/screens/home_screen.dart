@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:agriculture/l10n/app_localizations.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'agri_services_screen.dart';

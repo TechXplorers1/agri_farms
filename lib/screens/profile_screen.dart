@@ -13,7 +13,7 @@ import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
 
 import 'provider/provider_requests_screen.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:agriculture/l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
