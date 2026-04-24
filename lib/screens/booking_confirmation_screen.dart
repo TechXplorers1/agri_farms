@@ -73,7 +73,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7F2),
       body: Stack(
         children: [
           // Background Pattern (Faint)
@@ -85,11 +85,11 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 6),
                  itemBuilder: (context, index) {
                    return Icon(
-                     index % 2 == 0 ? Icons.water_drop : Icons.grass, // Alternate icons
-                     color: Colors.green,
+                     index % 2 == 0 ? Icons.water_drop_rounded : Icons.grass_rounded,
+                     color: const Color(0xFF00AA55),
                    );
                  },
-                 itemCount: 100, // Enough to fill screen roughly
+                 itemCount: 100,
                ),
              ),
           ),
@@ -107,25 +107,24 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
 
           // Main Content
           Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Animated Fancy Icon (Growing Plant / Success)
+                  // Animated Fancy Icon (Lush Success)
                   ScaleTransition(
                     scale: _scaleAnimation,
                     child: Container(
-                      width: 160,
-                      height: 160,
+                      width: 180,
+                      height: 180,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
-                        border: Border.all(color: const Color(0xFF00AA55), width: 4),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF00AA55).withOpacity(0.2),
-                            blurRadius: 30,
+                            color: const Color(0xFF00AA55).withOpacity(0.15),
+                            blurRadius: 40,
                             spreadRadius: 10,
                           ),
                         ],
@@ -133,33 +132,41 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
                       child: Stack(
                          alignment: Alignment.center,
                          children: [
-                           // Background Glow
+                           // Background Glows
                            Container(
+                             margin: const EdgeInsets.all(15),
                              decoration: BoxDecoration(
                                shape: BoxShape.circle,
                                gradient: RadialGradient(
                                  colors: [
-                                   Colors.green.withOpacity(0.2),
+                                   const Color(0xFF00AA55).withOpacity(0.1),
                                    Colors.transparent,
                                  ],
                                ),
                              ),
                            ),
                            // Icons
-                           const Column(
+                           Column(
                              mainAxisAlignment: MainAxisAlignment.center,
                              children: [
-                               Icon(Icons.eco, size: 60, color: Color(0xFF00AA55)), // Plant
-                               SizedBox(height: 8),
-                               Icon(Icons.check_circle, size: 30, color: Colors.orangeAccent), // Checkmark badge
+                               Container(
+                                 padding: const EdgeInsets.all(20),
+                                 decoration: BoxDecoration(
+                                   color: const Color(0xFF00AA55).withOpacity(0.1),
+                                   shape: BoxShape.circle,
+                                 ),
+                                 child: const Icon(Icons.eco_rounded, size: 64, color: Color(0xFF00AA55)),
+                               ),
+                               const SizedBox(height: 8),
+                               const Icon(Icons.check_circle_rounded, size: 28, color: Colors.orangeAccent),
                              ],
                            )
                          ],
-                      ),
+                       ),
                     ),
                   ),
                   
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 48),
                   
                   FadeTransition(
                     opacity: _opacityAnimation,
@@ -168,43 +175,95 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
                         const Text(
                           'Booking Successful!',
                           style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2E7D32), // Dark Green
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF1B5E20),
+                            letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Your request for "${widget.bookingTitle}"\nhas been planted!',
+                          'Your request for "${widget.bookingTitle}"\nhas been sent to the provider.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.grey[700],
-                            height: 1.5,
+                            color: Colors.grey[600],
+                            height: 1.6,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 24),
                         
-                        // Ticket Style ID
+                        const SizedBox(height: 40),
+
+                        // Ticket Style Confirmation Card
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          width: double.infinity,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF1F8E9), // Light Green bg
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFAED581)), // Light Green border
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 4)),
+                            ],
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          child: Column(
                             children: [
-                              const Icon(Icons.confirmation_number_outlined, color: Colors.green, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Booking ID: #${widget.bookingId.substring(widget.bookingId.length - 6)}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Color(0xFF33691E),
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
+                              Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF5F7F2),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: const Icon(Icons.confirmation_num_rounded, color: Color(0xFF00AA55)),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'BOOKING ID',
+                                            style: TextStyle(color: Colors.grey[500], fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.2),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '#${widget.bookingId.substring(widget.bookingId.length - 8).toUpperCase()}',
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              color: Color(0xFF1B5E20),
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Divider with Cutouts (Ticket look)
+                              Row(
+                                children: [
+                                  Container(width: 10, height: 20, decoration: const BoxDecoration(color: Color(0xFFF5F7F2), borderRadius: BorderRadius.only(topRight: Radius.circular(10), bottomRight: Radius.circular(10)))),
+                                  Expanded(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: CustomPaint(painter: DashLinePainter(), size: const Size(double.infinity, 1)))),
+                                  Container(width: 10, height: 20, decoration: const BoxDecoration(color: Color(0xFFF5F7F2), borderRadius: BorderRadius.only(topLeft: Radius.circular(10), bottomLeft: Radius.circular(10)))),
+                                ],
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.info_outline_rounded, size: 14, color: Colors.orangeAccent),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Awaiting provider confirmation',
+                                      style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -218,9 +277,15 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
                   
                   FadeTransition(
                     opacity: _opacityAnimation,
-                    child: SizedBox(
+                    child: Container(
                       width: double.infinity,
-                      height: 55,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                        ],
+                      ),
                       child: ElevatedButton(
                         onPressed: () {
                            Navigator.of(context).pushAndRemoveUntil(
@@ -230,28 +295,41 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF00AA55),
-                          elevation: 8,
-                          shadowColor: const Color(0xFF00AA55).withOpacity(0.4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30), // Pill shape
-                          ),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                         ),
                         child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.home, color: Colors.white),
+                            Icon(Icons.home_rounded, color: Colors.white),
                             SizedBox(width: 12),
                             Text(
                               'Back to Home',
                               style: TextStyle(
                                 fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w800,
                                 color: Colors.white,
+                                letterSpacing: 0.5,
                               ),
                             ),
                           ],
                         ),
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () {
+                      // Navigate to My Services / History
+                       Navigator.of(context).pushAndRemoveUntil(
+                             MaterialPageRoute(builder: (context) => const HomeScreen(initialIndex: 3)), // Assuming 3 is History
+                             (route) => false,
+                           );
+                    },
+                    child: const Text(
+                      'View Booking Details',
+                      style: TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w800, fontSize: 15),
                     ),
                   ),
                 ],
@@ -262,6 +340,28 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
       ),
     );
   }
+}
+
+class DashLinePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    var paint = Paint()
+      ..color = Colors.grey[200]!
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    
+    var max = size.width;
+    var dashWidth = 5;
+    var dashSpace = 5;
+    double startX = 0;
+    while (startX < max) {
+      canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
+      startX += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
 // --- Confetti / Particle System ---

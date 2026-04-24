@@ -1,15 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:agriculture/l10n/app_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'utils/language_provider.dart';
 import 'screens/splash_screen.dart';
-import 'screens/home_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+import 'firebase_options.dart';
+import 'services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase and Notifications
+  try {
+    if (kIsWeb) {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
+    } else {
+      await Firebase.initializeApp();
+    }
+    await NotificationService().init();
+  } catch (e) {
+    debugPrint('Firebase/Notifications initialization failed: $e');
+  }
+  
   final prefs = await SharedPreferences.getInstance();
   final savedLanguage = prefs.getString('selected_language');
   

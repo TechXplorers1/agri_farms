@@ -27,31 +27,52 @@ class _MyServicesScreenState extends State<MyServicesScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
-        title: const Text(
-          'My Services',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF00AA55),
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: const Color(0xFF00AA55),
-          isScrollable: true,
-          tabs: const [
-            Tab(text: 'All'),
-            Tab(text: 'Farm Workers'),
-            Tab(text: 'App Rentals'),
-            Tab(text: 'Services'),
-          ],
+        title: const Text(
+          'Booking History',
+          style: TextStyle(color: Color(0xFF1B5E20), fontSize: 18, fontWeight: FontWeight.w900),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F7F2),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.grey[600],
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              indicator: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: const Color(0xFF00AA55),
+                boxShadow: [
+                  BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2)),
+                ],
+              ),
+              labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              tabs: const [
+                Tab(text: 'All'),
+                Tab(text: 'Workers'),
+                Tab(text: 'Rentals'),
+                Tab(text: 'Services'),
+              ],
+            ),
+          ),
         ),
       ),
       body: AnimatedBuilder(
@@ -79,11 +100,24 @@ class _MyServicesScreenState extends State<MyServicesScreen> with SingleTickerPr
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.history, size: 60, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text(
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20)],
+              ),
+              child: const Icon(Icons.history_rounded, size: 64, color: Color(0xFFB0BEC5)),
+            ),
+            const SizedBox(height: 24),
+            const Text(
               'No bookings yet',
-              style: TextStyle(color: Colors.grey[500], fontSize: 16),
+              style: TextStyle(color: Color(0xFF1B5E20), fontSize: 20, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your service requests will appear here',
+              style: TextStyle(color: Colors.grey[500], fontSize: 14, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -91,7 +125,7 @@ class _MyServicesScreenState extends State<MyServicesScreen> with SingleTickerPr
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       itemCount: bookings.length,
       itemBuilder: (context, index) {
         final booking = bookings[index];
@@ -101,118 +135,124 @@ class _MyServicesScreenState extends State<MyServicesScreen> with SingleTickerPr
   }
 
   Widget _buildServiceCard(BookingDetails booking) {
-    Color statusColor = Colors.grey[200]!;
-    Color statusTextColor = Colors.black87;
+    Color statusColor = const Color(0xFF00AA55);
+    Color statusBg = const Color(0xFF00AA55).withOpacity(0.1);
 
-    if (booking.status == 'Scheduled' || booking.status == 'Active') {
-      statusColor = const Color(0xFFE8F5E9);
-      statusTextColor = const Color(0xFF00AA55);
-    } else if (booking.status == 'Completed') {
-      statusColor = Colors.grey[100]!;
-      statusTextColor = Colors.grey[600]!;
+    final statusLower = booking.status.toLowerCase();
+    if (statusLower == 'scheduled' || statusLower == 'active' || statusLower == 'confirmed') {
+      statusColor = const Color(0xFF00AA55);
+      statusBg = const Color(0xFF00AA55).withOpacity(0.1);
+    } else if (statusLower == 'completed' || statusLower == 'finished') {
+      statusColor = Colors.blueAccent;
+      statusBg = Colors.blueAccent.withOpacity(0.1);
+    } else if (statusLower == 'pending') {
+      statusColor = Colors.orangeAccent;
+      statusBg = Colors.orangeAccent.withOpacity(0.1);
     }
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 24, offset: const Offset(0, 8)),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  booking.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(12)),
+                        child: Text(
+                          booking.status.toUpperCase(),
+                          style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+                        ),
+                      ),
+                      Text(
+                        booking.date,
+                        style: TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                    ],
                   ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  booking.status,
-                  style: TextStyle(
-                    color: statusTextColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 16),
+                  Text(
+                    booking.title,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  if (booking.details.isNotEmpty)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: booking.details.entries.map((e) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF5F7F2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE8F5E9)),
+                          ),
+                          child: Text('${e.key}: ${e.value}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20))),
+                        );
+                      }).toList(),
+                    ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            booking.date,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
             ),
-          ),
-           if (booking.details.isNotEmpty) ...[
-             const SizedBox(height: 8),
-             Wrap(
-               spacing: 8,
-               children: booking.details.entries.map((e) {
-                 return Chip(
-                   label: Text('${e.key}: ${e.value}', style: const TextStyle(fontSize: 10)),
-                   padding: EdgeInsets.zero,
-                   visualDensity: VisualDensity.compact,
-                   backgroundColor: Colors.grey[50],
-                   side: BorderSide(color: Colors.grey[200]!),
-                 );
-               }).toList(),
-             ),
-           ],
-          const SizedBox(height: 16),
-          Divider(color: Colors.grey[200], height: 1),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                booking.price,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF9FBF9),
+                border: Border(top: BorderSide(color: Color(0xFFF1F1F1))),
               ),
-              OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  side: BorderSide(color: Colors.grey[300]!),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('TOTAL AMOUNT', style: TextStyle(color: Colors.grey[500], fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                      const SizedBox(height: 2),
+                      Text(
+                        booking.price,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                      ),
+                    ],
                   ),
-                  foregroundColor: Colors.black87,
-                ),
-                child: const Text('View Details'),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.1), blurRadius: 10)],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00AA55),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text('View Details', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

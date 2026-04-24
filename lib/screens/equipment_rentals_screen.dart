@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-
 import 'upload_item_screen.dart';
-import 'generic_history_screen.dart';
 import 'service_providers_screen.dart';
-import '../utils/booking_manager.dart';
-import 'package:agriculture/l10n/app_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
 class EquipmentRentalsScreen extends StatelessWidget {
   final String? userRole;
@@ -12,177 +9,272 @@ class EquipmentRentalsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: Colors.white, // As per image
+      backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
         title: Text(
-          AppLocalizations.of(context)!.equipmentRentals,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          l10n.equipmentRentals,
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF1B5E20)),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
+          onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if (userRole != null && userRole != 'General User')
+          if (userRole != null && ['Owner', 'Provider'].contains(userRole))
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
-              child: ElevatedButton.icon(
+              child: IconButton(
                 onPressed: () {
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const UploadItemScreen(category: 'Equipment')));
                 },
-                icon: const Icon(Icons.add, size: 18, color: Colors.white),
-                label: Text(AppLocalizations.of(context)!.addListing, style: const TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00AA55),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: const Size(0, 32),
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00AA55).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.add_rounded, color: Color(0xFF00AA55), size: 24),
                 ),
               ),
             ),
         ],
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
       ),
-      body: SingleChildScrollView( // Need scrolling for list below grid
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Simple Header
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Lush Header Background/Banner would go here, for now using a premium title container
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [const Color(0xFF00AA55), const Color(0xFF1B5E20)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: Text(
-                  AppLocalizations.of(context)!.rentEquipment,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Browse Equipment
-              Text(
-                AppLocalizations.of(context)!.browseEquipment,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // Grid
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true, // Vital for nesting in SingleChildScrollView
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 0.9,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                children: [
-                   _buildEquipmentCard(context, 'Tractors', AppLocalizations.of(context)!.tractors, '24 available', Icons.agriculture, Colors.green[50]!, Colors.green),
-                   _buildEquipmentCard(context, 'Harvesters', AppLocalizations.of(context)!.harvesters, '12 available', Icons.grass, Colors.yellow[50]!, Colors.orange),
-                   _buildEquipmentCard(context, 'Sprayers', AppLocalizations.of(context)!.sprayers, '18 available', Icons.water_drop, Colors.blue[50]!, Colors.blue),
-                   _buildEquipmentCard(context, 'JCB', AppLocalizations.of(context)!.jcb, '8 available', Icons.construction, Colors.orange[50]!, Colors.orange, imagePath: 'assets/images/jcb_icon.png'),
-                   _buildEquipmentCard(context, 'Trolleys', AppLocalizations.of(context)!.trolleys, '15 available', Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey), // Placeholder
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
                 ],
               ),
-
-              const SizedBox(height: 24),
-
-              // Nearby Equipment
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                   Text(
+                    l10n.rentEquipment,
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.white),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
-                    AppLocalizations.of(context)!.nearbyEquipment,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    child: Text(AppLocalizations.of(context)!.viewMore, style: const TextStyle(color: Colors.grey)),
+                    'High-quality farming machinery for your seasonal needs.',
+                    style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
-              
-              const SizedBox(height: 8),
-
-              // Nearby Item Card - Make clickable too?
-              GestureDetector(
-                onTap: () => _showBookingDialog(context, 'Tractors', AppLocalizations.of(context)!.tractors), // Assuming specific tractor maps to general category for list or using specific ID if available
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey[200]!),
+            ),
+            
+            const SizedBox(height: 32),
+            
+            Text(
+              l10n.browseEquipment.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF1B5E20),
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 16),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 2,
+              childAspectRatio: 0.85,
+              mainAxisSpacing: 20,
+              crossAxisSpacing: 20,
+              children: [
+                 _buildEquipmentCard(context, 'Tractors', l10n.tractors, 'assets/images/tractor_card.webp', 'Heavy Duty Pulling'),
+                 _buildEquipmentCard(context, 'Harvesters', l10n.harvesters, 'assets/images/harvester_card.webp', 'Precision Reaping'),
+                 _buildEquipmentCard(context, 'Sprayers', l10n.sprayers, 'assets/images/sprayer_card.webp', 'Fast Crop Care'),
+                 _buildEquipmentCard(context, 'JCB', l10n.jcb, 'assets/images/jcb_card.webp', 'Land Preparation'),
+                 _buildEquipmentCard(context, 'Trolleys', l10n.trolleys, 'assets/images/trolley_card.webp', 'Secure Haulage'),
+              ],
+            ),
+            
+            const SizedBox(height: 32),
+            
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  l10n.nearbyEquipment.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1B5E20),
+                    letterSpacing: 1.2,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Mahindra Tractor 575 DI',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  child: Text(l10n.viewMore, style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w800, fontSize: 13)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            
+            GestureDetector(
+              onTap: () => _showBookingDialog(context, 'Tractors', l10n.tractors),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Mahindra Tractor 575 DI',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF2C3E50),
+                            letterSpacing: -0.5,
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green[50], // Light green bg for available
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.green),
-                            ),
-                            child: Text(
-                              AppLocalizations.of(context)!.available,
-                              style: const TextStyle(color: Colors.green, fontSize: 12),
-                            ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                       Row(
-                        children: const [
-                           Text(
-                            '₹500 per hour',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.black54,
-                            ),
+                          child: Text(
+                            l10n.available,
+                            style: const TextStyle(color: Color(0xFF00AA55), fontSize: 10, fontWeight: FontWeight.w900),
                           ),
-                          SizedBox(width: 8),
-                           Icon(Icons.star, size: 16, color: Colors.amber),
-                           Text('4.7', style: TextStyle(color: Colors.black54)),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                           Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
-                           const SizedBox(width: 4),
-                           Text(
-                            'Suresh Patel • 4 km',
-                            style: TextStyle(color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text(
+                          '₹500',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                        ),
+                        const Text(
+                          ' / hour',
+                          style: TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w600),
+                        ),
+                        const Spacer(),
+                        const Icon(Icons.star_rounded, size: 20, color: Colors.orangeAccent),
+                        const SizedBox(width: 4),
+                        const Text('4.7', style: TextStyle(color: Color(0xFF2C3E50), fontWeight: FontWeight.w800, fontSize: 14)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Divider(color: Colors.grey[100], height: 1),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                         Container(
+                           padding: const EdgeInsets.all(8),
+                           decoration: BoxDecoration(color: const Color(0xFFF5F7F2), shape: BoxShape.circle),
+                           child: const Icon(Icons.location_on_rounded, size: 16, color: Color(0xFF00AA55)),
+                         ),
+                         const SizedBox(width: 12),
+                         Text(
+                          'Suresh Patel • 4 km vicinity',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEquipmentCard(BuildContext context, String serviceKey, String title, String imagePath, String subtitle) {
+    return GestureDetector(
+      onTap: () => _showBookingDialog(context, serviceKey, title),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 20, offset: const Offset(0, 8)),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                imagePath,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFF9FBF9), child: const Icon(Icons.agriculture_rounded, color: Color(0xFF00AA55), size: 40)),
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.85),
                     ],
+                    stops: const [0.4, 1.0],
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900, height: 1.1, letterSpacing: -0.2),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -190,73 +282,16 @@ class EquipmentRentalsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEquipmentCard(BuildContext context, String title, String displayTitle, String subtitle, IconData icon, Color bgColor, Color iconColor, {String? imagePath}) {
-     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-           BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-           )
-        ]
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _showBookingDialog(context, title, displayTitle),
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                 Center(
-                   child: Container(
-                    height: 60,
-                    width: 60,
-                    // No background in this specific design if matching exactly, but consistent look is better
-                    decoration: BoxDecoration( 
-                      color: bgColor.withOpacity(0.3), 
-                      borderRadius: BorderRadius.circular(15), 
-                    ),
-                    child: imagePath != null 
-                        ? Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Image.asset(imagePath, fit: BoxFit.contain),
-                          )
-                        : Icon(icon, size: 32, color: iconColor), 
-                   ),
-                 ),
-                const Spacer(),
-                Text(
-                  displayTitle,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                 Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.green[700], // Green text for availability as per standard or user pref
-                  ),
-                ),
-              ],
-            ),
-          ),
+  void _showBookingDialog(BuildContext context, String equipmentName, String displayTitle) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ServiceProvidersScreen(
+          serviceKey: equipmentName,
+          title: displayTitle,
+          userRole: userRole,
         ),
       ),
     );
-  }
-
-  void _showBookingDialog(BuildContext context, String equipmentName, String displayTitle) {
-    Navigator.push(context, MaterialPageRoute(builder: (context) => ServiceProvidersScreen(serviceKey: equipmentName, title: displayTitle)));
   }
 }

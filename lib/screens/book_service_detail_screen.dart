@@ -1,21 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
+import '../utils/ui_utils.dart';
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../models/booking_dto.dart';
+import '../services/api_service.dart';
+import '../config/api_config.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class BookServiceDetailScreen extends StatefulWidget {
   final String providerName;
   final String serviceName;
   final String providerId;
+  final String assetId;
   final String priceInfo;
+  final String? ownerProfileImage;
 
   const BookServiceDetailScreen({
     super.key,
     required this.providerName,
     required this.serviceName,
     required this.providerId,
+    required this.assetId,
     required this.priceInfo,
+    this.ownerProfileImage,
   });
 
   @override
@@ -24,48 +35,109 @@ class BookServiceDetailScreen extends StatefulWidget {
 
 class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   final TextEditingController _notesController = TextEditingController();
-  final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, String?> _fieldErrors = {};
+  
+  // GlobalKeys for scrolling
+  final GlobalKey _qtySectionKey = GlobalKey();
+  final GlobalKey _addressSectionKey = GlobalKey();
+  final GlobalKey _dateSectionKey = GlobalKey();
+  final GlobalKey _timeSectionKey = GlobalKey();
   DateTime? _selectedDate;
+  List<BookingDTO> _existingBookings = [];
+  bool _isLoadingBookings = false;
+  bool _isSubmitting = false;
+  bool _isFetchingLocation = false;
 
   // Time Slot Configuration
-  final int _startHour = 6; // 6:00 AM
-  final int _endHour = 20;  // 8:00 PM (Last slot starts at 8)
-  final List<int> _selectedSlots = [];
+  final int _startHour = 6;
+  final int _endHour = 20;
+  int? _selectedStartHour;
+  int _durationHours = 1;
 
-  // Mock Logic: Check if a slot is blocked
+  List<int> get _selectedSlots {
+    if (_selectedStartHour == null) return [];
+    return List.generate(_durationHours, (i) => _selectedStartHour! + i);
+  }
+
+  // Electrician Specific Fields
+  final List<String> _electricianPurposes = [
+    'Pump Motor Repair',
+    'Wiring Installation/Repair',
+    'Solar Panel Maintenance',
+    'Generator Servicing',
+    'Control Panel Troubleshooting',
+    'Lighting Installation',
+    'Battery/Inverter Maintenance',
+    'Others'
+  ];
+
+  final List<String> _electricianAssets = [
+    'Submersible Pump',
+    'Monoblock Pump',
+    'Diesel Generator',
+    'Solar System',
+    'Farmhouse Wiring',
+    'Cold Storage Unit',
+    'Poultry House Ventilation',
+    'Others'
+  ];
+
+  String? _selectedPurpose;
+  String? _selectedAssetType;
+  final TextEditingController _customPurposeController = TextEditingController();
+  final TextEditingController _customAssetController = TextEditingController();
+
+  // Real Logic: Check if a slot is blocked
   bool _isSlotBlocked(int hour) {
     if (_selectedDate == null) return false;
-    // Deterministic blocking based on date and hour hash
-    String dateKey = "${_selectedDate!.year}-${_selectedDate!.month}-${_selectedDate!.day}";
-    int hash = dateKey.hashCode + hour;
-    // Block roughly 20% of slots for demonstration
-    return (hash % 5) == 0;
+    
+    DateTime slotStart = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, hour);
+    DateTime slotEnd = slotStart.add(const Duration(hours: 1)); 
+
+    // Block past time slots for today
+    if (slotStart.isBefore(DateTime.now())) {
+      return true;
+    }
+
+    for (var booking in _existingBookings) {
+      if (booking.scheduledStartTime != null && booking.scheduledEndTime != null) {
+        if (slotStart.isBefore(booking.scheduledEndTime!) && slotEnd.isAfter(booking.scheduledStartTime!)) {
+           final String status = booking.status?.toUpperCase() ?? '';
+           if (status != 'CANCELLED' && status != 'REJECTED' && status != 'COMPLETED' && status != 'FINISHED') {
+             return true;
+           }
+        }
+      }
+    }
+    return false;
   }
 
   void _onSlotTap(int hour) {
     if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a date first')),
-      );
+      UiUtils.showCenteredToast(context, 'Please select a date first', isError: true);
       return;
     }
     if (_isSlotBlocked(hour)) {
-       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This slot is already booked')),
-      );
+      UiUtils.showCenteredToast(context, 'This slot is already booked', isError: true);
       return;
     }
 
     setState(() {
-      if (_selectedSlots.contains(hour)) {
-        _selectedSlots.remove(hour);
-        _selectedSlots.sort();
-      } else {
-        _selectedSlots.add(hour);
-        _selectedSlots.sort();
-      }
+      _selectedStartHour = hour;
+      _durationHours = 1;
     });
+  }
+
+  bool _isRangeAvailable(int startHour, int duration) {
+    for (int i = 0; i < duration; i++) {
+      if (_isSlotBlocked(startHour + i) || (startHour + i) >= _endHour) {
+        return false;
+      }
+    }
+    return true;
   }
 
   String _formatTime(int hour) {
@@ -83,6 +155,39 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   void initState() {
     super.initState();
     _loadAddress();
+    _fetchAssetBookings();
+  }
+
+  Future<void> _fetchAssetBookings() async {
+    setState(() {
+      _isLoadingBookings = true;
+    });
+    try {
+      final response = await ApiService().getAssetBookings(widget.assetId);
+      final List<dynamic> data = response as List<dynamic>;
+      setState(() {
+        _existingBookings = data.map((json) => BookingDTO.fromJson(json)).toList();
+      });
+    } catch (e) {
+      debugPrint("Error fetching bookings: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingBookings = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    _addressController.dispose();
+    _quantityController.dispose();
+    _customPurposeController.dispose();
+    _customAssetController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAddress() async {
@@ -96,12 +201,58 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     });
   }
 
-  @override
-  void dispose() {
-    _notesController.dispose();
-    _quantityController.dispose();
-    _addressController.dispose();
-    super.dispose();
+  Future<void> _fetchCurrentLocation() async {
+    setState(() => _isFetchingLocation = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) UiUtils.showCenteredToast(context, 'Location services are disabled. Please enable GPS.', isError: true);
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) UiUtils.showCenteredToast(context, 'Location permission denied.', isError: true);
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) UiUtils.showCenteredToast(context, 'Location permission permanently denied. Enable it in Settings.', isError: true);
+        return;
+      }
+      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      if (placemarks.isNotEmpty) {
+        final p = placemarks.first;
+        final parts = <String>[
+          if ((p.name ?? '').isNotEmpty && p.name != p.thoroughfare) p.name!,
+          if ((p.subLocality ?? '').isNotEmpty) p.subLocality!,
+          if ((p.locality ?? '').isNotEmpty) p.locality!,
+          if ((p.administrativeArea ?? '').isNotEmpty) p.administrativeArea!,
+          if ((p.postalCode ?? '').isNotEmpty) p.postalCode!,
+        ];
+        final address = parts.join(', ');
+        if (mounted) {
+          setState(() => _addressController.text = address);
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('user_address', address);
+          if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
+        }
+      }
+    } catch (e) {
+      if (mounted) UiUtils.showCenteredToast(context, 'Could not fetch location. Try again.', isError: true);
+    } finally {
+      if (mounted) setState(() => _isFetchingLocation = false);
+    }
+  }
+
+  void _scrollToField(GlobalKey key) {
+    Scrollable.ensureVisible(
+      key.currentContext!,
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -126,6 +277,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+        _selectedStartHour = null;
+        _durationHours = 1;
       });
     }
   }
@@ -133,7 +286,16 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
 
   void _confirmBooking() async {
-    if (_selectedDate != null && _quantityController.text.isNotEmpty && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty) {
+    bool isElectrician = widget.serviceName == 'Electricians';
+    bool isQtyValid = isElectrician 
+      ? (_selectedPurpose != null && (_selectedPurpose != 'Others' || _customPurposeController.text.isNotEmpty)) &&
+        (_selectedAssetType != null && (_selectedAssetType != 'Others' || _customAssetController.text.isNotEmpty))
+      : _quantityController.text.isNotEmpty;
+
+    if (_selectedDate != null && isQtyValid && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty) {
+      setState(() {
+        _isSubmitting = true;
+      });
       // Save address for future use if it changed
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
@@ -146,99 +308,192 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       if (_selectedSlots.length == 1) {
         timeStr = _formatTimeRange(_selectedSlots.first);
       } else {
-         timeStr = '${_selectedSlots.length} Hours (${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)})'; // Simplified range display
+         timeStr = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}'; // Simplified range display
       }
 
-      BookingManager().addBooking(BookingDetails(
-        id: bookingId,
-        title: '${widget.serviceName} Booking',
-        date: dateStr,
-        price: 'On Request', // usually depends on acres/hours negotiation
-        status: 'Pending',
-        category: BookingCategory.services,
+      final String? userId = prefs.getString('user_id');
+      final String? userName = prefs.getString('user_name');
+
+      final Map<String, dynamic> notesMap = {
+        'Booked By': userName ?? 'Unknown User',
+        'Provider': widget.providerName,
+        'Service': widget.serviceName,
+        'Location': _addressController.text,
+        'Preferred Time': timeStr,
+        'Notes': _notesController.text,
+      };
+
+      if (isElectrician) {
+        notesMap['Purpose of Visit'] = _selectedPurpose == 'Others' ? _customPurposeController.text : _selectedPurpose;
+        notesMap['Asset to Repair'] = _selectedAssetType == 'Others' ? _customAssetController.text : _selectedAssetType;
+      } else {
+        notesMap['Number of Acres'] = _quantityController.text;
+      }
+
+      DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first);
+      DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1);
+
+      BookingDTO dto = BookingDTO(
+        farmerId: userId,
         providerId: widget.providerId,
-        details: {
-          'Provider': widget.providerName,
-          'Service': widget.serviceName,
-          'Quantity': _quantityController.text, // e.g., 5 Acres
-          'Date': dateStr,
-          'Preferred Time': timeStr,
-          'Slots': _selectedSlots.map((h) => _formatTime(h)).join(', '),
-          'Address': _addressController.text,
-          'Notes': _notesController.text,
-        }
-      ));
+        assetId: widget.assetId,
+        assetType: 'Service',
+        bookingDate: DateTime.now(),
+        scheduledStartTime: start,
+        scheduledEndTime: end,
+        status: 'PENDING',
+        totalAmount: 0.0, // On Request
+        addressText: _addressController.text,
+        notes: jsonEncode(notesMap),
+      );
       
-      if (!mounted) return;
+      try {
+        final newBooking = await BookingManager().createBooking(dto);
+        
+        if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+        });
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BookingConfirmationScreen(
-            bookingId: bookingId,
-            bookingTitle: widget.serviceName,
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => BookingConfirmationScreen(
+              bookingId: newBooking.bookingId ?? "ID-Error",
+              bookingTitle: widget.serviceName,
+            ),
           ),
-        ),
-      );
+        );
+      } catch(e) {
+        if (!mounted) return;
+        setState(() {
+          _isSubmitting = false;
+        });
+        UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
+      }
     } else {
-      String msg = AppLocalizations.of(context)!.fillAllDetails;
-      if (_quantityController.text.isEmpty) msg = widget.serviceName == 'Harvesting' ? 'Please enter duration (Hours)' : 'Please enter quantity (Acres/Hours)';
-      else if (_addressController.text.isEmpty) msg = 'Please enter service address';
-      else if (_selectedDate == null) msg = 'Please select a date';
-      else if (_selectedSlots.isEmpty) msg = 'Please select at least one time slot';
+      setState(() {
+        _fieldErrors.clear();
+        if (isElectrician) {
+          if (_selectedPurpose == null) _fieldErrors['purpose'] = 'Please select purpose of visit';
+          else if (_selectedPurpose == 'Others' && _customPurposeController.text.isEmpty) _fieldErrors['purpose_custom'] = 'Please specify purpose';
+          
+          if (_selectedAssetType == null) _fieldErrors['asset'] = 'Please select asset type';
+          else if (_selectedAssetType == 'Others' && _customAssetController.text.isEmpty) _fieldErrors['asset_custom'] = 'Please specify asset name';
+        } else {
+          if (_quantityController.text.isEmpty) {
+            _fieldErrors['qty'] = 'Please enter number of acres';
+          }
+        }
+        
+        if (_addressController.text.isEmpty) {
+          _fieldErrors['address'] = 'Please enter service address';
+        }
+        if (_selectedDate == null) {
+          _fieldErrors['date'] = 'Please select a date';
+        }
+        if (_selectedSlots.isEmpty) {
+          _fieldErrors['slots'] = 'Please select at least one time slot';
+        }
+      });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: Colors.red),
-      );
+      // Scroll to first error
+      if (_fieldErrors.containsKey('purpose') || _fieldErrors.containsKey('purpose_custom') || 
+          _fieldErrors.containsKey('asset') || _fieldErrors.containsKey('asset_custom') ||
+          _fieldErrors.containsKey('qty')) {
+        _scrollToField(_qtySectionKey);
+      } else if (_fieldErrors.containsKey('address')) {
+        _scrollToField(_addressSectionKey);
+      } else if (_fieldErrors.containsKey('date')) {
+        _scrollToField(_dateSectionKey);
+      } else if (_fieldErrors.containsKey('slots')) {
+        _scrollToField(_timeSectionKey);
+      }
+
+      UiUtils.showCenteredToast(context, AppLocalizations.of(context)!.fillAllDetails, isError: true);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    bool isElectrician = widget.serviceName == 'Electricians';
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
-        title: Text('Book ${widget.serviceName}'),
+        title: Text('Book ${widget.serviceName}', style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20))),
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Provider Info Card
+            // Provider Info Premium Card
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9), // Light Green
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.green.withOpacity(0.2)),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
-                   Container(
-                     padding: const EdgeInsets.all(10),
-                     decoration: BoxDecoration(
-                       color: Colors.white,
-                       shape: BoxShape.circle,
-                       border: Border.all(color: Colors.green.withOpacity(0.2)),
+                   GestureDetector(
+                     onTap: () => _showFullImage(context, widget.ownerProfileImage, widget.providerName),
+                     child: Container(
+                       padding: const EdgeInsets.all(3),
+                       decoration: BoxDecoration(
+                         shape: BoxShape.circle,
+                         border: Border.all(color: const Color(0xFF00AA55).withOpacity(0.2), width: 2),
+                       ),
+                       child: CircleAvatar(
+                         radius: 35,
+                         backgroundColor: const Color(0xFFF1F8F1),
+                         backgroundImage: widget.ownerProfileImage != null
+                             ? NetworkImage(ApiConfig.getFullImageUrl(widget.ownerProfileImage))
+                             : null,
+                         child: widget.ownerProfileImage == null
+                             ? const Icon(Icons.agriculture_rounded, color: Color(0xFF00AA55), size: 35)
+                             : null,
+                       ),
                      ),
-                     child: const Icon(Icons.agriculture, color: Color(0xFF00AA55), size: 24),
                    ),
-                   const SizedBox(width: 16),
+                   const SizedBox(width: 20),
                    Expanded(
                      child: Column(
                        crossAxisAlignment: CrossAxisAlignment.start,
                        children: [
                          Text(
                            widget.providerName,
-                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                          ),
-                         const SizedBox(height: 4),
-                         Text(
-                           widget.priceInfo,
-                           style: TextStyle(color: Colors.green[800], fontSize: 13, fontWeight: FontWeight.w600),
+                         const SizedBox(height: 6),
+                         Container(
+                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                           decoration: BoxDecoration(
+                             color: const Color(0xFFE8F5E9),
+                             borderRadius: BorderRadius.circular(20),
+                           ),
+                           child: Text(
+                             widget.priceInfo,
+                             style: const TextStyle(color: Color(0xFF2E7D32), fontSize: 13, fontWeight: FontWeight.w800),
+                           ),
                          ),
                        ],
                      ),
@@ -248,175 +503,531 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Quantity Input
-            const Text(
-              'Requirement Details',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _quantityController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: widget.serviceName == 'Harvesting' ? 'Duration (Hours)' : 'Quantity (Acres / Hours)',
-                hintText: widget.serviceName == 'Harvesting' ? 'e.g. 4 Hours' : 'e.g. 2 Acres',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-
-            // Address
-            const Text(
-              'Service Address (Mandatory)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-             const SizedBox(height: 12),
-            TextField(
-              controller: _addressController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Enter full address for service...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-             // Date Selection
-            Text(
-              AppLocalizations.of(context)!.selectDate,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () => _selectDate(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today, color: _selectedDate == null ? Colors.grey[400] : const Color(0xFF00AA55)),
-                    const SizedBox(width: 12),
-                    Text(
-                      _selectedDate == null 
-                          ? AppLocalizations.of(context)!.chooseDate 
-                          : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
-                        fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w500,
-                      ),
+            // Requirement Details Card
+            _buildSectionCard(
+              key: _qtySectionKey,
+              title: 'Requirement Details',
+              icon: Icons.list_alt_rounded,
+              isError: (_fieldErrors.containsKey('qty') || _fieldErrors.containsKey('purpose') || _fieldErrors.containsKey('asset')),
+              child: isElectrician ? Column(
+                children: [
+                  _buildDropdownField(
+                    label: 'Purpose of Visit',
+                    hint: 'Choose purpose of visit',
+                    value: _selectedPurpose,
+                    items: _electricianPurposes,
+                    errorKey: 'purpose',
+                    icon: Icons.help_outline_rounded,
+                    onChanged: (val) => setState(() => _selectedPurpose = val),
+                  ),
+                  if (_selectedPurpose == 'Others') ...[
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _customPurposeController,
+                      label: 'Specify Purpose',
+                      hint: 'Enter your custom purpose...',
+                      errorKey: 'purpose_custom',
+                      icon: Icons.edit_note_rounded,
                     ),
-                    const Spacer(),
-                    Icon(Icons.arrow_drop_down, color: Colors.grey[600]),
                   ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-
-
-
-
-            // Time Selection
-            Text(
-              AppLocalizations.of(context)!.preferredTime,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-            ),
-            if (_selectedDate == null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Text('Select a date to view available time slots', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-              ),
-            const SizedBox(height: 12),
-            
-            // Slots Grid
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3, 
-                childAspectRatio: 2.5,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              itemCount: _endHour - _startHour, 
-              itemBuilder: (context, index) {
-                int hour = _startHour + index;
-                bool isBlocked = _isSlotBlocked(hour);
-                bool isSelected = _selectedSlots.contains(hour);
-                
-                return InkWell(
-                  onTap: () => _onSlotTap(hour),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isBlocked ? Colors.grey[200] : (isSelected ? const Color(0xFF00AA55) : Colors.white),
-                      border: Border.all(
-                        color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!)
-                      ),
-                      borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 20),
+                  _buildDropdownField(
+                    label: 'Type of Asset',
+                    hint: 'Choose type of asset/machinery',
+                    value: _selectedAssetType,
+                    items: _electricianAssets,
+                    errorKey: 'asset',
+                    icon: Icons.precision_manufacturing_rounded,
+                    onChanged: (val) => setState(() => _selectedAssetType = val),
+                  ),
+                  if (_selectedAssetType == 'Others') ...[
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _customAssetController,
+                      label: 'Specify Asset Name',
+                      hint: 'Enter asset/machinery name...',
+                      errorKey: 'asset_custom',
+                      icon: Icons.edit_rounded,
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      _formatTimeRange(hour),
-                      style: TextStyle(
-                        color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : Colors.black87),
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 12,
-                        decoration: isBlocked ? TextDecoration.lineThrough : null,
+                  ],
+                ],
+              ) : _buildTextField(
+                controller: _quantityController,
+                label: 'Number of Acres',
+                hint: 'e.g. 2 Acres',
+                keyboardType: TextInputType.number,
+                errorKey: 'qty',
+                icon: Icons.landscape_rounded,
+                onChanged: (_) {
+                  if (_fieldErrors.containsKey('qty')) setState(() => _fieldErrors.remove('qty'));
+                },
+              ),
+            ),
+
+            // Address Card
+            _buildSectionCard(
+              key: _addressSectionKey,
+              title: 'Service Address',
+              icon: Icons.location_on_rounded,
+              isError: _fieldErrors.containsKey('address'),
+              child: _buildTextField(
+                controller: _addressController,
+                label: 'Mandatory for service',
+                hint: 'Enter full address...',
+                maxLines: 3,
+                errorKey: 'address',
+                icon: Icons.map_rounded,
+                suffixIcon: _isFetchingLocation
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                      tooltip: 'Use my current location',
+                      onPressed: _fetchCurrentLocation,
+                    ),
+                onChanged: (_) {
+                  if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
+                },
+              ),
+            ),
+
+            // Date & Time Selection Card
+            _buildSectionCard(
+              key: _dateSectionKey,
+              title: 'Schedule Booking',
+              icon: Icons.event_available_rounded,
+              isError: _fieldErrors.containsKey('date') || _fieldErrors.containsKey('slots'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Select Date', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () async {
+                      await _selectDate(context);
+                      if (_selectedDate != null && _fieldErrors.containsKey('date')) {
+                        setState(() => _fieldErrors.remove('date'));
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FBF9),
+                        border: Border.all(color: _fieldErrors.containsKey('date') ? Colors.red : const Color(0xFFE8F5E9)),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today_rounded, size: 20, color: _selectedDate == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+                          const SizedBox(width: 12),
+                          Text(
+                            _selectedDate == null 
+                                ? l10n.chooseDate 
+                                : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
+                              fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
+                        ],
                       ),
                     ),
                   ),
-                );
-              },
-            ),
 
-            const SizedBox(height: 24),
+                  const SizedBox(height: 30),
+                  Text(
+                    l10n.preferredTime,
+                    key: _timeSectionKey,
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                  ),
+                  if (_selectedDate == null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0, left: 4),
+                      child: Text('Please select a date first', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
+                    )
+                  else ...[
+                    const SizedBox(height: 16),
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3, 
+                        childAspectRatio: 2.2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
+                      itemCount: _endHour - _startHour, 
+                      itemBuilder: (context, index) {
+                        int hour = _startHour + index;
+                        bool isBlocked = _isSlotBlocked(hour);
+                        bool isSelected = _selectedSlots.contains(hour);
 
-            // Notes
-             TextField(
-              controller: _notesController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Additional Notes',
-                hintText: 'Any specific instructions...',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        return InkWell(
+                          onTap: () {
+                            _onSlotTap(hour);
+                            if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) {
+                              setState(() => _fieldErrors.remove('slots'));
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              color: isBlocked 
+                                ? Colors.grey[100] 
+                                : (isSelected ? const Color(0xFF00AA55) : Colors.white),
+                              border: Border.all(
+                                color: isBlocked 
+                                    ? Colors.transparent 
+                                    : (isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9)),
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8)] : null,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              _formatTimeRange(hour),
+                              style: TextStyle(
+                                color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
+                                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                fontSize: 11,
+                                decoration: isBlocked ? TextDecoration.lineThrough : null,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                    if (_selectedStartHour != null) ...[
+                      const SizedBox(height: 30),
+                      const Text(
+                        'Select Duration',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9FBF9),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE8F5E9)),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    _buildDurationButton(
+                                      icon: Icons.remove_rounded,
+                                      onPressed: _durationHours > 1 
+                                        ? () => setState(() => _durationHours--)
+                                        : null,
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      '$_durationHours ${_durationHours == 1 ? 'Hour' : 'Hours'}',
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    _buildDurationButton(
+                                      icon: Icons.add_rounded,
+                                      onPressed: _isRangeAvailable(_selectedStartHour!, _durationHours + 1)
+                                        ? () => setState(() => _durationHours++)
+                                        : null,
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF00AA55).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '${_formatTime(_selectedStartHour!)} - ${_formatTime(_selectedStartHour! + _durationHours)}',
+                                    style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w800, fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (!_isRangeAvailable(_selectedStartHour!, _durationHours + 1) && (_selectedStartHour! + _durationHours) < _endHour)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Text(
+                                  'Next slot is already booked or unavailable',
+                                  style: TextStyle(color: Colors.orange[800], fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ],
               ),
             ),
 
-            const SizedBox(height: 40),
+            // Additional Notes Card
+            _buildSectionCard(
+              title: 'Additional Notes',
+              icon: Icons.note_add_rounded,
+              child: _buildTextField(
+                controller: _notesController,
+                label: 'Any specific instructions?',
+                hint: 'Type here...',
+                maxLines: 3,
+                errorKey: 'notes',
+                icon: Icons.speaker_notes_rounded,
+              ),
+            ),
 
-            // Button
-             SizedBox(
+            const SizedBox(height: 24),
+            // Confirm Button
+            Container(
               width: double.infinity,
-              height: 50,
+              height: 60,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF00AA55).withOpacity(0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
               child: ElevatedButton(
-                onPressed: _confirmBooking,
+                onPressed: _isSubmitting ? null : _confirmBooking,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0A0E21),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                  backgroundColor: const Color(0xFF00AA55),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  elevation: 0,
+                ),
+                child: _isSubmitting 
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                  : Text(
+                      l10n.confirmRequest,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                    ),
+              ),
+            ),
+            const SizedBox(height: 48),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFullImage(BuildContext context, String? imageUrl, String title) {
+    if (imageUrl == null || imageUrl.isEmpty) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(20),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.network(
+                  ApiConfig.getFullImageUrl(imageUrl),
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(40),
+                    child: const Icon(Icons.broken_image, size: 80, color: Colors.grey),
                   ),
                 ),
-                child: Text(
-                  AppLocalizations.of(context)!.confirmRequest,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
+              ),
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionCard({Key? key, required String title, required IconData icon, required Widget child, bool isError = false}) {
+    return Container(
+      key: key,
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: isError ? Border.all(color: Colors.red.withOpacity(0.3), width: 1.5) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: const Color(0xFF00AA55)),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDurationButton({required IconData icon, VoidCallback? onPressed}) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: onPressed == null ? Colors.white : const Color(0xFF00AA55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: onPressed == null ? Colors.grey[200]! : Colors.transparent),
+        boxShadow: onPressed != null ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))] : null,
+      ),
+      child: IconButton(
+        icon: Icon(icon, size: 20, color: onPressed == null ? Colors.grey[300] : Colors.white),
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+      ),
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String label,
+    required String hint,
+    required String? value,
+    required List<String> items,
+    required String errorKey,
+    required ValueChanged<String?> onChanged,
+    IconData? icon,
+  }) {
+    bool hasError = _fieldErrors.containsKey(errorKey);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13, 
+            fontWeight: FontWeight.w700, 
+            color: hasError ? Colors.red : const Color(0xFF2C3E50),
+          ),
+        ),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: value,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
+          decoration: _inputDecoration(hint, isError: hasError, icon: icon),
+          items: items.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+          onChanged: (val) {
+            onChanged(val);
+            if (_fieldErrors.containsKey(errorKey)) setState(() => _fieldErrors.remove(errorKey));
+            if (errorKey == 'purpose' && _fieldErrors.containsKey('purpose_custom')) setState(() => _fieldErrors.remove('purpose_custom'));
+            if (errorKey == 'asset' && _fieldErrors.containsKey('asset_custom')) setState(() => _fieldErrors.remove('asset_custom'));
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required String errorKey,
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+    IconData? icon,
+    Widget? suffixIcon,
+    Function(String)? onChanged,
+  }) {
+    bool hasError = _fieldErrors.containsKey(errorKey);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13, 
+            fontWeight: FontWeight.w700, 
+            color: hasError ? Colors.red : const Color(0xFF2C3E50),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: controller,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
+          onChanged: (val) {
+            if (onChanged != null) onChanged(val);
+            if (_fieldErrors.containsKey(errorKey)) setState(() => _fieldErrors.remove(errorKey));
+          },
+          decoration: _inputDecoration(hint, isError: hasError, icon: icon).copyWith(suffixIcon: suffixIcon),
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint, {bool isError = false, IconData? icon}) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: icon != null ? Icon(icon, size: 20, color: const Color(0xFF00AA55)) : null,
+      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.w500),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: isError ? Colors.red : const Color(0xFFE8F5E9)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(color: isError ? Colors.red : const Color(0xFFE8F5E9)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+      ),
+      filled: true,
+      fillColor: const Color(0xFFF9FBF9),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
 }

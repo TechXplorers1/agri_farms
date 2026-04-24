@@ -12,7 +12,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   bool _orderUpdates = true;
   bool _bookingUpdates = true;
   bool _paymentUpdates = true;
-  bool _communityActivity = false;
+  bool _communityActivity = false; 
   bool _promotionalOffers = false;
 
   @override

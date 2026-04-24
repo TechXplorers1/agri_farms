@@ -6,18 +6,21 @@ import '../data/models/service_offering_model.dart';
 
 abstract class ServiceProvider {
   final String id;
+  final String? providerId;
   final String name;
-  final String serviceName; // 'Farm Workers', 'Ploughing', etc.
+  String serviceName; // 'Farm Workers', 'Ploughing', etc.
   final String distance;
   final double rating;
   final String approvalStatus; // 'Pending', 'Approved', 'Rejected'
-  final String location;
+  String location;
   final bool isAvailable;
   final int jobsCompleted;
   final String? image; // New image field
+  final String? ownerProfileImage; // New field for owner's profile image
 
   ServiceProvider({
     required this.id,
+    this.providerId,
     required this.name,
     required this.serviceName,
     required this.distance,
@@ -27,21 +30,23 @@ abstract class ServiceProvider {
     this.isAvailable = true,
     this.jobsCompleted = 0,
     this.image,
+    this.ownerProfileImage,
   });
 }
 
 class ServiceListing extends ServiceProvider {
-  final String equipmentUsed;
+  String equipmentUsed;
   final String price; // e.g., '₹1200 / acre'
   final bool operatorIncluded;
 
   ServiceListing({
     required super.id,
+    super.providerId,
     required super.name,
     required super.serviceName,
     required super.distance,
     required super.rating,
-    String approvalStatus = 'Approved',
+    super.approvalStatus = 'Approved',
     super.location,
     super.isAvailable,
     super.jobsCompleted,
@@ -49,7 +54,8 @@ class ServiceListing extends ServiceProvider {
     required this.price,
     required this.operatorIncluded,
     super.image,
-  }) : super(approvalStatus: approvalStatus);
+    super.ownerProfileImage,
+  });
 }
 
 class FarmWorkerListing extends ServiceProvider {
@@ -57,16 +63,20 @@ class FarmWorkerListing extends ServiceProvider {
   final int femaleCount;
   final int malePrice;
   final int femalePrice;
-  final String skills; // e.g., 'Sowing, Harvesting'
-  final List<String> roleDistribution; // e.g. ["5 Men - Sowing", "4 Women - Weeding"]
+  final int malePriceHourly;
+  final int femalePriceHourly;
+  String skills; // e.g., 'Sowing, Harvesting'
+  List<String> roleDistribution; // e.g. ["5 Men - Sowing", "4 Women - Weeding"]
+  final String? groupName;
 
   FarmWorkerListing({
     required super.id,
+    super.providerId,
     required super.name,
     required super.serviceName, // 'Farm Workers'
     required super.distance,
     required super.rating,
-    String approvalStatus = 'Approved',
+    super.approvalStatus = 'Approved',
     super.location,
     super.isAvailable,
     super.jobsCompleted,
@@ -74,15 +84,19 @@ class FarmWorkerListing extends ServiceProvider {
     required this.femaleCount,
     required this.malePrice,
     required this.femalePrice,
+    this.malePriceHourly = 0,
+    this.femalePriceHourly = 0,
     required this.skills,
     this.roleDistribution = const [],
+    this.groupName,
     super.image,
-  }) : super(approvalStatus: approvalStatus);
+    super.ownerProfileImage,
+  });
 }
 
 class TransportListing extends ServiceProvider {
-  final String vehicleType; // Duplicate of serviceName usually, e.g. 'Mini Truck'
-  final String loadCapacity; // '1 ton'
+  String vehicleType; // Duplicate of serviceName usually, e.g. 'Mini Truck'
+  String loadCapacity; // '1 ton'
   final String price; // '₹1200 / trip'
   final bool driverIncluded;
   final String? vehicleNumber; // Optional / Private
@@ -90,11 +104,12 @@ class TransportListing extends ServiceProvider {
 
   TransportListing({
     required super.id,
+    super.providerId,
     required super.name,
     required super.serviceName,
     required super.distance,
     required super.rating,
-    String approvalStatus = 'Approved',
+    super.approvalStatus = 'Approved',
     super.location,
     super.isAvailable,
     super.jobsCompleted,
@@ -105,23 +120,25 @@ class TransportListing extends ServiceProvider {
     this.vehicleNumber,
     this.serviceArea,
     super.image,
-  }) : super(approvalStatus: approvalStatus);
+    super.ownerProfileImage,
+  });
 }
 
 class EquipmentListing extends ServiceProvider {
-  final String brandModel;
+  String brandModel;
   final String price; // '₹500 / hour'
   final bool operatorAvailable;
-  final String condition; // 'Good', 'New'
+  String condition; // 'Good', 'New'
   final String? yearOfManufacture;
 
   EquipmentListing({
     required super.id,
+    super.providerId,
     required super.name,
     required super.serviceName,
     required super.distance,
     required super.rating,
-    String approvalStatus = 'Approved',
+    super.approvalStatus = 'Approved',
     super.location,
     super.isAvailable,
     super.jobsCompleted,
@@ -131,7 +148,8 @@ class EquipmentListing extends ServiceProvider {
     this.condition = 'Good',
     this.yearOfManufacture,
     super.image,
-  }) : super(approvalStatus: approvalStatus);
+    super.ownerProfileImage,
+  });
 }
 
 class ProviderManager extends ChangeNotifier {
@@ -306,27 +324,27 @@ class ProviderManager extends ChangeNotifier {
       
       if (old is ServiceListing) {
          updated = ServiceListing(
-           id: old.id, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
+           id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, equipmentUsed: old.equipmentUsed, price: old.price,
            operatorIncluded: old.operatorIncluded, isAvailable: old.isAvailable, jobsCompleted: old.jobsCompleted
          );
       } else if (old is FarmWorkerListing) {
          updated = FarmWorkerListing(
-           id: old.id, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
+           id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, maleCount: old.maleCount, femaleCount: old.femaleCount,
            malePrice: old.malePrice, femalePrice: old.femalePrice, skills: old.skills, isAvailable: old.isAvailable,
-           jobsCompleted: old.jobsCompleted, roleDistribution: old.roleDistribution
+           jobsCompleted: old.jobsCompleted, roleDistribution: old.roleDistribution, groupName: old.groupName
          );
       } else if (old is TransportListing) {
          updated = TransportListing(
-           id: old.id, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
+           id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, vehicleType: old.vehicleType, loadCapacity: old.loadCapacity,
            price: old.price, driverIncluded: old.driverIncluded, isAvailable: old.isAvailable,
            jobsCompleted: old.jobsCompleted, vehicleNumber: old.vehicleNumber, serviceArea: old.serviceArea
          );
       } else if (old is EquipmentListing) {
          updated = EquipmentListing(
-           id: old.id, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
+           id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, brandModel: old.brandModel, price: old.price,
            operatorAvailable: old.operatorAvailable, condition: old.condition, isAvailable: old.isAvailable,
            jobsCompleted: old.jobsCompleted, yearOfManufacture: old.yearOfManufacture
@@ -361,6 +379,7 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.8,
         skills: 'Sowing, Harvesting',
         roleDistribution: ['12 Men - Sowing', '20 Women - Harvesting'],
+        groupName: 'Ramesh Labour Group',
         location: 'Rampur Village',
         image: 'https://images.unsplash.com/photo-1595843472097-dfd63ff444d1?q=80&w=200&auto=format&fit=crop',
       ),
@@ -376,6 +395,7 @@ class ProviderManager extends ChangeNotifier {
         rating: 4.5,
         skills: 'Weeding, Loading',
         roleDistribution: ['8 Men - Loading', '15 Women - Weeding'],
+        groupName: 'Suresh Workers',
         location: 'Sonapur',
         image: 'https://images.unsplash.com/photo-1628155985854-443b740523bb?q=80&w=200&auto=format&fit=crop',
       ),

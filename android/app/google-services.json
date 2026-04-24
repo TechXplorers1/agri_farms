@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "114650691864",
+    "firebase_url": "https://agrifarms-d7ccb-default-rtdb.firebaseio.com",
+    "project_id": "agrifarms-d7ccb",
+    "storage_bucket": "agrifarms-d7ccb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:114650691864:android:49952b95c86d71c6c7866d",
+        "android_client_info": {
+          "package_name": "com.agrifarms"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiDhC7GJ-rC2jONyk697S_TLqRrB4XfTc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:114650691864:android:f722c8057fca6c09c7866d",
+        "android_client_info": {
+          "package_name": "com.example.agriculture"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDiDhC7GJ-rC2jONyk697S_TLqRrB4XfTc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
