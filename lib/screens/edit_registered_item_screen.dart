@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:agriculture/l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import '../utils/location_helper.dart';
 import 'dart:io' show File;
 import '../services/api_service.dart';
 import '../config/api_config.dart';
@@ -120,23 +121,22 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         return;
       }
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high
-      );
-
-      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
       
-      if (placemarks.isNotEmpty) {
-        final place = placemarks[0];
-        String village = place.subLocality ?? place.locality ?? 'Unknown Village';
-        String district = place.subAdministrativeArea ?? place.administrativeArea ?? 'Unknown District';
-        
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      
+      // Use helper for cross-platform reverse geocoding
+      final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
+      final String village = addressData['village']!;
+      final String district = addressData['district']!;
+      
+      if (mounted) {
         setState(() {
            _locationController.text = "$village, $district";
         });
         
         UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
       }
+
     } catch (e) {
       UiUtils.showCenteredToast(context, 'Error fetching location: $e');
     } finally {

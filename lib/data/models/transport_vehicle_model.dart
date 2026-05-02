@@ -7,6 +7,15 @@ class TransportVehicle {
   final double? pricePerKmOrTrip;
   final bool? driverIncluded;
   final String? location;
+  String? houseNo;
+  String? street;
+  String? village;
+  String? district;
+  String? state;
+  String? country;
+  String? pincode;
+  double? latitude;
+  double? longitude;
   final bool? isAvailable;
   final String? imageUrl;
   final double? rating;
@@ -20,6 +29,15 @@ class TransportVehicle {
     this.pricePerKmOrTrip,
     this.driverIncluded,
     this.location,
+    this.houseNo,
+    this.street,
+    this.village,
+    this.district,
+    this.state,
+    this.country,
+    this.pincode,
+    this.latitude,
+    this.longitude,
     this.isAvailable,
     this.imageUrl,
     this.rating,
@@ -35,6 +53,15 @@ class TransportVehicle {
       pricePerKmOrTrip: (json['pricePerKmOrTrip'] as num?)?.toDouble(),
       driverIncluded: json['driverIncluded'],
       location: json['location'],
+      houseNo: json['houseNo'],
+      street: json['street'],
+      village: json['village'],
+      district: json['district'],
+      state: json['state'],
+      country: json['country'],
+      pincode: json['pincode'],
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       isAvailable: json['isAvailable'],
       imageUrl: json['imageUrl'],
       rating: (json['rating'] as num?)?.toDouble(),
@@ -51,6 +78,15 @@ class TransportVehicle {
       'pricePerKmOrTrip': pricePerKmOrTrip,
       'driverIncluded': driverIncluded,
       'location': location,
+      'houseNo': houseNo,
+      'street': street,
+      'village': village,
+      'district': district,
+      'state': state,
+      'country': country,
+      'pincode': pincode,
+      'latitude': latitude,
+      'longitude': longitude,
       'isAvailable': isAvailable,
       'imageUrl': imageUrl,
       'rating': rating,

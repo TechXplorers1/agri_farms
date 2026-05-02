@@ -9,6 +9,7 @@ import '../models/booking_dto.dart';
 import '../services/api_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import '../utils/location_helper.dart';
 
 class BookWorkersScreen extends StatefulWidget {
   final String providerName;
@@ -369,24 +370,21 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         if (mounted) UiUtils.showCenteredToast(context, 'Location permission permanently denied. Enable it in Settings.', isError: true);
         return;
       }
+      
       final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-      if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        final parts = <String>[
-          if ((p.name ?? '').isNotEmpty && p.name != p.thoroughfare) p.name!,
-          if ((p.subLocality ?? '').isNotEmpty) p.subLocality!,
-          if ((p.locality ?? '').isNotEmpty) p.locality!,
-          if ((p.administrativeArea ?? '').isNotEmpty) p.administrativeArea!,
-          if ((p.postalCode ?? '').isNotEmpty) p.postalCode!,
-        ];
-        final address = parts.join(', ');
-        if (mounted) {
-          setState(() => _addressController.text = address);
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('user_address', address);
-          if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
-        }
+      
+      // Use helper for cross-platform reverse geocoding
+      final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
+      final String village = addressData['village']!;
+      final String district = addressData['district']!;
+      final String address = "$village, $district";
+
+      if (mounted) {
+        setState(() => _addressController.text = address);
+        // Save to prefs if needed (check file context)
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_address', address);
+        if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
       }
     } catch (e) {
       if (mounted) UiUtils.showCenteredToast(context, 'Could not fetch location. Try again.', isError: true);

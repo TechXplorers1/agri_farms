@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 
 import 'upload_item_screen.dart';
@@ -36,6 +37,7 @@ class ServiceProvidersScreen extends StatefulWidget {
 class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   String? _selectedMake;
   String? _selectedLocation;
+  double? _selectedDistance;
   late Future<List<ServiceProvider>> _providersFuture;
   Locale? _lastLocale;
 
@@ -81,6 +83,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           name: v['ownerName'] ?? 'Unknown Owner',
           serviceName: v['vehicleType'],
           distance: '2-5 km',
+          latitude: (v['latitude'] as num?)?.toDouble(),
+          longitude: (v['longitude'] as num?)?.toDouble(),
           rating: (v['rating'] ?? 5.0).toDouble(),
           approvalStatus: v['approvalStatus'] ?? 'Pending',
           location: v['location'] ?? 'Nearby',
@@ -103,6 +107,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           name: e['ownerName'] ?? 'Unknown Owner',
           serviceName: e['category'],
           distance: '1-3 km',
+          latitude: (e['latitude'] as num?)?.toDouble(),
+          longitude: (e['longitude'] as num?)?.toDouble(),
           rating: (e['rating'] ?? 5.0).toDouble(),
           approvalStatus: e['approvalStatus'] ?? 'Pending',
           location: e['location'] ?? 'Nearby',
@@ -123,6 +129,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            name: s['ownerName'] ?? s['businessName'] ?? 'Unknown Owner',
            serviceName: s['serviceType'],
            distance: 'Nearby',
+           latitude: (s['latitude'] as num?)?.toDouble(),
+           longitude: (s['longitude'] as num?)?.toDouble(),
            rating: (s['rating'] ?? 5.0).toDouble(),
            approvalStatus: s['approvalStatus'] ?? 'Pending',
            location: s['location'] ?? 'Village',
@@ -143,6 +151,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
              name: w['ownerName'] ?? w['groupName'] ?? 'Unknown Leader',
              serviceName: 'Farm Workers',
              distance: '2 km',
+             latitude: (w['latitude'] as num?)?.toDouble(),
+             longitude: (w['longitude'] as num?)?.toDouble(),
              rating: (w['rating'] ?? 5.0).toDouble(),
              approvalStatus: w['approvalStatus'] ?? 'Pending',
              location: w['location'] ?? 'Nearby',
@@ -183,7 +193,69 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         }
       }
       
+      
+      // Calculate Exact Distances
+      try {
+        double? userLat;
+        double? userLng;
+
+        if (currentUserId != null) {
+          try {
+            final userData = await apiService.getUser(currentUserId);
+            if (userData != null && userData is Map) {
+              userLat = (userData['latitude'] as num?)?.toDouble();
+              userLng = (userData['longitude'] as num?)?.toDouble();
+            }
+          } catch(e) {
+            debugPrint('Failed to get user coords: $e');
+          }
+        }
+
+        if (userLat == null || userLng == null) {
+          bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+          if (serviceEnabled) {
+            LocationPermission permission = await Geolocator.checkPermission();
+            if (permission == LocationPermission.denied) {
+              permission = await Geolocator.requestPermission();
+            }
+            if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+              Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+              userLat = position.latitude;
+              userLng = position.longitude;
+            }
+          }
+        }
+
+        if (userLat != null && userLng != null) {
+          for (var p in providers) {
+            if (p.latitude != null && p.longitude != null) {
+              double distMeters = Geolocator.distanceBetween(userLat, userLng, p.latitude!, p.longitude!);
+              if (distMeters < 1000) {
+                p.distance = '${distMeters.toStringAsFixed(0)} m';
+              } else {
+                p.distance = '${(distMeters / 1000).toStringAsFixed(1)} km';
+              }
+            } else {
+               p.distance = 'Unknown';
+            }
+          }
+          
+          // Sort by distance
+          providers.sort((a, b) {
+            if (a.latitude == null && b.latitude == null) return 0;
+            if (a.latitude == null) return 1;
+            if (b.latitude == null) return -1;
+            double distA = Geolocator.distanceBetween(userLat!, userLng!, a.latitude!, a.longitude!);
+            double distB = Geolocator.distanceBetween(userLat, userLng, b.latitude!, b.longitude!);
+            return distA.compareTo(distB);
+          });
+        }
+      } catch (e) {
+        debugPrint('Error calculating distances: $e');
+      }
+      
       return providers;
+
     } catch (e) {
       debugPrint('Error fetching providers for ${widget.serviceKey}: $e');
       return ProviderManager().getProvidersByService(widget.serviceKey);
@@ -225,15 +297,38 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           final filteredProviders = allProviders.where((provider) {
             bool matchesMake = true;
             bool matchesLocation = true;
+            bool matchesDistance = true;
+
             if (_selectedMake != null && _selectedMake != 'All') {
                if (provider is EquipmentListing) matchesMake = provider.brandModel.contains(_selectedMake!); 
                else if (provider is TransportListing) matchesMake = provider.vehicleType.contains(_selectedMake!) || provider.name.contains(_selectedMake!);
                else if (provider is ServiceListing) matchesMake = provider.equipmentUsed.contains(_selectedMake!);
             }
+
             if (_selectedLocation != null && _selectedLocation != 'All') {
-              matchesLocation = provider.location == _selectedLocation;
+              if (_selectedLocation!.endsWith(' km')) {
+                // Distance filtering
+                double maxDist = double.parse(_selectedLocation!.split(' ')[0]);
+                // Parse provider distance (e.g., "3.5 km")
+                double? pDist;
+                try {
+                  String dStr = provider.distance.replaceAll(RegExp(r'[^0-9.]'), '');
+                  pDist = double.tryParse(dStr);
+                  // If "m", convert to km
+                  if (provider.distance.contains(' m')) pDist = pDist! / 1000;
+                } catch(_) {}
+                
+                if (pDist != null) {
+                  matchesDistance = pDist <= maxDist;
+                } else {
+                  matchesDistance = false; // Exclude if distance unknown
+                }
+              } else {
+                // Village/Location filtering
+                matchesLocation = provider.location == _selectedLocation;
+              }
             }
-            return matchesMake && matchesLocation;
+            return matchesMake && matchesLocation && matchesDistance;
           }).toList();
 
           return Column(
@@ -276,7 +371,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             const SizedBox(width: 12),
           ],
           Expanded(child: _buildFilterDropdown(
-            hint: l10n.selectLocation, value: _selectedLocation, items: ['All', ...locations],
+            hint: l10n.selectLocation, value: _selectedLocation, items: ['All', ...['5 km', '10 km', '15 km', '20 km', '25 km', '30 km', '35 km', '40 km', '45 km', '50 km', '55 km', '60 km'], ...locations],
             onChanged: (v) => setState(() => _selectedLocation = v == 'All' ? null : v),
             isLocation: true,
           )),

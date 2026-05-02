@@ -96,6 +96,10 @@ class ApiService {
     return await put('${ApiConfig.users}/$userId', userData);
   }
 
+  Future<dynamic> getUserStats(String userId) async {
+    return await get('${ApiConfig.users}/$userId/stats');
+  }
+
   // Bookings
   Future<dynamic> createBooking(Map<String, dynamic> bookingData) async {
     return await post(ApiConfig.bookings, bookingData);

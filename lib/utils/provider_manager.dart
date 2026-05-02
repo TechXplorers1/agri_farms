@@ -9,7 +9,9 @@ abstract class ServiceProvider {
   final String? providerId;
   final String name;
   String serviceName; // 'Farm Workers', 'Ploughing', etc.
-  final String distance;
+  String distance;
+  double? latitude;
+  double? longitude;
   final double rating;
   final String approvalStatus; // 'Pending', 'Approved', 'Rejected'
   String location;
@@ -24,6 +26,8 @@ abstract class ServiceProvider {
     required this.name,
     required this.serviceName,
     required this.distance,
+    this.latitude,
+    this.longitude,
     required this.rating,
     required this.approvalStatus,
     this.location = '',
@@ -45,6 +49,8 @@ class ServiceListing extends ServiceProvider {
     required super.name,
     required super.serviceName,
     required super.distance,
+    super.latitude,
+    super.longitude,
     required super.rating,
     super.approvalStatus = 'Approved',
     super.location,
@@ -75,6 +81,8 @@ class FarmWorkerListing extends ServiceProvider {
     required super.name,
     required super.serviceName, // 'Farm Workers'
     required super.distance,
+    super.latitude,
+    super.longitude,
     required super.rating,
     super.approvalStatus = 'Approved',
     super.location,
@@ -108,6 +116,8 @@ class TransportListing extends ServiceProvider {
     required super.name,
     required super.serviceName,
     required super.distance,
+    super.latitude,
+    super.longitude,
     required super.rating,
     super.approvalStatus = 'Approved',
     super.location,
@@ -137,6 +147,8 @@ class EquipmentListing extends ServiceProvider {
     required super.name,
     required super.serviceName,
     required super.distance,
+    super.latitude,
+    super.longitude,
     required super.rating,
     super.approvalStatus = 'Approved',
     super.location,
@@ -183,6 +195,8 @@ class ProviderManager extends ChangeNotifier {
             serviceName: eq.category ?? 'Equipment',
             brandModel: eq.brandModel ?? 'Unknown Model',
             distance: eq.location ?? 'Unknown',
+            latitude: eq.latitude,
+            longitude: eq.longitude,
             rating: eq.rating ?? 0.0,
             price: '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / hour',
             operatorAvailable: eq.operatorAvailable ?? false,
@@ -208,6 +222,8 @@ class ProviderManager extends ChangeNotifier {
             loadCapacity: v.loadCapacity ?? 'Unknown',
             price: '₹${v.pricePerKmOrTrip?.toStringAsFixed(0) ?? 0} / trip',
             distance: v.location ?? 'Unknown',
+            latitude: v.latitude,
+            longitude: v.longitude,
             rating: v.rating ?? 0.0,
             driverIncluded: v.driverIncluded ?? true,
             vehicleNumber: v.vehicleNumber,
@@ -230,6 +246,8 @@ class ProviderManager extends ChangeNotifier {
             name: s.businessName ?? 'Provider ${s.ownerId.substring(0, 4)}',
             serviceName: s.serviceType ?? 'Service',
             distance: s.location ?? 'Unknown',
+            latitude: s.latitude,
+            longitude: s.longitude,
             rating: s.rating ?? 0.0,
             price: '₹${s.priceRate?.toStringAsFixed(0) ?? 0} ${s.priceUnit ?? ""}',
             equipmentUsed: s.description ?? 'Standard Equipment',
