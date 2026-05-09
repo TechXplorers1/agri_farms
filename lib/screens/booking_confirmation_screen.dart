@@ -323,7 +323,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
                     onPressed: () {
                       // Navigate to My Services / History
                        Navigator.of(context).pushAndRemoveUntil(
-                             MaterialPageRoute(builder: (context) => const HomeScreen(initialIndex: 3)), // Assuming 3 is History
+                             MaterialPageRoute(builder: (context) => const HomeScreen(initialIndex: 1)), // 1 is Activity/History tab
                              (route) => false,
                            );
                     },

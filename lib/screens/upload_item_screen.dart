@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:agriculture/l10n/app_localizations.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
+import 'package:geocoding/geocoding.dart' as geo;
+import '../services/geocoding_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -27,6 +30,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   bool _isUploading = false;
   bool _isSubmitting = false;
   bool _isFetchingLocation = false;
+  double _selectedLatitude = 0.0;
+  double _selectedLongitude = 0.0;
   
   final ImagePicker _picker = ImagePicker();
   final ScrollController _scrollController = ScrollController();
@@ -133,21 +138,52 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         return;
       }
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high
-      );
-
-      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
       
-      if (placemarks.isNotEmpty) {
-        final place = placemarks[0];
-        String village = place.subLocality ?? place.locality ?? 'Unknown Village';
-        String district = place.subAdministrativeArea ?? place.administrativeArea ?? 'Unknown District';
-        
-        setState(() {
-           _locationController.text = "$village, $district";
-        });
-        
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      
+      setState(() {
+        _selectedLatitude = position.latitude;
+        _selectedLongitude = position.longitude;
+      });
+
+      String? village;
+      String? district;
+
+      // Try cross-platform geocoding (nominatim)
+      try {
+        final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=${position.latitude}&lon=${position.longitude}&format=json');
+        final responseData = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
+        final response = json.decode(responseData.body);
+        if (response != null && response['address'] != null) {
+          village = response['address']['suburb'] ?? response['address']['village'] ?? response['address']['neighbourhood'] ?? response['address']['city_district'];
+          district = response['address']['district'] ?? response['address']['city'] ?? response['address']['county'];
+        }
+      } catch (e) {
+        debugPrint("Reverse geocoding failed: $e");
+      }
+
+      // Fallback to mobile-specific if on Android/iOS and previous failed
+      if (village == null && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        try {
+          final placemarks = await geo.placemarkFromCoordinates(position.latitude, position.longitude);
+          if (placemarks.isNotEmpty) {
+            final place = placemarks[0];
+            village = place.subLocality ?? place.locality;
+            district = place.subAdministrativeArea ?? place.administrativeArea;
+          }
+        } catch (e) {}
+      }
+
+      village ??= 'Unknown Village';
+      district ??= 'District';
+
+      setState(() {
+        _locationController.text = "$village, $district";
+        _villageController.text = village!;
+        _districtController.text = district!;
+      });
+      
+      if (mounted) {
         UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
       }
     } catch (e) {
@@ -183,6 +219,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
+
+  // Address Detail Controllers
+  final TextEditingController _houseNoController = TextEditingController();
+  final TextEditingController _streetController = TextEditingController();
+  final TextEditingController _villageController = TextEditingController();
+  final TextEditingController _districtController = TextEditingController();
+  final TextEditingController _stateController = TextEditingController();
+  final TextEditingController _countryController = TextEditingController(text: 'India');
+  final TextEditingController _pincodeController = TextEditingController();
 
   // Transport Specific
   String? _selectedTransportType;
@@ -255,7 +300,48 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     super.dispose();
   }
 
+  
+  Future<void> _updateCoordinatesFromAddress() async {
+    try {
+      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
+      
+      double? lat, lng;
+      // Local geocoding
+      try {
+        if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+          List<geo.Location> locations = await geo.locationFromAddress(fullAddress);
+          if (locations.isNotEmpty) {
+            lat = locations.first.latitude;
+            lng = locations.first.longitude;
+          }
+        }
+      } catch (e) {}
+
+      
+      // OS geocoding fallback
+      if (lat == null || lng == null) {
+        String fallbackAddress = "${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}";
+        final coords = await GeocodingService.getCoordinates(fullAddress, fallbackAddress: fallbackAddress);
+        if (coords != null) {
+          lat = coords['latitude'];
+          lng = coords['longitude'];
+        }
+      }
+
+
+      if (lat != null && lng != null) {
+        setState(() {
+          _selectedLatitude = lat!;
+          _selectedLongitude = lng!;
+        });
+      }
+    } catch (e) {
+      debugPrint("Geocoding failed: $e");
+    }
+  }
+
   Future<void> _submit() async {
+    await _updateCoordinatesFromAddress();
     setState(() => _isSubmitting = true);
     try {
       // If we are in 'Services' generic category and the selected dropdown item is 'Farm Workers'
@@ -340,6 +426,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'pricePerFemaleHourly': double.tryParse(_femalePriceHourlyController.text) ?? 0.0,
         'skills': derivedSkills.join(', '),
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        'latitude': _selectedLatitude,
+        'longitude': _selectedLongitude,
         'serviceRangeKm': 50, // default or add field later
         'isAvailable': true,
         'rating': 5.0,
@@ -414,6 +502,43 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'pricePerHour': parsedPrice,
         'operatorAvailable': _operatorAvailable,
         'location': _locationController.text,
+        'houseNo': _houseNoController.text,
+        'street': _streetController.text,
+        'village': _villageController.text,
+        'district': _districtController.text,
+        'state': _stateController.text,
+        'country': _countryController.text,
+        'pincode': _pincodeController.text,
+        'houseNo': _houseNoController.text,
+        'street': _streetController.text,
+        'village': _villageController.text,
+        'district': _districtController.text,
+        'state': _stateController.text,
+        'country': _countryController.text,
+        'pincode': _pincodeController.text,
+        'houseNo': _houseNoController.text,
+        'street': _streetController.text,
+        'village': _villageController.text,
+        'district': _districtController.text,
+        'state': _stateController.text,
+        'country': _countryController.text,
+        'pincode': _pincodeController.text,
+        'houseNo': _houseNoController.text,
+        'street': _streetController.text,
+        'village': _villageController.text,
+        'district': _districtController.text,
+        'state': _stateController.text,
+        'country': _countryController.text,
+        'pincode': _pincodeController.text,
+        'houseNo': _houseNoController.text,
+        'street': _streetController.text,
+        'village': _villageController.text,
+        'district': _districtController.text,
+        'state': _stateController.text,
+        'country': _countryController.text,
+        'pincode': _pincodeController.text,
+        'latitude': _selectedLatitude,
+        'longitude': _selectedLongitude,
         'isAvailable': true,
         'rating': 5.0,
         'approvalStatus': 'Pending',
@@ -575,6 +700,33 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                               onPressed: _fetchCurrentLocation,
                             ),
                       ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(child: _buildTextField('H.No', _houseNoController, 'e.g. 123', icon: Icons.home_rounded)),
+                          const SizedBox(width: 16),
+                          Expanded(child: _buildTextField('Street', _streetController, 'Street Name', icon: Icons.map_rounded)),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(child: _buildTextField('Village', _villageController, 'Village Name', icon: Icons.location_city_rounded)),
+                          const SizedBox(width: 16),
+                          Expanded(child: _buildTextField('District', _districtController, 'District Name')),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(child: _buildTextField('State', _stateController, 'State Name')),
+                          const SizedBox(width: 16),
+                          Expanded(child: _buildTextField('Pincode', _pincodeController, '6-digit code', keyboardType: TextInputType.number)),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _buildTextField('Country', _countryController, 'Country Name'),
+                      const SizedBox(height: 20),
                       const SizedBox(height: 20),
                       _buildTextField(
                         AppLocalizations.of(context)!.descriptionLabel, 
@@ -847,6 +999,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'driverIncluded': _driverIncluded,
         'serviceArea': _serviceAreaController.text.isNotEmpty ? _serviceAreaController.text : null,
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Unknown',
+        'latitude': _selectedLatitude,
+        'longitude': _selectedLongitude,
         'isAvailable': true,
         'rating': 5.0, // Default for new
         'approvalStatus': 'Pending',
@@ -891,6 +1045,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'priceRate': parsedPrice,
         'operatorIncluded': _operatorIncludedService,
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        'latitude': _selectedLatitude,
+        'longitude': _selectedLongitude,
         'isAvailable': true,
         'rating': 5.0,
         'approvalStatus': 'Pending',

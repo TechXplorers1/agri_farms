@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:agriculture/l10n/app_localizations.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
+import 'package:geocoding/geocoding.dart' as geo;
+import '../services/geocoding_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 import 'agri_services_screen.dart';
@@ -221,16 +226,48 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() => _isFetchingLocation = false);
         return;
       }
+      
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      final placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-      if (placemarks.isNotEmpty) {
-        final place = placemarks[0];
-        String village = place.subLocality ?? place.locality ?? 'Unknown Village';
-        String district = place.subAdministrativeArea ?? place.administrativeArea ?? 'Unknown District';
-        setState(() => _userLocation = '$village, $district');
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_village', village);
-        await prefs.setString('user_district', district);
+      
+      String? village;
+      String? district;
+
+      // Try cross-platform geocoding (nominatim)
+      try {
+        final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=${position.latitude}&lon=${position.longitude}&format=json');
+        final responseData = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
+        final response = json.decode(responseData.body); // Using raw get if available or standard http
+        if (response != null && response['address'] != null) {
+          village = response['address']['suburb'] ?? response['address']['village'] ?? response['address']['neighbourhood'] ?? response['address']['city_district'];
+          district = response['address']['district'] ?? response['address']['city'] ?? response['address']['county'];
+        }
+      } catch (e) {
+        debugPrint("Reverse geocoding failed: $e");
+      }
+
+      // Fallback to mobile-specific if on Android/iOS and previous failed
+      if (village == null && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+        try {
+          final placemarks = await geo.placemarkFromCoordinates(position.latitude, position.longitude);
+          if (placemarks.isNotEmpty) {
+            final place = placemarks[0];
+            village = place.subLocality ?? place.locality;
+            district = place.subAdministrativeArea ?? place.administrativeArea;
+          }
+        } catch (e) {}
+      }
+
+      village ??= 'Unknown Village';
+      district ??= 'District';
+
+      setState(() => _userLocation = '$village, $district');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_village', village!);
+      await prefs.setString('user_district', district!);
+      await prefs.setDouble('user_latitude', position.latitude);
+      await prefs.setDouble('user_longitude', position.longitude);
+      
+      if (mounted) {
         UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
       }
     } catch (e) {
@@ -268,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 12),
                 _locationOption(Icons.location_city, Colors.orange, 'Enter Manually', 'Type your village/district', true, () {
                   Navigator.pop(context);
-                  _showManualLocationDialog();
+    _showManualLocationDialog();
                 }),
                 const SizedBox(height: 16),
               ],

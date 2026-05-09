@@ -15,7 +15,7 @@ import '../config/api_config.dart';
 
 import 'provider/provider_requests_screen.dart';
 import 'manage_items_screen.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/ui_utils.dart';
 import '../services/notification_service.dart';
 
@@ -32,9 +32,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = 'User';
   String _userVillage = 'Your Village';
   String _userDistrict = 'Your District';
+  String _userHouseNo = '';
+  String _userStreet = '';
+  String _userState = '';
+  String _userPincode = '';
   String _userRole = 'User';
   String? _profileImageUrl;
   bool _isUploading = false;
+  
+  int _ordersCount = 0;
+  int _rentalsCount = 0;
+  int _servicesCount = 0;
 
   @override
   void initState() {
@@ -49,6 +57,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _userName = prefs.getString('user_name') ?? 'User';
       _userVillage = prefs.getString('user_village') ?? 'Your Village';
       _userDistrict = prefs.getString('user_district') ?? 'Your District';
+      _userHouseNo = prefs.getString('user_houseNo') ?? '';
+      _userStreet = prefs.getString('user_street') ?? '';
+      _userState = prefs.getString('user_state') ?? '';
+      _userPincode = prefs.getString('user_pincode') ?? '';
       _userRole = prefs.getString('user_role') ?? 'User';
       _profileImageUrl = prefs.getString('user_profile_image');
     });
@@ -58,10 +70,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       try {
         final apiService = ApiService();
         final userData = await apiService.getUser(userId);
+        
+        // Fetch stats
+        try {
+          final stats = await apiService.getUserStats(userId);
+          if (mounted) {
+            setState(() {
+              _ordersCount = stats['ordersCount'] ?? 0;
+              _rentalsCount = stats['rentalsCount'] ?? 0;
+              _servicesCount = stats['servicesCount'] ?? 0;
+            });
+          }
+        } catch (e) {
+          debugPrint('Error fetching user stats: $e');
+        }
+
         await prefs.setString('user_name', userData['fullName'] ?? _userName);
         await prefs.setString('user_village', userData['village'] ?? _userVillage);
         await prefs.setString('user_district', userData['district'] ?? _userDistrict);
+        await prefs.setString('user_houseNo', userData['houseNo'] ?? '');
+        await prefs.setString('user_street', userData['street'] ?? '');
+        await prefs.setString('user_state', userData['state'] ?? '');
+        await prefs.setString('user_pincode', userData['pincode'] ?? '');
         await prefs.setString('user_role', userData['role'] ?? _userRole);
+        if (userData['latitude'] != null) await prefs.setDouble('user_latitude', (userData['latitude'] as num).toDouble());
+        if (userData['longitude'] != null) await prefs.setDouble('user_longitude', (userData['longitude'] as num).toDouble());
         if (userData['profileImageUrl'] != null) {
           await prefs.setString('user_profile_image', userData['profileImageUrl']);
         }
@@ -70,6 +103,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _userName = userData['fullName'] ?? _userName;
             _userVillage = userData['village'] ?? _userVillage;
             _userDistrict = userData['district'] ?? _userDistrict;
+            _userHouseNo = userData['houseNo'] ?? '';
+            _userStreet = userData['street'] ?? '';
+            _userState = userData['state'] ?? '';
+            _userPincode = userData['pincode'] ?? '';
             _userRole = userData['role'] ?? _userRole;
             _profileImageUrl = userData['profileImageUrl'] ?? _profileImageUrl;
           });
@@ -139,7 +176,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           const Icon(Icons.location_on, color: Colors.white70, size: 14),
                           const SizedBox(width: 4),
-                          Text('$_userVillage, $_userDistrict', style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                          Text(
+                            [_userHouseNo, _userStreet, _userVillage, _userDistrict, _userState, _userPincode]
+                                .where((s) => s.isNotEmpty && s != 'Your Village' && s != 'Your District')
+                                .join(', '),
+                            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                            textAlign: TextAlign.center,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 40),
@@ -157,11 +200,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildStatItem('12', l10n.orders, Icons.shopping_bag_outlined, const Color(0xFF2E7D32)),
+                        _buildStatItem('$_ordersCount', l10n.orders, Icons.shopping_bag_outlined, const Color(0xFF2E7D32)),
                         _buildDivider(),
-                        _buildStatItem('5', l10n.rentals, Icons.agriculture_outlined, const Color(0xFFF9A825)),
+                        _buildStatItem('$_rentalsCount', l10n.rentals, Icons.agriculture_outlined, const Color(0xFFF9A825)),
                         _buildDivider(),
-                        _buildStatItem('8', l10n.services, Icons.handyman_outlined, const Color(0xFF1565C0)),
+                        _buildStatItem('$_servicesCount', l10n.services, Icons.handyman_outlined, const Color(0xFF1565C0)),
                       ],
                     ),
                   ),

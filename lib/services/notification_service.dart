@@ -133,8 +133,8 @@ class NotificationService {
 
     // Step 5: Subscribe to topic
     try {
-      await _firebaseMessaging.subscribeToTopic('all_assets');
-      print('Subscribed to all_assets topic');
+      // await _firebaseMessaging.subscribeToTopic('all_assets'); // Disabled to prevent broadcast notifications on new service/equipment
+      // print('Subscribed to all_assets topic');
     } catch (e) {
       print('Failed to subscribe to topic: $e');
     }

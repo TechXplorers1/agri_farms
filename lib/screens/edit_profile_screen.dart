@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geocoding/geocoding.dart' as geo;
+import '../services/geocoding_service.dart';
 import 'dart:io';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
@@ -19,12 +21,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _villageController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _houseNoController = TextEditingController();
+  final TextEditingController _streetController = TextEditingController();
+  final TextEditingController _stateController = TextEditingController();
+  final TextEditingController _countryController = TextEditingController();
+  final TextEditingController _pincodeController = TextEditingController();
 
   String? _userId;
   String? _profileImageUrl;
   XFile? _selectedImage;
   bool _isLoading = true;
   bool _isUploading = false;
+  double? _detectedLat;
+  double? _detectedLng;
 
   @override
   void initState() {
@@ -39,8 +48,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _nameController.text = prefs.getString('user_name') ?? 'User';
       _villageController.text = prefs.getString('user_village') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
-      _phoneController.text = prefs.getString('user_mobile') ?? '+919188528855'; 
+      _phoneController.text = prefs.getString('user_mobile') ?? '+919188528855';
+      _houseNoController.text = prefs.getString('user_houseNo') ?? '';
+      _streetController.text = prefs.getString('user_street') ?? '';
+      _stateController.text = prefs.getString('user_state') ?? '';
+      _countryController.text = prefs.getString('user_country') ?? '';
+      _pincodeController.text = prefs.getString('user_pincode') ?? ''; 
       _profileImageUrl = prefs.getString('user_profile_image');
+      _detectedLat = prefs.getDouble('user_latitude');
+      _detectedLng = prefs.getDouble('user_longitude');
       _isLoading = false;
     });
   }
@@ -88,18 +104,68 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           }
         }
 
+        // Automatic Geocoding from Address (Cross-platform support)
+        double? lat, lng;
+        try {
+          String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
+          
+          // Try local geocoding first (if supported)
+          try {
+            if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+               List<geo.Location> locations = await geo.locationFromAddress(fullAddress);
+               if (locations.isNotEmpty) {
+                 lat = locations.first.latitude;
+                 lng = locations.first.longitude;
+               }
+            }
+          } catch (e) {
+            debugPrint("Local geocoding not supported or failed: $e");
+          }
+
+          
+          // Fallback to OpenStreetMap for Windows/Web or if local fails
+          if (lat == null || lng == null) {
+            String fallbackAddress = "${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}";
+            final coords = await GeocodingService.getCoordinates(fullAddress, fallbackAddress: fallbackAddress);
+            if (coords != null) {
+              lat = coords['latitude'];
+              lng = coords['longitude'];
+            }
+          }
+
+
+          if (lat != null && lng != null) {
+            debugPrint("Geocoding success: $lat, $lng");
+            setState(() {
+              _detectedLat = lat;
+              _detectedLng = lng;
+            });
+          }
+        } catch (e) {
+          debugPrint("All geocoding methods failed: $e");
+        }
+
         await apiService.updateUser(_userId!, {
           'fullName': _nameController.text,
           'village': _villageController.text,
+          'houseNo': _houseNoController.text,
+          'street': _streetController.text,
           'district': _districtController.text,
+          'state': _stateController.text,
+          'country': _countryController.text,
+          'pincode': _pincodeController.text,
           'profileImageUrl': finalImageUrl,
+          'latitude': lat,
+          'longitude': lng,
         });
-        
-        // Update local storage
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_name', _nameController.text);
         await prefs.setString('user_village', _villageController.text);
         await prefs.setString('user_district', _districtController.text);
+        await prefs.setString('user_houseNo', _houseNoController.text);
+        await prefs.setString('user_street', _streetController.text);
+        await prefs.setString('user_state', _stateController.text);
+        await prefs.setString('user_country', _countryController.text);
+        await prefs.setString('user_pincode', _pincodeController.text);
         if (finalImageUrl != null) {
           await prefs.setString('user_profile_image', finalImageUrl);
         }
@@ -126,6 +192,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _villageController.dispose();
     _districtController.dispose();
     _phoneController.dispose();
+    _houseNoController.dispose();
+    _streetController.dispose();
+    _stateController.dispose();
+    _countryController.dispose();
+    _pincodeController.dispose();
     super.dispose();
   }
 
@@ -286,11 +357,52 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         
                         Row(
                           children: [
+                            Expanded(child: _buildTextField(_houseNoController, 'House No', 'H.No...', Icons.home_outlined)),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildTextField(_streetController, 'Street', 'Street name...', Icons.add_road_rounded)),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
                             Expanded(child: _buildTextField(_villageController, 'Village', 'Village name...', Icons.landscape_rounded)),
                             const SizedBox(width: 16),
                             Expanded(child: _buildTextField(_districtController, 'District', 'District name...', Icons.location_city_rounded)),
                           ],
                         ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(child: _buildTextField(_stateController, 'State', 'State name...', Icons.map_outlined)),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildTextField(_pincodeController, 'Pincode', 'Zip code...', Icons.pin_drop_rounded)),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        if (_detectedLat != null && _detectedLng != null) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5E9),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.gps_fixed_rounded, size: 14, color: Color(0xFF2E7D32)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Coordinates: ${_detectedLat!.toStringAsFixed(6)}, ${_detectedLng!.toStringAsFixed(6)}",
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        _buildTextField(_countryController, 'Country', 'Country name...', Icons.public_rounded),
+                        const SizedBox(height: 20),
                         const SizedBox(height: 20),
                         
                         _buildTextField(_phoneController, 'Phone Number', '', Icons.phone_android_rounded, enabled: false),
