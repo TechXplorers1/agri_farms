@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -123,20 +124,9 @@ class _AuthScreenState extends State<AuthScreen> {
         }
 
         // 2. Firebase Phone Auth Trigger
-        await FirebaseAuth.instance.verifyPhoneNumber(
-          phoneNumber: phoneNumber,
-          verificationCompleted: (PhoneAuthCredential credential) async {
-            // Auto-retrieval or instant verification (Android only)
-            // We could potentially auto-sign-in here, but usually better to let the user enter OTP if manual flow is preferred
-            debugPrint("Verification Completed: ${credential.smsCode}");
-          },
-          verificationFailed: (FirebaseAuthException e) {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              _showErrorDialog('Verification Failed', e.message ?? 'An error occurred during verification.');
-            }
-          },
-          codeSent: (String verificationId, int? resendToken) {
+        if (kIsWeb) {
+          try {
+            ConfirmationResult confirmationResult = await FirebaseAuth.instance.signInWithPhoneNumber(phoneNumber);
             if (mounted) {
               setState(() => _isLoading = false);
               Navigator.of(context).push(
@@ -146,16 +136,50 @@ class _AuthScreenState extends State<AuthScreen> {
                     fullName: _isLogin ? '' : _nameController.text,
                     role: _isLogin ? '' : _selectedRole!,
                     isLogin: _isLogin,
-                    verificationId: verificationId, // Pass the verification ID
+                    verificationId: confirmationResult.verificationId, // Pass the verification ID
                   ),
                 ),
               );
             }
-          },
-          codeAutoRetrievalTimeout: (String verificationId) {
-            debugPrint("Auto retrieval timeout");
-          },
-        );
+          } on FirebaseAuthException catch (e) {
+            if (mounted) {
+              setState(() => _isLoading = false);
+              _showErrorDialog('Verification Failed', e.message ?? 'An error occurred during web verification.');
+            }
+          }
+        } else {
+          await FirebaseAuth.instance.verifyPhoneNumber(
+            phoneNumber: phoneNumber,
+            verificationCompleted: (PhoneAuthCredential credential) async {
+              debugPrint("Verification Completed: ${credential.smsCode}");
+            },
+            verificationFailed: (FirebaseAuthException e) {
+              if (mounted) {
+                setState(() => _isLoading = false);
+                _showErrorDialog('Verification Failed', e.message ?? 'An error occurred during verification.');
+              }
+            },
+            codeSent: (String verificationId, int? resendToken) {
+              if (mounted) {
+                setState(() => _isLoading = false);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => VerifyOtpScreen(
+                      mobileNumber: _mobileController.text.trim(),
+                      fullName: _isLogin ? '' : _nameController.text,
+                      role: _isLogin ? '' : _selectedRole!,
+                      isLogin: _isLogin,
+                      verificationId: verificationId, // Pass the verification ID
+                    ),
+                  ),
+                );
+              }
+            },
+            codeAutoRetrievalTimeout: (String verificationId) {
+              debugPrint("Auto retrieval timeout");
+            },
+          );
+        }
 
       } catch (e) {
         if (mounted) {
