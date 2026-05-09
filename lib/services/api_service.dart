@@ -92,6 +92,10 @@ class ApiService {
     return await get('${ApiConfig.users}/phone/$phoneNumber');
   }
 
+  Future<dynamic> getUserByEmail(String email) async {
+    return await get('${ApiConfig.users}/email/$email');
+  }
+
   Future<dynamic> updateUser(String userId, Map<String, dynamic> userData) async {
     return await put('${ApiConfig.users}/$userId', userData);
   }

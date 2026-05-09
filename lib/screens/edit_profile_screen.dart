@@ -21,6 +21,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _villageController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _houseNoController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
@@ -48,7 +49,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _nameController.text = prefs.getString('user_name') ?? 'User';
       _villageController.text = prefs.getString('user_village') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
-      _phoneController.text = prefs.getString('user_mobile') ?? '+919188528855';
+      _phoneController.text = prefs.getString('user_phone') ?? '';
+      _emailController.text = prefs.getString('user_email') ?? '';
       _houseNoController.text = prefs.getString('user_houseNo') ?? '';
       _streetController.text = prefs.getString('user_street') ?? '';
       _stateController.text = prefs.getString('user_state') ?? '';
@@ -67,14 +69,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final apiService = ApiService();
       if (_userId == null) {
-        final phone = _phoneController.text;
-        // The backend expects the exact number as stored.
-        // We ensure we only search by the numeric part or encode properly.
-        final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-        final encodedPhone = Uri.encodeComponent(cleanPhone);
+        final phone = _phoneController.text.trim();
         
         try {
-          final user = await apiService.getUserByPhone(encodedPhone);
+          final user = await apiService.getUserByPhone(phone);
           if (user['userId'] != null) {
             _userId = user['userId'].toString();
             final prefs = await SharedPreferences.getInstance();
@@ -83,7 +81,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
              throw Exception('User fetched but userId is still null');
           }
         } catch (e) {
-             throw Exception('Failed to fetch user by phone ($cleanPhone): $e');
+             throw Exception('Failed to fetch user by phone ($phone): $e');
         }
       }
 
@@ -98,18 +96,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             finalImageUrl = uploadResponse['url'];
           } catch (e) {
             debugPrint("Error uploading image: $e");
-            // Optionally handle upload error, but we'll try to proceed with other changes
           } finally {
             setState(() => _isUploading = false);
           }
         }
 
-        // Automatic Geocoding from Address (Cross-platform support)
+        // Automatic Geocoding from Address
         double? lat, lng;
         try {
           String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
           
-          // Try local geocoding first (if supported)
           try {
             if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
                List<geo.Location> locations = await geo.locationFromAddress(fullAddress);
@@ -122,8 +118,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             debugPrint("Local geocoding not supported or failed: $e");
           }
 
-          
-          // Fallback to OpenStreetMap for Windows/Web or if local fails
           if (lat == null || lng == null) {
             String fallbackAddress = "${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}";
             final coords = await GeocodingService.getCoordinates(fullAddress, fallbackAddress: fallbackAddress);
@@ -133,9 +127,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             }
           }
 
-
           if (lat != null && lng != null) {
-            debugPrint("Geocoding success: $lat, $lng");
             setState(() {
               _detectedLat = lat;
               _detectedLng = lng;
@@ -147,6 +139,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
         await apiService.updateUser(_userId!, {
           'fullName': _nameController.text,
+          'phoneNumber': _phoneController.text,
+          'email': _emailController.text,
           'village': _villageController.text,
           'houseNo': _houseNoController.text,
           'street': _streetController.text,
@@ -158,7 +152,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'latitude': lat,
           'longitude': lng,
         });
+
         final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_name', _nameController.text);
+        await prefs.setString('user_phone', _phoneController.text);
+        await prefs.setString('user_email', _emailController.text);
         await prefs.setString('user_village', _villageController.text);
         await prefs.setString('user_district', _districtController.text);
         await prefs.setString('user_houseNo', _houseNoController.text);
@@ -169,11 +167,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (finalImageUrl != null) {
           await prefs.setString('user_profile_image', finalImageUrl);
         }
+        if (lat != null) await prefs.setDouble('user_latitude', lat);
+        if (lng != null) await prefs.setDouble('user_longitude', lng);
 
         if (mounted) {
           setState(() => _isLoading = false);
           UiUtils.showCenteredToast(context, 'Profile updated successfully!');
-          Navigator.pop(context, true); // Return true to indicate update
+          Navigator.pop(context, true);
         }
       } else {
         throw Exception('Could not find user ID to update back-end.');
@@ -191,7 +191,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.dispose();
     _villageController.dispose();
     _districtController.dispose();
-    _phoneController.dispose();
+    _emailController.dispose();
     _houseNoController.dispose();
     _streetController.dispose();
     _stateController.dispose();
@@ -400,12 +400,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               ],
                             ),
                           ),
+                          const SizedBox(height: 20),
                         ],
                         _buildTextField(_countryController, 'Country', 'Country name...', Icons.public_rounded),
                         const SizedBox(height: 20),
+                        _buildTextField(_phoneController, 'Mobile Number', '', Icons.phone_android_rounded, enabled: false),
                         const SizedBox(height: 20),
-                        
-                        _buildTextField(_phoneController, 'Phone Number', '', Icons.phone_android_rounded, enabled: false),
+                        _buildTextField(_emailController, 'Email Address', 'Enter your email...', Icons.email_outlined),
                       ],
                     ),
                   ),

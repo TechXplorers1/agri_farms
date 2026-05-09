@@ -41,8 +41,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.5.3
   url_launcher: ^6.3.2
-  firebase_core: ^4.5.0
-  firebase_messaging: ^16.1.2
+  firebase_core: ^4.7.0
+  firebase_auth: 6.3.0
+  firebase_messaging: ^16.2.0
   flutter_local_notifications: ^19.5.0
   image_picker: ^1.0.7
   file_selector_linux: ^0.9.3+2
