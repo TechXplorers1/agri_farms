@@ -95,73 +95,77 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     });
                   },
                   itemCount: pages.length,
-                  itemBuilder: (context, index) {
+                      itemBuilder: (context, index) {
                     final page = pages[index];
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Icon Circle (Premium Soft Glow)
-                          Container(
-                            width: 260,
-                            height: 260,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (page['color'] as Color).withOpacity(0.1),
-                                  blurRadius: 50,
-                                  spreadRadius: 10,
-                                ),
-                              ],
-                            ),
-                            child: Stack(
-                               alignment: Alignment.center,
-                               children: [
-                                 Container(
-                                   width: 180,
-                                   height: 180,
-                                   decoration: BoxDecoration(
-                                     color: (page['color'] as Color).withOpacity(0.05),
-                                     shape: BoxShape.circle,
+                    return SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 40),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(height: MediaQuery.of(context).size.height * 0.05),
+                            // Icon Circle (Premium Soft Glow)
+                            Container(
+                              width: MediaQuery.of(context).size.height < 700 ? 180 : 260,
+                              height: MediaQuery.of(context).size.height < 700 ? 180 : 260,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: (page['color'] as Color).withOpacity(0.1),
+                                    blurRadius: 50,
+                                    spreadRadius: 10,
+                                  ),
+                                ],
+                              ),
+                              child: Stack(
+                                 alignment: Alignment.center,
+                                 children: [
+                                   Container(
+                                     width: MediaQuery.of(context).size.height < 700 ? 120 : 180,
+                                     height: MediaQuery.of(context).size.height < 700 ? 120 : 180,
+                                     decoration: BoxDecoration(
+                                       color: (page['color'] as Color).withOpacity(0.05),
+                                       shape: BoxShape.circle,
+                                     ),
                                    ),
-                                 ),
-                                 Icon(
-                                   page['icon'],
-                                   size: 100,
-                                   color: page['color'],
-                                 ),
-                               ],
+                                   Icon(
+                                     page['icon'],
+                                     size: MediaQuery.of(context).size.height < 700 ? 60 : 100,
+                                     color: page['color'],
+                                   ),
+                                 ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 60),
-                          // Title
-                          Text(
-                            page['title'],
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF1B5E20),
-                              letterSpacing: -1.0,
-                              height: 1.1,
+                            SizedBox(height: MediaQuery.of(context).size.height < 700 ? 30 : 60),
+                            // Title
+                            Text(
+                              page['title'],
+                              style: TextStyle(
+                                fontSize: MediaQuery.of(context).size.height < 700 ? 24 : 32,
+                                fontWeight: FontWeight.w900,
+                                color: const Color(0xFF1B5E20),
+                                letterSpacing: -1.0,
+                                height: 1.1,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 20),
-                          // Description
-                          Text(
-                            page['description'],
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                              height: 1.6,
-                              fontWeight: FontWeight.w500,
+                            const SizedBox(height: 20),
+                            // Description
+                            Text(
+                              page['description'],
+                              style: TextStyle(
+                                fontSize: MediaQuery.of(context).size.height < 700 ? 14 : 16,
+                                color: Colors.grey[600],
+                                height: 1.6,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                            SizedBox(height: MediaQuery.of(context).size.height * 0.05),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -170,7 +174,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
               // Indicators & Button Section
               Padding(
-                padding: const EdgeInsets.all(32.0),
+                padding: EdgeInsets.all(MediaQuery.of(context).size.height < 700 ? 16.0 : 32.0),
                 child: Column(
                   children: [
                     Row(
@@ -191,12 +195,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 48),
+                    SizedBox(height: MediaQuery.of(context).size.height < 700 ? 24 : 48),
 
                     // Next / Get Started Button (Premium Lush)
                     Container(
                       width: double.infinity,
-                      height: 66,
+                      height: MediaQuery.of(context).size.height < 700 ? 56 : 66,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [

@@ -209,9 +209,26 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   }
 
   Widget _buildBookingList(List<BookingDetails> bookings, List<String> statuses, String emptyMessage, IconData emptyIcon) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
     final filtered = bookings.where((b) {
       final s = b.status.trim().toLowerCase();
-      return statuses.contains(s);
+      final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
+      final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+      
+      if (statuses.contains('completed') || statuses.contains('history')) {
+         // This is the history tab. It shows history statuses PLUS past-due pending/active
+         if (statuses.contains(s)) return true;
+         if (['pending', 'requested', 'confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'].contains(s) && bookingDay.isBefore(today)) {
+             return true;
+         }
+         return false;
+      }
+      
+      // For active/pending tabs, must match status AND not be past due
+      if (!statuses.contains(s)) return false;
+      return !bookingDay.isBefore(today);
     }).toList();
 
     if (statuses.contains('pending') || statuses.contains('requested')) {

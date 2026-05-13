@@ -210,7 +210,7 @@ class _AuthScreenState extends State<AuthScreen> {
             Stack(
               children: [
                 Container(
-                  height: 320,
+                  height: MediaQuery.of(context).size.height < 700 ? 250 : 320,
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(

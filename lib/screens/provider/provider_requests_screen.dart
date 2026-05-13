@@ -68,17 +68,36 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                     ? _bookingManager.getBookingsForProvider(_currentProviderId!)
                     : <BookingDetails>[]).toList(); 
                 
-                final pendingBookings = allMyBookings.where((b) => b.status.toLowerCase() == 'pending').toList()
+                final now = DateTime.now();
+                final today = DateTime(now.year, now.month, now.day);
+                
+                final pendingBookings = allMyBookings.where((b) {
+                  if (b.status.toLowerCase() != 'pending') return false;
+                  final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
+                  final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+                  return !bookingDay.isBefore(today);
+                }).toList()
                   ..sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate));
                   
-                final activeBookings = allMyBookings.where((b) => b.status.toLowerCase() == 'confirmed').toList()
+                final activeBookings = allMyBookings.where((b) {
+                  if (b.status.toLowerCase() != 'confirmed') return false;
+                  final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
+                  final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+                  return !bookingDay.isBefore(today);
+                }).toList()
                   ..sort((a, b) {
                     final aDate = a.rawScheduledStartTime ?? a.rawBookingDate;
                     final bDate = b.rawScheduledStartTime ?? b.rawBookingDate;
                     return aDate.compareTo(bDate);
                   });
                   
-                final historyBookings = allMyBookings.where((b) => b.status.toLowerCase() != 'pending' && b.status.toLowerCase() != 'confirmed').toList()
+                final historyBookings = allMyBookings.where((b) {
+                  final s = b.status.toLowerCase();
+                  if (s != 'pending' && s != 'confirmed') return true;
+                  final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
+                  final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+                  return bookingDay.isBefore(today); // Past pending/confirmed go to history
+                }).toList()
                   ..sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate));
 
                 return DefaultTabController(

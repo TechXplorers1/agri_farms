@@ -188,7 +188,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
             Stack(
               children: [
                 Container(
-                  height: 240,
+                  height: MediaQuery.of(context).size.height < 700 ? 180 : 240,
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
