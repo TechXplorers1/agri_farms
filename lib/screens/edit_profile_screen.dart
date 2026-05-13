@@ -8,6 +8,7 @@ import '../services/geocoding_service.dart';
 import 'dart:io';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
+import 'package:geolocator/geolocator.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -33,6 +34,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   XFile? _selectedImage;
   bool _isLoading = true;
   bool _isUploading = false;
+  bool _isFetchingLocation = false;
   double? _detectedLat;
   double? _detectedLng;
 
@@ -40,6 +42,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _loadProfileData();
+  }
+
+  Future<void> _fetchCurrentLocation() async {
+    setState(() => _isFetchingLocation = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Location services are disabled.');
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Location permissions are denied');
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Location permissions are permanently denied, we cannot request permissions.');
+      }
+
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      
+      setState(() {
+        _detectedLat = position.latitude;
+        _detectedLng = position.longitude;
+      });
+
+      List<geo.Placemark> placemarks = await geo.placemarkFromCoordinates(position.latitude, position.longitude);
+      if (placemarks.isNotEmpty) {
+        geo.Placemark place = placemarks.first;
+        setState(() {
+          _houseNoController.text = place.subThoroughfare ?? '';
+          _streetController.text = place.thoroughfare ?? place.subLocality ?? '';
+          _villageController.text = place.locality ?? '';
+          _districtController.text = place.subAdministrativeArea ?? '';
+          _stateController.text = place.administrativeArea ?? '';
+          _countryController.text = place.country ?? '';
+          _pincodeController.text = place.postalCode ?? '';
+        });
+        UiUtils.showCenteredToast(context, 'Location fetched successfully');
+      }
+    } catch (e) {
+      if (mounted) UiUtils.showCustomAlert(context, 'Failed to get location: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isFetchingLocation = false);
+    }
   }
 
   Future<void> _loadProfileData() async {
@@ -342,13 +392,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Icon(Icons.person_outline_rounded, size: 20, color: Color(0xFF00AA55)),
-                            const SizedBox(width: 12),
-                            Text(
-                              'PERSONAL INFO',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: const Color(0xFF1B5E20).withOpacity(0.6), letterSpacing: 1.2),
+                            Row(
+                              children: [
+                                const Icon(Icons.person_outline_rounded, size: 20, color: Color(0xFF00AA55)),
+                                const SizedBox(width: 12),
+                                Text(
+                                  'PERSONAL INFO',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: const Color(0xFF1B5E20).withOpacity(0.6), letterSpacing: 1.2),
+                                ),
+                              ],
                             ),
+                            _isFetchingLocation 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55)))
+                              : IconButton(
+                                  icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                                  tooltip: 'Get Current Location',
+                                  onPressed: _fetchCurrentLocation,
+                                ),
                           ],
                         ),
                         const SizedBox(height: 24),

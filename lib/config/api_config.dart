@@ -14,6 +14,7 @@ class ApiConfig {
   static const String notifications = '/api/notifications';
   
   static String getFullImageUrl(String? path) {
+  
     if (path == null || path.isEmpty) return '';
     if (path.startsWith('http')) return path;
     return '$baseUrl$path';

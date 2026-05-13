@@ -245,6 +245,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _brandModelController = TextEditingController();
   final TextEditingController _yearController = TextEditingController(); // New
   bool _operatorAvailable = false;
+  final TextEditingController _operatorPriceController = TextEditingController();
   String _condition = 'Good';
 
   // Farm Worker Specific
@@ -296,11 +297,31 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _malePriceController.dispose();
     _femalePriceController.dispose();
     _roleCountController.dispose();
+    _operatorPriceController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   
+  Future<void> _fillWithProfileLocation() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _villageController.text = prefs.getString('user_village') ?? '';
+      _districtController.text = prefs.getString('user_district') ?? '';
+      _houseNoController.text = prefs.getString('user_houseNo') ?? '';
+      _streetController.text = prefs.getString('user_street') ?? '';
+      _stateController.text = prefs.getString('user_state') ?? '';
+      _countryController.text = prefs.getString('user_country') ?? '';
+      _pincodeController.text = prefs.getString('user_pincode') ?? '';
+      
+      double? lat = prefs.getDouble('user_latitude');
+      double? lng = prefs.getDouble('user_longitude');
+      if (lat != null) _selectedLatitude = lat;
+      if (lng != null) _selectedLongitude = lng;
+    });
+    if (mounted) UiUtils.showCenteredToast(context, 'Location filled from profile');
+  }
+
   Future<void> _updateCoordinatesFromAddress() async {
     try {
       String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
@@ -501,6 +522,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'conditionStatus': _condition,
         'pricePerHour': parsedPrice,
         'operatorAvailable': _operatorAvailable,
+        'operatorPrice': _operatorAvailable ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
         'location': _locationController.text,
         'houseNo': _houseNoController.text,
         'street': _streetController.text,
@@ -686,6 +708,17 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                _buildSectionCard(
                  title: 'Extra Details', 
                  icon: Icons.info_outline_rounded,
+                 trailing: TextButton.icon(
+                    onPressed: _fillWithProfileLocation,
+                    icon: const Icon(Icons.person_pin_circle_rounded, size: 16),
+                    label: const Text('Profile Location', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF00AA55),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
                  child: Column(
                    children: [
                       _buildTextField(
@@ -1262,10 +1295,17 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 title: Text(l10n.operatorAvailable, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 subtitle: Text(l10n.operatorAvailableSubtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                 value: _operatorAvailable,
-                onChanged: (v) => setState(() => _operatorAvailable = v),
+                onChanged: (v) => setState(() {
+                  _operatorAvailable = v;
+                  if (!v) _operatorPriceController.clear();
+                }),
                 activeColor: const Color(0xFF00AA55),
                 contentPadding: EdgeInsets.zero,
               ),
+              if (_operatorAvailable) ...[
+                const SizedBox(height: 12),
+                _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, icon: Icons.person_add_rounded),
+              ],
             ],
           ),
         ),
@@ -1275,7 +1315,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   // --- HELPERS ---
 
-  Widget _buildSectionCard({required String title, required IconData icon, required Widget child}) {
+  Widget _buildSectionCard({required String title, required IconData icon, required Widget child, Widget? trailing}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       padding: const EdgeInsets.all(24),
@@ -1294,20 +1334,26 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 18, color: const Color(0xFF00AA55)),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, size: 18, color: const Color(0xFF00AA55)),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    title,
+                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
-              ),
+              if (trailing != null) trailing,
             ],
           ),
           const SizedBox(height: 24),
