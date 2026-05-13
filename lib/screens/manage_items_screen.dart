@@ -230,6 +230,8 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
                         subtitleGetter(item), 
                         style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
                       ),
+                      const SizedBox(height: 8),
+                      _buildStatusBadge(item['approvalStatus']),
                     ],
                   ),
                 ),
@@ -252,6 +254,55 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildStatusBadge(String? status) {
+    Color bgColor;
+    Color textColor;
+    IconData icon;
+
+    switch (status?.toLowerCase()) {
+      case 'approved':
+        bgColor = const Color(0xFFE8F5E9);
+        textColor = const Color(0xFF2E7D32);
+        icon = Icons.check_circle_outline_rounded;
+        break;
+      case 'rejected':
+        bgColor = const Color(0xFFFFEBEE);
+        textColor = const Color(0xFFC62828);
+        icon = Icons.cancel_outlined;
+        break;
+      default: // Pending
+        bgColor = const Color(0xFFFFF3E0);
+        textColor = const Color(0xFFEF6C00);
+        icon = Icons.hourglass_empty_rounded;
+        status = 'Pending';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: textColor.withOpacity(0.1), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            status!.toUpperCase(),
+            style: TextStyle(
+              color: textColor, 
+              fontSize: 10, 
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
