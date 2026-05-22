@@ -9,33 +9,38 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
+import 'dart:async';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize Firebase and Notifications
-  try {
-    if (kIsWeb) {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
-    } else {
-      await Firebase.initializeApp();
+void main() {
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    
+    // Initialize Firebase and Notifications
+    try {
+      if (kIsWeb) {
+        await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
+      } else {
+        await Firebase.initializeApp();
+      }
+      await NotificationService().init();
+    } catch (e) {
+      debugPrint('Firebase/Notifications initialization failed: $e');
     }
-    await NotificationService().init();
-  } catch (e) {
-    debugPrint('Firebase/Notifications initialization failed: $e');
-  }
-  
-  final prefs = await SharedPreferences.getInstance();
-  final savedLanguage = prefs.getString('selected_language');
-  
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => LanguageProvider(initialLanguage: savedLanguage)),
-      ],
-      child: const MyApp(),
-    ),
-  );
+    
+    final prefs = await SharedPreferences.getInstance();
+    final savedLanguage = prefs.getString('selected_language');
+    
+    runApp(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => LanguageProvider(initialLanguage: savedLanguage)),
+        ],
+        child: const MyApp(),
+      ),
+    );
+  }, (error, stack) {
+    debugPrint('Zoned error caught: $error\n$stack');
+  });
 }
 
 class MyApp extends StatelessWidget {
