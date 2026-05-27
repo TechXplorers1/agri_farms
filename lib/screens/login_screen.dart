@@ -123,7 +123,7 @@ class _AuthScreenState extends State<AuthScreen> {
           }
         }
 
-        // 2. Firebase Phone Auth Trigger
+        // 2. Firebase Phone Auth Trigger (For actual live SMS delivery to users' mobile phones)
         if (kIsWeb) {
           try {
             ConfirmationResult confirmationResult = await FirebaseAuth.instance.signInWithPhoneNumber(phoneNumber);
