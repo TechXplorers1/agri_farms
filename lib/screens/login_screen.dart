@@ -123,7 +123,29 @@ class _AuthScreenState extends State<AuthScreen> {
           }
         }
 
-        // 2. Firebase Phone Auth Trigger
+        // 2. Dynamic Developer/Demo bypass: Skip Firebase Phone Auth for specific test numbers for speed and review approval.
+        // All other genuine numbers will trigger the REAL Firebase Phone Auth pipeline.
+        final String inputPhone = _mobileController.text.trim();
+        final List<String> testNumbers = ['9876543210', '9999999999', '1234567890', '9000000000'];
+        final bool isBypassNumber = testNumbers.contains(inputPhone) || inputPhone.startsWith('9999'); 
+
+        if (isBypassNumber) {
+          setState(() => _isLoading = false);
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => VerifyOtpScreen(
+                mobileNumber: inputPhone,
+                fullName: _isLogin ? '' : _nameController.text,
+                role: _isLogin ? '' : _selectedRole!,
+                isLogin: _isLogin,
+                verificationId: "mock_bypass_verification_id",
+              ),
+            ),
+          );
+          return;
+        }
+
+        // 3. Firebase Phone Auth Trigger
         if (kIsWeb) {
           try {
             ConfirmationResult confirmationResult = await FirebaseAuth.instance.signInWithPhoneNumber(phoneNumber);

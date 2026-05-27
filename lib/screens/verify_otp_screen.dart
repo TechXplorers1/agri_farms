@@ -77,6 +77,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
 
   Future<void> _verify() async {
     if (_isButtonEnabled) {
+      _timer?.cancel(); // Cancel/stop the timer immediately upon clicking verify
       setState(() {
         _isLoading = true;
       });
@@ -84,16 +85,22 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
       final String otpCode = _controllers.map((c) => c.text).join();
 
       try {
-        // 1. Firebase Verification
-        final PhoneAuthCredential credential = PhoneAuthProvider.credential(
-          verificationId: widget.verificationId,
-          smsCode: otpCode,
-        );
+        // 1. Firebase Verification or Developer Bypass
+        if (widget.verificationId == "mock_bypass_verification_id") {
+          if (otpCode != '123456') {
+            throw Exception('Invalid verification code. Use 123456 for demo bypass.');
+          }
+        } else {
+          final PhoneAuthCredential credential = PhoneAuthProvider.credential(
+            verificationId: widget.verificationId,
+            smsCode: otpCode,
+          );
 
-        try {
-          await FirebaseAuth.instance.signInWithCredential(credential);
-        } on FirebaseAuthException catch (e) {
-          throw Exception('Invalid OTP: ${e.message}');
+          try {
+            await FirebaseAuth.instance.signInWithCredential(credential);
+          } on FirebaseAuthException catch (e) {
+            throw Exception('Invalid OTP: ${e.message}');
+          }
         }
 
         // 2. Backend Sync
