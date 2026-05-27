@@ -4,7 +4,9 @@ class ApiConfig {
   // Use 'localhost' ONLY if testing on iOS simulator.
   // UPDATE: Found local IP 192.168.29.57. This works best for physical devices too.
   static const String baseUrl = 'http://192.168.29.57:8083'; 
-
+  // Automatically switches to localhost in the web browser, and 10.0.2.2 in the Android emulator!
+  // To test on a physical device, temporarily replace 'http://10.0.2.2:8083' with your Wi-Fi IP 'http://192.168.29.237:8083'.
+  static const String baseUrl = kIsWeb ? 'http://localhost:8083' : 'http://10.0.2.2:8083'; 
   static const String users = '/api/users';
   static const String bookings = '/api/bookings';
   static const String inventoryEquipment = '/api/inventory/equipment';
@@ -18,5 +20,5 @@ class ApiConfig {
     if (path == null || path.isEmpty) return '';
     if (path.startsWith('http')) return path;
     return '$baseUrl$path';
-  }
+  } 
 }
