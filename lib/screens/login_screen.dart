@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:agriculture/l10n/app_localizations.dart';
 import 'verify_otp_screen.dart';
 import '../../services/api_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -95,45 +96,79 @@ class _AuthScreenState extends State<AuthScreen> {
             await apiService.getUserByPhone(_phoneController.text);
           } catch (e) {
             if (e.toString().contains('404') || e.toString().contains('Not Found')) {
-              if (mounted) _showErrorDialog('Account Not Found', 'Please sign up or register to get logged in.');
+              if (mounted) {
+                _showErrorDialog('Account Not Found', 'Please sign up or register to get logged in.');
+                setState(() => _isLoading = false);
+              }
               return;
             } else {
-              if (mounted) _showErrorDialog('Error', 'Failed to verify account: $e');
+              if (mounted) {
+                _showErrorDialog('Error', 'Failed to verify account: $e');
+                setState(() => _isLoading = false);
+              }
               return;
             }
           }
         } else {
           try {
             await apiService.getUserByPhone(_phoneController.text);
-            if (mounted) _showErrorDialog('Account Exists', 'This mobile number is already registered. Please login instead.');
+            if (mounted) {
+              _showErrorDialog('Account Exists', 'This mobile number is already registered. Please login instead.');
+              setState(() => _isLoading = false);
+            }
             return;
           } catch (e) {
             if (e.toString().contains('404') || e.toString().contains('Not Found')) {
               // Expected missing user
             } else {
-              if (mounted) _showErrorDialog('Error', 'Failed to check account: $e');
+              if (mounted) {
+                _showErrorDialog('Error', 'Failed to check account: $e');
+                setState(() => _isLoading = false);
+              }
               return;
             }
           }
         }
 
+        // Trigger real Firebase Phone Verification
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: '+91${_phoneController.text}',
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            // Auto-retrieval or instant verification on Android
+            try {
+              await FirebaseAuth.instance.signInWithCredential(credential);
+            } catch (e) {
+              debugPrint("Auto verification sign-in failed: $e");
+            }
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            if (mounted) {
+              setState(() => _isLoading = false);
+              _showErrorDialog('Verification Failed', e.message ?? 'An error occurred during verification.');
+            }
+          },
+          codeSent: (String verificationId, int? resendToken) {
+            if (mounted) {
+              setState(() => _isLoading = false);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => VerifyOtpScreen(
+                    mobileNumber: _phoneController.text,
+                    fullName: _isLogin ? '' : _nameController.text,
+                    role: _isLogin ? '' : _selectedRole!,
+                    isLogin: _isLogin,
+                    verificationId: verificationId, // Real Firebase Verification ID
+                  ),
+                ),
+              );
+            }
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {},
+        );
+      } catch (e) {
         if (mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => VerifyOtpScreen(
-                mobileNumber: _phoneController.text,
-                fullName: _isLogin ? '' : _nameController.text, // Empty for login
-                role: _isLogin ? '' : _selectedRole!,        // Empty for login
-                isLogin: _isLogin,
-              ),
-            ),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
+          setState(() => _isLoading = false);
+          _showErrorDialog('Error', 'Verification process failed: $e');
         }
       }
     }

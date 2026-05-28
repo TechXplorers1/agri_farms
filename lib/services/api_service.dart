@@ -264,6 +264,22 @@ class ApiService {
     return await putStatus('${ApiConfig.notifications}/user/$userId/read-all');
   }
 
+  Future<dynamic> triggerDemoNotification({
+    required String userId,
+    required String title,
+    required String message,
+    required String type,
+    required String relatedId,
+  }) async {
+    return await post('${ApiConfig.notifications}/trigger-demo', {
+      'userId': userId,
+      'title': title,
+      'message': message,
+      'type': type,
+      'relatedId': relatedId,
+    });
+  }
+
   // Media Upload
   Future<Map<String, String>> uploadImage(XFile imageFile) async {
     final url = Uri.parse('$baseUrl/api/media/upload');

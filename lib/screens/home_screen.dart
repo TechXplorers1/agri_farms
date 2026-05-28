@@ -24,6 +24,7 @@ import '../../services/api_service.dart';
 import '../../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/ui_utils.dart';
+import '../utils/location_helper.dart';
 
 class HomeServiceItem {
   final String title;
@@ -229,46 +230,23 @@ class _HomeScreenState extends State<HomeScreen> {
       
       Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       
-      String? village;
-      String? district;
-
-      // Try cross-platform geocoding (nominatim)
-      try {
-        final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=${position.latitude}&lon=${position.longitude}&format=json');
-        final responseData = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
-        final response = json.decode(responseData.body); // Using raw get if available or standard http
-        if (response != null && response['address'] != null) {
-          village = response['address']['suburb'] ?? response['address']['village'] ?? response['address']['neighbourhood'] ?? response['address']['city_district'];
-          district = response['address']['district'] ?? response['address']['city'] ?? response['address']['county'];
-        }
-      } catch (e) {
-        debugPrint("Reverse geocoding failed: $e");
-      }
-
-      // Fallback to mobile-specific if on Android/iOS and previous failed
-      if (village == null && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-        try {
-          final placemarks = await geo.placemarkFromCoordinates(position.latitude, position.longitude);
-          if (placemarks.isNotEmpty) {
-            final place = placemarks[0];
-            village = place.subLocality ?? place.locality;
-            district = place.subAdministrativeArea ?? place.administrativeArea;
-          }
-        } catch (e) {}
-      }
-
-      village ??= 'Unknown Village';
-      district ??= 'District';
+      final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
+      final String village = addressData['village']!;
+      final String district = addressData['district']!;
+      final String exactAddress = addressData['exactAddress']!;
 
       setState(() => _userLocation = '$village, $district');
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_village', village!);
-      await prefs.setString('user_district', district!);
+      await prefs.setString('user_village', village);
+      await prefs.setString('user_district', district);
       await prefs.setDouble('user_latitude', position.latitude);
       await prefs.setDouble('user_longitude', position.longitude);
       
       if (mounted) {
-        UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
+        UiUtils.showCenteredToast(
+          context, 
+          'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}'
+        );
       }
     } catch (e) {
       UiUtils.showCenteredToast(context, 'Error fetching location: $e');

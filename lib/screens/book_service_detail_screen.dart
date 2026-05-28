@@ -157,6 +157,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     super.initState();
     _loadAddress();
     _fetchAssetBookings();
+    _quantityController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _fetchAssetBookings() async {
@@ -281,7 +284,54 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     }
   }
 
+  double get _totalPrice {
+    double unitPrice = 0.0;
+    try {
+      final clean = widget.priceInfo.replaceAll(RegExp(r'[^0-9.]'), '');
+      unitPrice = double.tryParse(clean) ?? 0.0;
+    } catch (_) {}
 
+    if (unitPrice == 0.0) return 0.0;
+
+    bool isElectrician = widget.serviceName == 'Electricians';
+    bool isAcreBilled = widget.serviceName == 'Ploughing' || 
+                        widget.serviceName == 'Harvesting' || 
+                        widget.serviceName == 'Drone Spraying' ||
+                        widget.serviceName == 'Irrigation';
+
+    if (isAcreBilled) {
+      double acres = double.tryParse(_quantityController.text) ?? 0.0;
+      return unitPrice * acres;
+    } else {
+      return unitPrice * _durationHours;
+    }
+  }
+
+  bool _isDateBooked(DateTime date) {
+    for (var booking in _existingBookings) {
+      if (booking.scheduledStartTime != null) {
+        DateTime bookingDay = DateTime(booking.scheduledStartTime!.year, booking.scheduledStartTime!.month, booking.scheduledStartTime!.day);
+        DateTime targetDay = DateTime(date.year, date.month, date.day);
+        if (bookingDay == targetDay) {
+           final String status = booking.status?.toUpperCase() ?? '';
+           if (status != 'CANCELLED' && status != 'REJECTED' && status != 'COMPLETED' && status != 'FINISHED') {
+             return true;
+           }
+        }
+      }
+    }
+    return false;
+  }
+
+  String _getDayName(int weekday) {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days[weekday - 1];
+  }
+
+  String _getMonthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
+  }
 
   void _confirmBooking() async {
     bool isElectrician = widget.serviceName == 'Electricians';
@@ -340,7 +390,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         scheduledStartTime: start,
         scheduledEndTime: end,
         status: 'PENDING',
-        totalAmount: 0.0, // On Request
+        totalAmount: _totalPrice,
         addressText: _addressController.text,
         notes: jsonEncode(notesMap),
       );
@@ -601,39 +651,115 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Select Date', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: () async {
-                      await _selectDate(context);
-                      if (_selectedDate != null && _fieldErrors.containsKey('date')) {
-                        setState(() => _fieldErrors.remove('date'));
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9FBF9),
-                        border: Border.all(color: _fieldErrors.containsKey('date') ? Colors.red : const Color(0xFFE8F5E9)),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.calendar_today_rounded, size: 20, color: _selectedDate == null ? Colors.grey[400] : const Color(0xFF00AA55)),
-                          const SizedBox(width: 12),
-                          Text(
-                            _selectedDate == null 
-                                ? l10n.chooseDate 
-                                : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
-                              fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w600,
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 90,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: 14,
+                      itemBuilder: (context, index) {
+                        final date = DateTime.now().add(Duration(days: index));
+                        final bool isBooked = _isDateBooked(date);
+                        final bool isSelected = _selectedDate != null &&
+                            _selectedDate!.year == date.year &&
+                            _selectedDate!.month == date.month &&
+                            _selectedDate!.day == date.day;
+
+                        final dayName = _getDayName(date.weekday);
+                        final monthName = _getMonthName(date.month);
+
+                        if (isBooked) {
+                          return Container(
+                            width: 70,
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5F5F5),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.grey[200]!),
+                            ),
+                            child: InkWell(
+                              onTap: () {
+                                UiUtils.showCenteredToast(
+                                  context, 
+                                  'This date has already been booked by someone else. Please select a free date.', 
+                                  isError: true
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(20),
+                              child: Opacity(
+                                opacity: 0.5,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(dayName, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey[600])),
+                                    const SizedBox(height: 4),
+                                    Text('${date.day}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.grey[800])),
+                                    const SizedBox(height: 4),
+                                    Text(monthName, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey[500])),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 70,
+                          margin: const EdgeInsets.only(right: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0xFF00AA55) : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
+                              width: 1.5,
+                            ),
+                            boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))] : null,
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              setState(() {
+                                _selectedDate = date;
+                                _selectedStartHour = null;
+                                _durationHours = 1;
+                                if (_fieldErrors.containsKey('date')) _fieldErrors.remove('date');
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(20),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  dayName, 
+                                  style: TextStyle(
+                                    fontSize: 11, 
+                                    fontWeight: FontWeight.w700, 
+                                    color: isSelected ? Colors.white70 : Colors.grey[600]
+                                  )
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${date.day}', 
+                                  style: TextStyle(
+                                    fontSize: 18, 
+                                    fontWeight: FontWeight.w900, 
+                                    color: isSelected ? Colors.white : const Color(0xFF2C3E50)
+                                  )
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  monthName, 
+                                  style: TextStyle(
+                                    fontSize: 10, 
+                                    fontWeight: FontWeight.w600, 
+                                    color: isSelected ? Colors.white70 : Colors.grey[500]
+                                  )
+                                ),
+                              ],
                             ),
                           ),
-                          const Spacer(),
-                          const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ),
 
@@ -789,35 +915,56 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             ),
 
             const SizedBox(height: 24),
-            // Confirm Button
+            // Footer Total Card
             Container(
-              width: double.infinity,
-              height: 60,
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
                 boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF00AA55).withOpacity(0.3),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
+                  BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 30, offset: const Offset(0, 10)),
                 ],
               ),
-              child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _confirmBooking,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00AA55),
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey[300],
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  elevation: 0,
-                ),
-                child: _isSubmitting 
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                  : Text(
-                      l10n.confirmRequest,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(l10n.totalEstimate, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF546E7A))),
+                      Text(
+                        '₹${_totalPrice.toStringAsFixed(0)}',
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.5),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: double.infinity,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                      ],
                     ),
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _confirmBooking,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00AA55),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey[300],
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        elevation: 0,
+                      ),
+                      child: _isSubmitting
+                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                        : Text(
+                            l10n.confirmRequest,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                          ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 48),

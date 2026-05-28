@@ -9,6 +9,7 @@ class LocationHelper {
   static Future<Map<String, String>> getAddressFromCoordinates(double lat, double lng) async {
     String village = 'Unknown Village';
     String district = 'District';
+    String exactAddress = '';
 
     // 1. Try Nominatim (Cross-platform)
     try {
@@ -20,7 +21,7 @@ class LocationHelper {
           final addr = data['address'];
           village = addr['suburb'] ?? addr['village'] ?? addr['neighbourhood'] ?? addr['city_district'] ?? 'Unknown Village';
           district = addr['district'] ?? addr['city'] ?? addr['county'] ?? 'District';
-          return {'village': village, 'district': district};
+          exactAddress = data['display_name'] ?? '';
         }
       }
     } catch (e) {
@@ -35,12 +36,32 @@ class LocationHelper {
           final p = placemarks[0];
           village = p.subLocality ?? p.locality ?? 'Unknown Village';
           district = p.subAdministrativeArea ?? p.administrativeArea ?? 'District';
+          
+          if (exactAddress.isEmpty) {
+            exactAddress = [
+              p.street,
+              p.subLocality,
+              p.locality,
+              p.subAdministrativeArea,
+              p.administrativeArea,
+              p.postalCode,
+              p.country
+            ].where((part) => part != null && part.isNotEmpty).join(', ');
+          }
         }
       } catch (e) {
         debugPrint("Native reverse geocoding failed: $e");
       }
     }
 
-    return {'village': village, 'district': district};
+    if (exactAddress.isEmpty) {
+      exactAddress = '$village, $district';
+    }
+
+    return {
+      'village': village,
+      'district': district,
+      'exactAddress': exactAddress,
+    };
   }
 }

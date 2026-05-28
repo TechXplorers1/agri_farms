@@ -86,11 +86,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         await prefs.setString('user_name', userData['fullName'] ?? _userName);
+        await prefs.setString('user_phone', userData['phoneNumber'] ?? '');
+        await prefs.setString('user_email', userData['email'] ?? '');
         await prefs.setString('user_village', userData['village'] ?? _userVillage);
         await prefs.setString('user_district', userData['district'] ?? _userDistrict);
         await prefs.setString('user_houseNo', userData['houseNo'] ?? '');
         await prefs.setString('user_street', userData['street'] ?? '');
         await prefs.setString('user_state', userData['state'] ?? '');
+        await prefs.setString('user_country', userData['country'] ?? '');
         await prefs.setString('user_pincode', userData['pincode'] ?? '');
         await prefs.setString('user_role', userData['role'] ?? _userRole);
         if (userData['latitude'] != null) await prefs.setDouble('user_latitude', (userData['latitude'] as num).toDouble());
@@ -171,19 +174,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 12),
                       Text(_userName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 4),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.location_on, color: Colors.white70, size: 14),
-                          const SizedBox(width: 4),
-                          Text(
-                            [_userHouseNo, _userStreet, _userVillage, _userDistrict, _userState, _userPincode]
-                                .where((s) => s.isNotEmpty && s != 'Your Village' && s != 'Your District')
-                                .join(', '),
-                            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.location_on, color: Colors.white70, size: 14),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                [_userHouseNo, _userStreet, _userVillage, _userDistrict, _userState, _userPincode]
+                                    .where((s) => s.isNotEmpty && s != 'Your Village' && s != 'Your District')
+                                    .join(', '),
+                                style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 40),
                     ],
@@ -200,11 +210,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildStatItem('$_ordersCount', l10n.orders, Icons.shopping_bag_outlined, const Color(0xFF2E7D32)),
+                        Expanded(
+                          child: _buildStatItem(
+                            '$_ordersCount',
+                            l10n.orders,
+                            Icons.shopping_bag_outlined,
+                            const Color(0xFF2E7D32),
+                            onTap: () {
+                              if (['Owner', 'Provider'].contains(_userRole)) {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
+                              } else {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                                  title: 'My Bookings',
+                                  categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
+                                )));
+                              }
+                            },
+                          ),
+                        ),
                         _buildDivider(),
-                        _buildStatItem('$_rentalsCount', l10n.rentals, Icons.agriculture_outlined, const Color(0xFFF9A825)),
+                        Expanded(
+                          child: _buildStatItem(
+                            '$_rentalsCount',
+                            l10n.rentals,
+                            Icons.agriculture_outlined,
+                            const Color(0xFFF9A825),
+                            onTap: () {
+                              if (['Owner', 'Provider'].contains(_userRole)) {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
+                              } else {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                                  title: 'My Rentals',
+                                  categories: [BookingCategory.rentals],
+                                )));
+                              }
+                            },
+                          ),
+                        ),
                         _buildDivider(),
-                        _buildStatItem('$_servicesCount', l10n.services, Icons.handyman_outlined, const Color(0xFF1565C0)),
+                        Expanded(
+                          child: _buildStatItem(
+                            '$_servicesCount',
+                            l10n.services,
+                            Icons.handyman_outlined,
+                            const Color(0xFF1565C0),
+                            onTap: () {
+                              if (['Owner', 'Provider'].contains(_userRole)) {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
+                              } else {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                                  title: 'My Services',
+                                  categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport],
+                                )));
+                              }
+                            },
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -259,12 +320,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: TextButton.icon(
-                onPressed: () async {
-                  await NotificationService().clearFCMToken();
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.clear();
-                  if (context.mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const AuthScreen()), (route) => false);
-                },
+                onPressed: () => _showLogoutConfirmationDialog(context),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.red[700],
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
@@ -308,14 +364,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Widget _buildStatItem(String count, String label, IconData icon, Color color) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 6),
-        Text(count, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF1B5E20))),
-        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
-      ],
+  Widget _buildStatItem(String count, String label, IconData icon, Color color, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 6),
+            Text(
+              count, 
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF1B5E20)),
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              label, 
+              style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -362,4 +436,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildDividerLine() => const Divider(height: 1, indent: 64, endIndent: 20, thickness: 0.8, color: Color(0xFFF1F1F1));
+
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    var l10n = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.logout_rounded, color: Colors.red[700], size: 22),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                l10n.logout,
+                style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to log out of Agri Farms?',
+            style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext); // Close dialog
+                
+                // Show loading indicator
+                if (context.mounted) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+                    ),
+                  );
+                }
+
+                await NotificationService().clearFCMToken();
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+                
+                if (context.mounted) {
+                  // Close loading indicator and redirect
+                  Navigator.pop(context); // Close loader
+                  Navigator.pushAndRemoveUntil(
+                    context, 
+                    MaterialPageRoute(builder: (context) => const AuthScreen()), 
+                    (route) => false,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }

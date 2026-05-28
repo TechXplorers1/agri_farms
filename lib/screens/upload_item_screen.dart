@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:agriculture/l10n/app_localizations.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart' as geo;
@@ -15,6 +15,7 @@ import '../data/vehicle_data.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
+import '../utils/location_helper.dart';
 
 class UploadItemScreen extends StatefulWidget {
   final String category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
@@ -41,7 +42,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   Future<bool> _requestMediaPermission() async {
     if (kIsWeb) return true;
     PermissionStatus status;
-    if (Platform.isAndroid) {
+    final isAndroid = defaultTargetPlatform == TargetPlatform.android;
+    final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+    
+    if (isAndroid) {
       // In Android 13+ (API 33+), READ_EXTERNAL_STORAGE is deprecated.
       // Use Permission.photos. For older Androids, Permission.storage.
       // permission_handler makes it easy by requesting both or the relevant one.
@@ -58,7 +62,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         return true;
       }
       return false;
-    } else if (Platform.isIOS) {
+    } else if (isIOS) {
        status = await Permission.photos.request();
        return status.isGranted || status.isLimited;
     }
@@ -148,6 +152,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
       String? village;
       String? district;
+      String? houseNo;
+      String? street;
+      String? state;
+      String? pincode;
+      String? country;
+      String? exactAddress;
 
       // Try cross-platform geocoding (nominatim)
       try {
@@ -155,36 +165,70 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         final responseData = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
         final response = json.decode(responseData.body);
         if (response != null && response['address'] != null) {
-          village = response['address']['suburb'] ?? response['address']['village'] ?? response['address']['neighbourhood'] ?? response['address']['city_district'];
-          district = response['address']['district'] ?? response['address']['city'] ?? response['address']['county'];
+          final addr = response['address'];
+          houseNo = addr['house_number'];
+          street = addr['road'] ?? addr['suburb'] ?? addr['neighbourhood'];
+          village = addr['suburb'] ?? addr['village'] ?? addr['neighbourhood'] ?? addr['city_district'];
+          district = addr['district'] ?? addr['city'] ?? addr['county'];
+          state = addr['state'];
+          pincode = addr['postcode'];
+          country = addr['country'];
+          exactAddress = response['display_name'];
         }
       } catch (e) {
         debugPrint("Reverse geocoding failed: $e");
       }
 
-      // Fallback to mobile-specific if on Android/iOS and previous failed
-      if (village == null && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      // Fallback to mobile-specific if on Android/iOS safely
+      final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+      if (isMobile) {
         try {
           final placemarks = await geo.placemarkFromCoordinates(position.latitude, position.longitude);
           if (placemarks.isNotEmpty) {
             final place = placemarks[0];
-            village = place.subLocality ?? place.locality;
-            district = place.subAdministrativeArea ?? place.administrativeArea;
+            houseNo ??= place.subThoroughfare;
+            street ??= place.thoroughfare ?? place.subLocality;
+            village ??= place.subLocality ?? place.locality;
+            district ??= place.subAdministrativeArea ?? place.administrativeArea;
+            state ??= place.administrativeArea;
+            pincode ??= place.postalCode;
+            country ??= place.country;
+            
+            if (exactAddress == null) {
+              exactAddress = [
+                place.street,
+                place.subLocality,
+                place.locality,
+                place.subAdministrativeArea,
+                place.administrativeArea,
+                place.postalCode,
+                place.country
+              ].where((part) => part != null && part.isNotEmpty).join(', ');
+            }
           }
         } catch (e) {}
       }
 
       village ??= 'Unknown Village';
       district ??= 'District';
+      exactAddress ??= '$village, $district';
 
       setState(() {
-        _locationController.text = "$village, $district";
+        _locationController.text = exactAddress!;
         _villageController.text = village!;
         _districtController.text = district!;
+        if (houseNo != null) _houseNoController.text = houseNo;
+        if (street != null) _streetController.text = street;
+        if (state != null) _stateController.text = state;
+        if (pincode != null) _pincodeController.text = pincode;
+        if (country != null) _countryController.text = country;
       });
       
       if (mounted) {
-        UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
+        UiUtils.showCenteredToast(
+          context, 
+          'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}'
+        );
       }
     } catch (e) {
       UiUtils.showCenteredToast(context, 'Error fetching location: $e');

@@ -102,6 +102,62 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _triggerTestNotification() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id');
+      if (userId == null) return;
+
+      final isRequest = _notifications.length % 2 == 0;
+      
+      final title = isRequest ? 'New Booking Request' : 'Booking Approved';
+      final message = isRequest
+          ? 'You have received a new tractor rental booking request from Ramesh.'
+          : 'Your drone spraying service booking has been confirmed by the provider.';
+      final type = isRequest ? 'booking_request' : 'booking_status_update';
+      final relatedId = 'test_booking_id_${DateTime.now().millisecondsSinceEpoch}';
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Triggering test notification...'),
+            duration: Duration(milliseconds: 500),
+            backgroundColor: Color(0xFF1565C0),
+          ),
+        );
+      }
+
+      await _apiService.triggerDemoNotification(
+        userId: userId,
+        title: title,
+        message: message,
+        type: type,
+        relatedId: relatedId,
+      );
+
+      await _loadNotifications();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Test "$title" triggered successfully!'),
+            backgroundColor: const Color(0xFF00AA55),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error triggering test notification: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to trigger test: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   String _formatTime(String? dateString) {
     if (dateString == null) return '';
     try {
@@ -123,6 +179,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
+          IconButton(
+            tooltip: 'Trigger Test Notification',
+            onPressed: _triggerTestNotification,
+            icon: const Icon(Icons.bug_report_outlined, color: Color(0xFF1B5E20), size: 24),
+          ),
           IconButton(
             onPressed: _loadNotifications, 
             icon: const Icon(Icons.refresh_rounded, color: Color(0xFF1B5E20), size: 24)
@@ -173,6 +234,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Text(
             'We\'ll notify you when they arrive.', 
             style: TextStyle(fontSize: 15, color: Colors.grey[500], fontWeight: FontWeight.w600)
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1B5E20),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            ),
+            onPressed: _triggerTestNotification,
+            icon: const Icon(Icons.bug_report_outlined, size: 18),
+            label: const Text('TRIGGER TEST NOTIFICATION', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.8)),
           ),
         ],
       ),

@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import '../utils/ui_utils.dart';
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../models/booking_dto.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../utils/location_helper.dart';
+import '../services/geocoding_service.dart';
 
 class BookEquipmentDetailScreen extends StatefulWidget {
   final String providerName;
@@ -42,7 +45,19 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   int _durationHours = 1;
   bool _includeOperator = false;
   DateTime? _selectedDate;
-  final TextEditingController _addressController = TextEditingController();
+
+  // Address Controllers
+  final TextEditingController _houseNoController = TextEditingController();
+  final TextEditingController _streetController = TextEditingController();
+  final TextEditingController _villageController = TextEditingController();
+  final TextEditingController _districtController = TextEditingController();
+  final TextEditingController _stateController = TextEditingController();
+  final TextEditingController _countryController = TextEditingController(text: 'India');
+  final TextEditingController _pincodeController = TextEditingController();
+  double? _detectedLat;
+  double? _detectedLng;
+  bool _isGeocodingAddress = false;
+
   final TextEditingController _notesController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final Map<String, String?> _fieldErrors = {};
@@ -92,7 +107,15 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   Future<void> _loadAddress() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _addressController.text = prefs.getString('user_address') ?? '';
+      _houseNoController.text = prefs.getString('user_houseNo') ?? '';
+      _streetController.text = prefs.getString('user_street') ?? '';
+      _villageController.text = prefs.getString('user_village') ?? '';
+      _districtController.text = prefs.getString('user_district') ?? '';
+      _stateController.text = prefs.getString('user_state') ?? '';
+      _countryController.text = prefs.getString('user_country') ?? 'India';
+      _pincodeController.text = prefs.getString('user_pincode') ?? '';
+      _detectedLat = prefs.getDouble('user_latitude');
+      _detectedLng = prefs.getDouble('user_longitude');
     });
   }
 
@@ -101,46 +124,185 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        if (mounted) UiUtils.showCenteredToast(context, 'Location services are disabled. Please enable GPS.', isError: true);
-        return;
+        throw Exception('Location services are disabled.');
       }
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          if (mounted) UiUtils.showCenteredToast(context, 'Location permission denied.', isError: true);
-          return;
+          throw Exception('Location permissions are denied');
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        if (mounted) UiUtils.showCenteredToast(context, 'Location permission permanently denied. Enable it in Settings.', isError: true);
-        return;
+        throw Exception('Location permissions are permanently denied.');
       }
       
       final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       
-      // Use helper for cross-platform reverse geocoding
-      final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
-      final String village = addressData['village']!;
-      final String district = addressData['district']!;
-      final String address = "$village, $district";
+      setState(() {
+        _detectedLat = position.latitude;
+        _detectedLng = position.longitude;
+      });
+
+      String? houseNo;
+      String? street;
+      String? village;
+      String? district;
+      String? state;
+      String? country;
+      String? pincode;
+      String? exactAddress;
+
+      // 1. Try cross-platform geocoding (nominatim)
+      try {
+        final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=${position.latitude}&lon=${position.longitude}&format=json');
+        final responseData = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
+        final response = json.decode(responseData.body);
+        if (response != null && response['address'] != null) {
+          final addr = response['address'];
+          houseNo = addr['house_number'];
+          street = addr['road'] ?? addr['suburb'] ?? addr['neighbourhood'];
+          village = addr['suburb'] ?? addr['village'] ?? addr['neighbourhood'] ?? addr['city_district'];
+          district = addr['district'] ?? addr['city'] ?? addr['county'];
+          state = addr['state'];
+          pincode = addr['postcode'];
+          country = addr['country'];
+          exactAddress = response['display_name'];
+        }
+      } catch (e) {
+        debugPrint("Reverse geocoding failed: $e");
+      }
+
+      // 2. Fallback to mobile-specific safely
+      final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+      if (isMobile) {
+        try {
+          List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+          if (placemarks.isNotEmpty) {
+            Placemark place = placemarks.first;
+            houseNo ??= place.subThoroughfare;
+            street ??= place.thoroughfare ?? place.subLocality;
+            village ??= place.subLocality ?? place.locality;
+            district ??= place.subAdministrativeArea ?? place.administrativeArea;
+            state ??= place.administrativeArea;
+            pincode ??= place.postalCode;
+            country ??= place.country;
+            
+            if (exactAddress == null) {
+              exactAddress = [
+                place.street,
+                place.subLocality,
+                place.locality,
+                place.subAdministrativeArea,
+                place.administrativeArea,
+                place.postalCode,
+                place.country
+              ].where((part) => part != null && part.isNotEmpty).join(', ');
+            }
+          }
+        } catch (e) {}
+      }
+
+      village ??= 'Unknown Village';
+      district ??= 'District';
+      exactAddress ??= '$village, $district';
 
       if (mounted) {
-        setState(() => _addressController.text = address);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_address', address);
+        setState(() {
+          _houseNoController.text = houseNo ?? '';
+          _streetController.text = street ?? '';
+          _villageController.text = village ?? '';
+          _districtController.text = district ?? '';
+          _stateController.text = state ?? '';
+          _countryController.text = country ?? '';
+          _pincodeController.text = pincode ?? '';
+        });
+        
+        UiUtils.showCenteredToast(
+          context, 
+          'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}'
+        );
         if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
       }
     } catch (e) {
-      if (mounted) UiUtils.showCenteredToast(context, 'Could not fetch location. Try again.', isError: true);
+      if (mounted) UiUtils.showCenteredToast(context, 'Could not fetch location: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isFetchingLocation = false);
     }
   }
 
+  Future<void> _geocodeManualAddress() async {
+    if (_houseNoController.text.isEmpty &&
+        _streetController.text.isEmpty &&
+        _villageController.text.isEmpty &&
+        _districtController.text.isEmpty &&
+        _stateController.text.isEmpty &&
+        _pincodeController.text.isEmpty) {
+      UiUtils.showCenteredToast(context, 'Please enter address details first.', isError: true);
+      return;
+    }
+
+    setState(() => _isGeocodingAddress = true);
+    try {
+      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
+      
+      double? lat, lng;
+      // 1. Try mobile native geocoding first safely
+      try {
+        final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+        if (isMobile) {
+          List<Location> locations = await locationFromAddress(fullAddress);
+          if (locations.isNotEmpty) {
+            lat = locations.first.latitude;
+            lng = locations.first.longitude;
+          }
+        }
+      } catch (e) {
+        debugPrint("Native geocoding failed: $e");
+      }
+
+      // 2. Try Nominatim/Fallback geocoding (Works on Web!)
+      if (lat == null || lng == null) {
+        String fallbackAddress = "${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}";
+        final coords = await GeocodingService.getCoordinates(fullAddress, fallbackAddress: fallbackAddress);
+        if (coords != null) {
+          lat = coords['latitude'];
+          lng = coords['longitude'];
+        }
+      }
+
+      if (lat != null && lng != null) {
+        setState(() {
+          _detectedLat = lat;
+          _detectedLng = lng;
+        });
+        if (mounted) {
+          UiUtils.showCenteredToast(
+            context, 
+            'Coordinates resolved successfully!\nCoords: ${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}'
+          );
+        }
+      } else {
+        throw Exception("Could not find coordinates for the entered address.");
+      }
+    } catch (e) {
+      if (mounted) {
+        UiUtils.showCustomAlert(context, 'Geocoding failed: $e', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isGeocodingAddress = false);
+    }
+  }
+
   @override
   void dispose() {
-    _addressController.dispose();
+    _houseNoController.dispose();
+    _streetController.dispose();
+    _villageController.dispose();
+    _districtController.dispose();
+    _stateController.dispose();
+    _countryController.dispose();
+    _pincodeController.dispose();
     _notesController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -243,13 +405,32 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   }
 
   void _confirmBooking() async {
-    if (_selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty) {
+    final String fullAddress = [
+      _houseNoController.text,
+      _streetController.text,
+      _villageController.text,
+      _districtController.text,
+      _stateController.text,
+      _countryController.text,
+      _pincodeController.text
+    ].where((part) => part.isNotEmpty).join(', ');
+
+    if (_selectedSlots.isNotEmpty && _selectedDate != null && fullAddress.isNotEmpty) {
       setState(() {
         _isSubmitting = true;
       });
-      // Save address
+      // Save address in SharedPreferences
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_address', _addressController.text);
+      await prefs.setString('user_address', fullAddress);
+      await prefs.setString('user_houseNo', _houseNoController.text);
+      await prefs.setString('user_street', _streetController.text);
+      await prefs.setString('user_village', _villageController.text);
+      await prefs.setString('user_district', _districtController.text);
+      await prefs.setString('user_state', _stateController.text);
+      await prefs.setString('user_country', _countryController.text);
+      await prefs.setString('user_pincode', _pincodeController.text);
+      if (_detectedLat != null) await prefs.setDouble('user_latitude', _detectedLat!);
+      if (_detectedLng != null) await prefs.setDouble('user_longitude', _detectedLng!);
 
       // Format duration text
       String durationText;
@@ -266,7 +447,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         'Booked By': userName ?? 'Unknown User',
         'Provider': widget.providerName,
         'Equipment': widget.equipmentType,
-        'Location': _addressController.text,
+        'Location': fullAddress,
         'Duration': durationText,
         'Operator Required': _includeOperator ? 'Yes' : 'No',
         'Notes': _notesController.text,
@@ -285,7 +466,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         scheduledEndTime: end,
         status: 'PENDING',
         totalAmount: _totalPrice,
-        addressText: _addressController.text,
+        addressText: fullAddress,
         notes: jsonEncode(notesMap),
       );
       
@@ -316,7 +497,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     } else {
       setState(() {
         _fieldErrors.clear();
-        if (_addressController.text.isEmpty) {
+        if (fullAddress.isEmpty) {
           _fieldErrors['address'] = 'Please enter delivery address';
         }
         if (_selectedDate == null) {
@@ -424,29 +605,176 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Location Section
+             // Location Section
             _buildSectionCard(
               key: _addressSectionKey,
               title: 'Lush Delivery Location',
               icon: Icons.location_on_rounded,
               isError: _fieldErrors.containsKey('address'),
-              child: _buildTextField(
-                controller: _addressController,
-                label: 'Usage Address',
-                hint: 'Enter your farm address...',
-                maxLines: 2,
-                errorKey: 'address',
-                icon: Icons.map_rounded,
-                suffixIcon: _isFetchingLocation
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
-                      onPressed: _fetchCurrentLocation,
-                    ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'FARM ADDRESS DETAILS',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF546E7A), letterSpacing: 1.0),
+                      ),
+                      _isFetchingLocation
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55)))
+                        : IconButton(
+                            icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                            tooltip: 'Auto Detect GPS Location',
+                            onPressed: _fetchCurrentLocation,
+                          ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _houseNoController,
+                          label: 'House No / Door No',
+                          hint: 'e.g. 123',
+                          icon: Icons.home_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _streetController,
+                          label: 'Street / Area Name',
+                          hint: 'Street details...',
+                          icon: Icons.add_road_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _villageController,
+                          label: 'Village / Suburb',
+                          hint: 'Village name...',
+                          icon: Icons.landscape_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _districtController,
+                          label: 'District',
+                          hint: 'District name...',
+                          icon: Icons.location_city_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _stateController,
+                          label: 'State',
+                          hint: 'State name...',
+                          icon: Icons.map_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _pincodeController,
+                          label: 'Pincode',
+                          hint: 'Pincode...',
+                          icon: Icons.pin_drop_rounded,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildAddressInputField(
+                    controller: _countryController,
+                    label: 'Country',
+                    hint: 'Country...',
+                    icon: Icons.public_rounded,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      if (_detectedLat != null && _detectedLng != null)
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5E9),
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(color: const Color(0xFFC8E6C9)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.gps_fixed_rounded, size: 16, color: Color(0xFF2E7D32)),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    "Coords: ${_detectedLat!.toStringAsFixed(6)}, ${_detectedLng!.toStringAsFixed(6)}",
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF3E0),
+                              borderRadius: BorderRadius.circular(15),
+                              border: Border.all(color: const Color(0xFFFFE0B2)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.location_off_rounded, size: 16, color: Colors.orange[800]),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    "No Coordinates Set",
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange[800]),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 12),
+                      _isGeocodingAddress
+                        ? const SizedBox(width: 32, height: 32, child: Padding(padding: EdgeInsets.all(6), child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))))
+                        : ElevatedButton.icon(
+                            onPressed: _geocodeManualAddress,
+                            icon: const Icon(Icons.pin_drop_rounded, size: 16),
+                            label: const Text('Get Coordinates', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00AA55),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                              elevation: 0,
+                            ),
+                          ),
+                    ],
+                  ),
+                ],
               ),
             ),
 
@@ -803,6 +1131,44 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
   String _formatTimeRange(int hour) {
     return '${_formatTime(hour)} - ${_formatTime(hour + 1)}';
+  }
+
+  Widget _buildAddressInputField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FBF9),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: const Color(0xFFE8F5E9)),
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF2C3E50)),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500, fontSize: 13),
+              prefixIcon: Icon(icon, color: const Color(0xFF00AA55), size: 18),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   void _showFullImage(BuildContext context, String? imageUrl, String title) {
