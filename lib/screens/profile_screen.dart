@@ -18,6 +18,9 @@ import 'manage_items_screen.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/ui_utils.dart';
 import '../services/notification_service.dart';
+import '../utils/app_translations.dart';
+import '../utils/language_provider.dart';
+import 'package:provider/provider.dart';
 
 
 class ProfileScreen extends StatefulWidget {
@@ -74,11 +77,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Fetch stats
         try {
           final stats = await apiService.getUserStats(userId);
+          int ordersVal = stats['ordersCount'] ?? 0;
+          int rentalsVal = stats['rentalsCount'] ?? 0;
+          int servicesVal = stats['servicesCount'] ?? 0;
+
+          final userRoleVal = userData['role'] ?? _userRole;
+          if (['Owner', 'Provider'].contains(userRoleVal)) {
+            try {
+              final response = await apiService.getProviderBookings(userId);
+              final List<dynamic> providerBookings = response as List<dynamic>? ?? [];
+              final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+              int pendingCount = 0;
+              for (var b in providerBookings) {
+                final status = b['status']?.toString().toLowerCase() ?? '';
+                if (status == 'pending') {
+                  final dateRaw = b['scheduledStartTime'] ?? b['bookingDate'];
+                  if (dateRaw != null) {
+                    try {
+                      final targetDate = DateTime.parse(dateRaw.toString());
+                      final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+                      if (!bookingDay.isBefore(today)) {
+                        pendingCount++;
+                      }
+                    } catch (_) {
+                      pendingCount++;
+                    }
+                  } else {
+                    pendingCount++;
+                  }
+                }
+              }
+              ordersVal = pendingCount;
+            } catch (e) {
+              debugPrint('Error counting new orders: $e');
+            }
+          }
+
           if (mounted) {
             setState(() {
-              _ordersCount = stats['ordersCount'] ?? 0;
-              _rentalsCount = stats['rentalsCount'] ?? 0;
-              _servicesCount = stats['servicesCount'] ?? 0;
+              _ordersCount = ordersVal;
+              _rentalsCount = rentalsVal;
+              _servicesCount = servicesVal;
             });
           }
         } catch (e) {
@@ -88,8 +128,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await prefs.setString('user_name', userData['fullName'] ?? _userName);
         await prefs.setString('user_phone', userData['phoneNumber'] ?? '');
         await prefs.setString('user_email', userData['email'] ?? '');
-        await prefs.setString('user_village', userData['village'] ?? _userVillage);
-        await prefs.setString('user_district', userData['district'] ?? _userDistrict);
+        
+        final String? responseVillage = userData['village'];
+        final String? responseDistrict = userData['district'];
+        
+        if (responseVillage != null && responseVillage.trim().isNotEmpty && responseVillage != 'Your Village') {
+          await prefs.setString('user_village', responseVillage);
+        }
+        if (responseDistrict != null && responseDistrict.trim().isNotEmpty && responseDistrict != 'Your District') {
+          await prefs.setString('user_district', responseDistrict);
+        }
+
         await prefs.setString('user_houseNo', userData['houseNo'] ?? '');
         await prefs.setString('user_street', userData['street'] ?? '');
         await prefs.setString('user_state', userData['state'] ?? '');
@@ -104,8 +153,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (mounted) {
           setState(() {
             _userName = userData['fullName'] ?? _userName;
-            _userVillage = userData['village'] ?? _userVillage;
-            _userDistrict = userData['district'] ?? _userDistrict;
+            if (responseVillage != null && responseVillage.trim().isNotEmpty && responseVillage != 'Your Village') {
+              _userVillage = responseVillage;
+            }
+            if (responseDistrict != null && responseDistrict.trim().isNotEmpty && responseDistrict != 'Your District') {
+              _userDistrict = responseDistrict;
+            }
             _userHouseNo = userData['houseNo'] ?? '';
             _userStreet = userData['street'] ?? '';
             _userState = userData['state'] ?? '';
@@ -128,79 +181,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  height: 260, width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                      colors: [Color(0xFF1B5E20), Color(0xFF388E3C), Color(0xFF66BB6A)],
+            Builder(
+              builder: (context) {
+                final double topPadding = MediaQuery.of(context).padding.top;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      height: 315 + topPadding, width: double.infinity,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft, end: Alignment.bottomRight,
+                          colors: [Color(0xFF1B5E20), Color(0xFF388E3C), Color(0xFF66BB6A)],
+                        ),
+                        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(36), bottomRight: Radius.circular(36)),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          SizedBox(height: topPadding + 16),
+                          GestureDetector(
+                            onTap: _pickAndUploadImage,
+                            child: Stack(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                  child: CircleAvatar(
+                                    radius: 44,
+                                    backgroundColor: const Color(0xFFF1F8E9),
+                                    backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                                        ? NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl))
+                                        : null,
+                                    child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                                        ? (_isUploading ? const CircularProgressIndicator(color: Color(0xFF00AA55)) : const Icon(Icons.person, size: 48, color: Color(0xFF2E7D32)))
+                                        : null,
+                                  ),
+                                ),
+                                Positioned(bottom: 2, right: 2, child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]),
+                                  child: const Icon(Icons.edit, size: 14, color: Color(0xFF2E7D32)),
+                                )),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(_userName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 6),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.location_on, color: Colors.white70, size: 14),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    [_userHouseNo, _userStreet, _userVillage, _userDistrict, _userState, _userPincode]
+                                        .where((s) => s.isNotEmpty && s != 'Your Village' && s != 'Your District')
+                                        .join(', '),
+                                    style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    borderRadius: BorderRadius.only(bottomLeft: Radius.circular(36), bottomRight: Radius.circular(36)),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 20),
-                      GestureDetector(
-                        onTap: _pickAndUploadImage,
-                        child: Stack(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                              child: CircleAvatar(
-                                radius: 44,
-                                backgroundColor: const Color(0xFFF1F8E9),
-                                backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                                    ? NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl))
-                                    : null,
-                                child: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                                    ? (_isUploading ? const CircularProgressIndicator(color: Color(0xFF00AA55)) : const Icon(Icons.person, size: 48, color: Color(0xFF2E7D32)))
-                                    : null,
-                              ),
-                            ),
-                            Positioned(bottom: 2, right: 2, child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]),
-                              child: const Icon(Icons.edit, size: 14, color: Color(0xFF2E7D32)),
-                            )),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(_userName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 4),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.location_on, color: Colors.white70, size: 14),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                [_userHouseNo, _userStreet, _userVillage, _userDistrict, _userState, _userPincode]
-                                    .where((s) => s.isNotEmpty && s != 'Your Village' && s != 'Your District')
-                                    .join(', '),
-                                style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
-                                textAlign: TextAlign.center,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  bottom: -35, left: 20, right: 20,
+                    Positioned(
+                      bottom: -35, left: 20, right: 20,
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     decoration: BoxDecoration(
@@ -256,7 +311,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             const Color(0xFF1565C0),
                             onTap: () {
                               if (['Owner', 'Provider'].contains(_userRole)) {
-                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen(initialTabIndex: 2)));
                               } else {
                                 Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
                                   title: 'My Services',
@@ -271,13 +326,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ],
-            ),
+            );
+          }
+        ),
             const SizedBox(height: 55),
             _buildSectionHeader(l10n.activity),
             _buildActionCard([
-              _buildListTile(Icons.history_rounded, 'Activity Bookings', subtitle: 'View your booking history', onTap: () {
-                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-                  title: 'Activity Bookings',
+              _buildListTile(Icons.history_rounded, AppTranslations.translate(context, 'activityBookings'), subtitle: AppTranslations.translate(context, 'viewBookingHistory'), onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(builder: (context) => GenericHistoryScreen(
+                  title: AppTranslations.translate(context, 'activityBookings'),
                   categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
                 )));
               }),
@@ -291,7 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               }),
               if (['Owner', 'Provider'].contains(_userRole)) ...[
                 _buildDividerLine(),
-                _buildListTile(Icons.inventory_2_outlined, 'My Registered Items', onTap: () {
+                _buildListTile(Icons.inventory_2_outlined, AppTranslations.translate(context, 'myRegisteredItems'), onTap: () {
                   Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
                 }),
                 _buildDividerLine(),
@@ -354,11 +411,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           await apiService.updateUser(userId, {'profileImageUrl': relativeUrl});
           await prefs.setString('user_profile_image', relativeUrl);
           setState(() => _profileImageUrl = relativeUrl);
-          if (mounted) UiUtils.showCenteredToast(context, 'Profile photo updated successfully!');
+          if (mounted) UiUtils.showCenteredToast(context, AppTranslations.translate(context, 'profilePhotoUpdated'));
         }
       }
     } catch (e) {
-      if (mounted) UiUtils.showCustomAlert(context, 'Failed to upload profile photo: $e', isError: true);
+      if (mounted) UiUtils.showCustomAlert(context, '${AppTranslations.translate(context, 'profilePhotoFailed')}$e', isError: true);
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -462,15 +519,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-          content: const Text(
-            'Are you sure you want to log out of Agri Farms?',
-            style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14),
+          content: Text(
+            AppTranslations.translate(context, 'logoutConfirm'),
+            style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: Text(
-                'Cancel',
+                AppTranslations.translate(context, 'cancel'),
                 style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
               ),
             ),
@@ -509,7 +566,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
               ),
-              child: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(l10n.logout, style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/booking_manager.dart';
 import '../../utils/ui_utils.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 String _formatProviderDate(String raw) {
   try {
@@ -24,6 +25,32 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
   String? _currentProviderId; 
   final BookingManager _bookingManager = BookingManager();
   bool _isLoading = true;
+  DateTime? _filterDate;
+
+  String _getMonthName(int month) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[month - 1];
+  }
+
+  Future<void> _openMap(String address) async {
+    final query = Uri.encodeComponent(address);
+    final googleMapsUrl = "https://www.google.com/maps/search/?api=1&query=$query";
+    final appleMapsUrl = "https://maps.apple.com/?q=$query";
+    
+    try {
+      if (await canLaunchUrl(Uri.parse(googleMapsUrl))) {
+        await launchUrl(Uri.parse(googleMapsUrl), mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(Uri.parse(appleMapsUrl))) {
+        await launchUrl(Uri.parse(appleMapsUrl), mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(Uri.parse(googleMapsUrl));
+      }
+    } catch (e) {
+      if (mounted) {
+        UiUtils.showCenteredToast(context, 'Could not open maps application.', isError: true);
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -58,6 +85,50 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _filterDate == null ? Icons.calendar_month_rounded : Icons.filter_alt_off_rounded,
+              color: const Color(0xFF00AA55),
+            ),
+            onPressed: () async {
+              if (_filterDate != null) {
+                setState(() {
+                  _filterDate = null;
+                });
+                return;
+              }
+              final selected = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2030),
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(
+                        primary: Color(0xFF00AA55),
+                        onPrimary: Colors.white,
+                        onSurface: Color(0xFF1B5E20),
+                      ),
+                      textButtonTheme: TextButtonThemeData(
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF00AA55),
+                        ),
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (selected != null) {
+                setState(() {
+                  _filterDate = selected;
+                });
+              }
+            },
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)))
@@ -75,6 +146,12 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                   if (b.status.toLowerCase() != 'pending') return false;
                   final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
                   final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+                  
+                  if (_filterDate != null) {
+                    final filterDay = DateTime(_filterDate!.year, _filterDate!.month, _filterDate!.day);
+                    if (bookingDay != filterDay) return false;
+                  }
+                  
                   return !bookingDay.isBefore(today);
                 }).toList()
                   ..sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate));
@@ -83,6 +160,12 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                   if (b.status.toLowerCase() != 'confirmed') return false;
                   final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
                   final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+                  
+                  if (_filterDate != null) {
+                    final filterDay = DateTime(_filterDate!.year, _filterDate!.month, _filterDate!.day);
+                    if (bookingDay != filterDay) return false;
+                  }
+                  
                   return !bookingDay.isBefore(today);
                 }).toList()
                   ..sort((a, b) {
@@ -93,9 +176,15 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                   
                 final historyBookings = allMyBookings.where((b) {
                   final s = b.status.toLowerCase();
-                  if (s != 'pending' && s != 'confirmed') return true;
                   final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
                   final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+                  
+                  if (_filterDate != null) {
+                    final filterDay = DateTime(_filterDate!.year, _filterDate!.month, _filterDate!.day);
+                    if (bookingDay != filterDay) return false;
+                  }
+                  
+                  if (s != 'pending' && s != 'confirmed') return true;
                   return bookingDay.isBefore(today); // Past pending/confirmed go to history
                 }).toList()
                   ..sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate));
@@ -106,20 +195,96 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                     children: [
                       Container(
                         color: Colors.white,
-                        child: const TabBar(
-                          labelColor: Color(0xFF2E7D32),
-                          indicatorColor: Color(0xFF2E7D32),
+                        child: TabBar(
+                          labelColor: const Color(0xFF2E7D32),
+                          indicatorColor: const Color(0xFF2E7D32),
                           indicatorSize: TabBarIndicatorSize.label,
                           unselectedLabelColor: Colors.grey,
-                          labelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                          unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                           tabs: [
-                            Tab(text: 'New Requests'),
-                            Tab(text: 'Active'),
-                            Tab(text: 'History'),
+                            Tab(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('New Requests'),
+                                  if (pendingBookings.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFC62828),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${pendingBookings.length}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const Tab(text: 'Active'),
+                            const Tab(text: 'History'),
                           ],
                         ),
                       ),
+                      if (_filterDate != null)
+                        Container(
+                          margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00AA55).withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.filter_list_rounded, color: Color(0xFF1B5E20), size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Filtered by: ${_filterDate!.day} ${_getMonthName(_filterDate!.month)} ${_filterDate!.year}',
+                                  style: const TextStyle(
+                                    color: Color(0xFF1B5E20),
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _filterDate = null;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.close_rounded, color: Color(0xFF1B5E20), size: 16),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       Expanded(
                         child: TabBarView(
                           children: [
@@ -143,6 +308,10 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
       if (tabType == 'new') emptyMessage = 'No new requests';
       else if (tabType == 'active') emptyMessage = 'No active bookings';
 
+      final displayMessage = _filterDate != null
+          ? 'No bookings found on ${_filterDate!.day} ${_getMonthName(_filterDate!.month)}'
+          : emptyMessage;
+
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -153,7 +322,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
               child: Icon(emptyIcon, size: 48, color: Colors.grey[300]),
             ),
             const SizedBox(height: 16),
-            Text(emptyMessage, style: TextStyle(color: Colors.grey[500], fontSize: 15, fontWeight: FontWeight.w500)),
+            Text(displayMessage, style: TextStyle(color: Colors.grey[500], fontSize: 15, fontWeight: FontWeight.w500)),
           ],
         ),
       );
@@ -186,7 +355,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
-        border: Border.all(color: Colors.grey[100]!),
+        border: Border.all(color: accentColor.withValues(alpha: 0.2), width: 1.5),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -226,6 +395,35 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                       Text(booking.price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF2E7D32))),
                     ],
                   ),
+                  if (booking.location != null && booking.location!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () => _openMap(booking.location!),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.near_me_rounded, size: 14, color: Color(0xFF00AA55)),
+                            const SizedBox(width: 8),
+                            Text('Location: ', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                            Expanded(
+                              child: Text(
+                                '${booking.location!} ➔',
+                                style: const TextStyle(
+                                  fontSize: 12, 
+                                  fontWeight: FontWeight.w700, 
+                                  color: Color(0xFF00AA55),
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   if (booking.details.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     const Divider(height: 1),

@@ -135,8 +135,15 @@ class ApiService {
     }
   }
 
-  Future<dynamic> updateBookingStatus(String bookingId, String status) async {
-    return await putStatus('${ApiConfig.bookings}/$bookingId/status?status=$status');
+  Future<dynamic> updateBookingStatus(String bookingId, String status, {String? cancelledBy, String? cancellationReason}) async {
+    String endpoint = '${ApiConfig.bookings}/$bookingId/status?status=$status';
+    if (cancelledBy != null && cancelledBy.isNotEmpty) {
+      endpoint += '&cancelledBy=${Uri.encodeComponent(cancelledBy)}';
+    }
+    if (cancellationReason != null && cancellationReason.isNotEmpty) {
+      endpoint += '&cancellationReason=${Uri.encodeComponent(cancellationReason)}';
+    }
+    return await putStatus(endpoint);
   }
 
   // Inventory - Equipment

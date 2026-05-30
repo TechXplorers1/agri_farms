@@ -13,6 +13,8 @@ class BookingDTO {
   double? locationLng;
   String? addressText;
   String? notes; // JSON string containing specific booking details
+  String? cancelledBy;
+  String? cancellationReason;
 
   BookingDTO({
     this.bookingId,
@@ -29,6 +31,8 @@ class BookingDTO {
     this.locationLng,
     this.addressText,
     this.notes,
+    this.cancelledBy,
+    this.cancellationReason,
   });
 
   factory BookingDTO.fromJson(Map<String, dynamic> json) {
@@ -47,6 +51,8 @@ class BookingDTO {
       locationLng: json['locationLng'] != null ? (json['locationLng'] as num).toDouble() : null,
       addressText: json['addressText'],
       notes: json['notes'],
+      cancelledBy: json['cancelledBy'],
+      cancellationReason: json['cancellationReason'],
     );
   }
 
@@ -66,6 +72,8 @@ class BookingDTO {
       'locationLng': locationLng,
       'addressText': addressText,
       'notes': notes,
+      'cancelledBy': cancelledBy,
+      'cancellationReason': cancellationReason,
     };
   }
 }

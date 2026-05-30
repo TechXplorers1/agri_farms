@@ -2,7 +2,7 @@
 
   class ApiConfig {
     // Automatically switches to localhost on web, and your local PC Wi-Fi IP on physical/emulated mobile devices!
-    static const String baseUrl = 'http://192.168.29.57:8083'; 
+    static const String baseUrl = 'http://192.168.29.237:8083'; 
     static const String users = '/api/users';
     static const String bookings = '/api/bookings';
     static const String inventoryEquipment = '/api/inventory/equipment';

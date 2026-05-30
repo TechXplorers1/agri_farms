@@ -48,17 +48,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       if (userId != null) {
         final notifications = await _apiService.getUserNotifications(userId) as List;
         
+        final allNotifications = List<Map<String, dynamic>>.from(
+          notifications.map((n) => Map<String, dynamic>.from(n))
+        );
+        
         // Apply Translation if not English
         if (targetLang != 'en') {
-          for (var n in notifications) {
+          for (var n in allNotifications) {
             if (n['title'] != null) n['title'] = await trans.translate(n['title'], targetLang);
             if (n['message'] != null) n['message'] = await trans.translate(n['message'], targetLang);
           }
         }
 
+        final unreadNotifications = allNotifications
+            .where((n) => (n['read'] ?? n['isRead']) != true)
+            .toList();
+
         if (mounted) {
           setState(() {
-            _notifications = notifications;
+            _notifications = unreadNotifications;
             _isLoading = false;
           });
         }
@@ -70,13 +78,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  Future<void> _markAsRead(String id, int index) async {
-    if (_notifications[index]['read'] == true) return;
+  Future<void> _markAsRead(String id) async {
     try {
       await _apiService.markNotificationAsRead(id);
       if (mounted) {
         setState(() {
-          _notifications[index]['read'] = true;
+          final index = _notifications.indexWhere((n) => n['id'] == id);
+          if (index != -1) {
+            _notifications[index]['read'] = true;
+            _notifications[index]['isRead'] = true;
+          }
         });
       }
     } catch (e) {
@@ -84,11 +95,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  void _onNotificationTap(dynamic notification, int index) async {
-    if (notification['id'] != null) {
-      await _markAsRead(notification['id'], index);
+  void _onNotificationTap(dynamic notification) async {
+    final String? notificationId = notification['id'];
+    if (notificationId != null) {
+      // Optimistic Update: Remove notification locally immediately so it disappears with 0ms delay!
+      setState(() {
+        _notifications.removeWhere((n) => n['id'] == notificationId);
+      });
+      // Fire the backend read-marking request in the background
+      _markAsRead(notificationId);
     }
-    if (!mounted) return;
 
     final type = notification['type'] ?? '';
     if (type == 'booking_request') {
@@ -174,6 +190,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
         title: const Text('Notifications', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20))),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -254,7 +274,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildPremiumCard(dynamic notification, int index) {
     final type = notification['type'] ?? '';
-    final isRead = notification['read'] == true;
+    final isRead = (notification['read'] ?? notification['isRead']) == true;
     final isNavigable = type == 'booking_request' || type == 'booking_status_update';
 
     Color accentColor = const Color(0xFF00AA55);
@@ -269,7 +289,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     return GestureDetector(
-      onTap: () => _onNotificationTap(notification, index),
+      onTap: () => _onNotificationTap(notification),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(

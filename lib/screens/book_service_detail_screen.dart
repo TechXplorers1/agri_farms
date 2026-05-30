@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
+import '../utils/app_translations.dart';
 import '../utils/ui_utils.dart';
 import 'booking_confirmation_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,8 +10,12 @@ import '../models/booking_dto.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
+import 'package:geocoding/geocoding.dart' as geo;
 import '../utils/location_helper.dart';
+import '../services/geocoding_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'dart:async';
+
 
 class BookServiceDetailScreen extends StatefulWidget {
   final String providerName;
@@ -52,16 +57,17 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   bool _isSubmitting = false;
   bool _isFetchingLocation = false;
 
+  // New Geocoding & Calendar Fields
+  double? _detectedLat;
+  double? _detectedLng;
+  bool _isGeocodingAddress = false;
+  Timer? _geocodeDebounce;
+  DateTime _calendarMonth = DateTime.now();
+
   // Time Slot Configuration
   final int _startHour = 6;
   final int _endHour = 20;
-  int? _selectedStartHour;
-  int _durationHours = 1;
-
-  List<int> get _selectedSlots {
-    if (_selectedStartHour == null) return [];
-    return List.generate(_durationHours, (i) => _selectedStartHour! + i);
-  }
+  final List<int> _selectedSlots = [];
 
   // Electrician Specific Fields
   final List<String> _electricianPurposes = [
@@ -105,7 +111,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
     for (var booking in _existingBookings) {
       if (booking.scheduledStartTime != null && booking.scheduledEndTime != null) {
-        if (slotStart.isBefore(booking.scheduledEndTime!) && slotEnd.isAfter(booking.scheduledStartTime!)) {
+        DateTime bStart = booking.scheduledStartTime!.toLocal();
+        DateTime bEnd = booking.scheduledEndTime!.toLocal();
+        if (slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart)) {
            final String status = booking.status?.toUpperCase() ?? '';
            if (status != 'CANCELLED' && status != 'REJECTED' && status != 'COMPLETED' && status != 'FINISHED') {
              return true;
@@ -127,18 +135,13 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     }
 
     setState(() {
-      _selectedStartHour = hour;
-      _durationHours = 1;
-    });
-  }
-
-  bool _isRangeAvailable(int startHour, int duration) {
-    for (int i = 0; i < duration; i++) {
-      if (_isSlotBlocked(startHour + i) || (startHour + i) >= _endHour) {
-        return false;
+      if (_selectedSlots.contains(hour)) {
+        _selectedSlots.remove(hour);
+      } else {
+        _selectedSlots.add(hour);
+        _selectedSlots.sort();
       }
-    }
-    return true;
+    });
   }
 
   String _formatTime(int hour) {
@@ -191,6 +194,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     _customPurposeController.dispose();
     _customAssetController.dispose();
     _scrollController.dispose();
+    _geocodeDebounce?.cancel();
     super.dispose();
   }
 
@@ -198,6 +202,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _addressController.text = prefs.getString('user_address') ?? '';
+      _detectedLat = prefs.getDouble('user_latitude');
+      _detectedLng = prefs.getDouble('user_longitude');
       if (_addressController.text.isEmpty) {
         // Fallback for demo if address not set, set empty to prompt user
         _addressController.text = '';
@@ -230,15 +236,23 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       
       // Use helper for cross-platform reverse geocoding
       final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
+      final String exactAddress = addressData['exactAddress']!;
       final String village = addressData['village']!;
       final String district = addressData['district']!;
-      final String address = "$village, $district";
+      final String address = exactAddress.isNotEmpty ? exactAddress : "$village, $district";
 
       if (mounted) {
-        setState(() => _addressController.text = address);
-        // Save to prefs if needed (check file context)
+        setState(() {
+          _addressController.text = address;
+          _detectedLat = position.latitude;
+          _detectedLng = position.longitude;
+        });
+        
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_address', address);
+        await prefs.setDouble('user_latitude', position.latitude);
+        await prefs.setDouble('user_longitude', position.longitude);
+        
         if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
       }
     } catch (e) {
@@ -248,40 +262,148 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     }
   }
 
+  void _debounceGeocoding() {
+    if (_geocodeDebounce?.isActive ?? false) _geocodeDebounce!.cancel();
+    _geocodeDebounce = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted && _addressController.text.isNotEmpty) {
+        _geocodeManualAddress();
+      }
+    });
+  }
+
+  Future<void> _geocodeManualAddress() async {
+    if (_addressController.text.isEmpty) return;
+    setState(() => _isGeocodingAddress = true);
+    try {
+      String address = _addressController.text.trim();
+      double? lat, lng;
+      
+      // 1. Try mobile native geocoding first
+      try {
+        final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+        if (isMobile) {
+          List<geo.Location> locations = await geo.locationFromAddress(address);
+          if (locations.isNotEmpty) {
+            lat = locations.first.latitude;
+            lng = locations.first.longitude;
+          }
+        }
+      } catch (e) {
+        debugPrint("Native geocoding failed: $e");
+      }
+
+      // 2. Try Nominatim/Fallback geocoding
+      if (lat == null || lng == null) {
+        final coords = await GeocodingService.getCoordinates(address);
+        if (coords != null) {
+          lat = coords['latitude'];
+          lng = coords['longitude'];
+        }
+      }
+
+      if (lat != null && lng != null) {
+        setState(() {
+          _detectedLat = lat;
+          _detectedLng = lng;
+        });
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('user_latitude', lat);
+        await prefs.setDouble('user_longitude', lng);
+      } else {
+        setState(() {
+          _detectedLat = null;
+          _detectedLng = null;
+        });
+      }
+    } catch (e) {
+      debugPrint("Geocoding failed: $e");
+    } finally {
+      if (mounted) setState(() => _isGeocodingAddress = false);
+    }
+  }
+
+  Widget _buildCoordsBadge() {
+    if (_isGeocodingAddress) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF1F8F1),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: const Color(0xFFE8F5E9)),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55)),
+            ),
+            SizedBox(width: 10),
+            Text(
+              "Detecting coordinates...",
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF00AA55)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_detectedLat != null && _detectedLng != null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5E9),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: const Color(0xFFC8E6C9)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.gps_fixed_rounded, size: 16, color: Color(0xFF2E7D32)),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                "Coords Detected: ${_detectedLat!.toStringAsFixed(6)}, ${_detectedLng!.toStringAsFixed(6)}",
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFFFE0B2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.location_off_rounded, size: 16, color: Colors.orange[800]),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              "No Coordinates Detected (Type address to resolve)",
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange[800]),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _scrollToField(GlobalKey key) {
     Scrollable.ensureVisible(
       key.currentContext!,
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOut,
     );
-  }
-
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF00AA55),
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-        _selectedStartHour = null;
-        _durationHours = 1;
-      });
-    }
   }
 
   double get _totalPrice {
@@ -293,24 +415,29 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
     if (unitPrice == 0.0) return 0.0;
 
-    bool isElectrician = widget.serviceName == 'Electricians';
+    final l10n = AppLocalizations.of(context)!;
     bool isAcreBilled = widget.serviceName == 'Ploughing' || 
+                        widget.serviceName == l10n.ploughing ||
                         widget.serviceName == 'Harvesting' || 
+                        widget.serviceName == l10n.harvesting ||
                         widget.serviceName == 'Drone Spraying' ||
-                        widget.serviceName == 'Irrigation';
+                        widget.serviceName == l10n.droneSpraying ||
+                        widget.serviceName == 'Irrigation' ||
+                        widget.serviceName == l10n.irrigation;
 
     if (isAcreBilled) {
       double acres = double.tryParse(_quantityController.text) ?? 0.0;
       return unitPrice * acres;
     } else {
-      return unitPrice * _durationHours;
+      return unitPrice * _selectedSlots.length;
     }
   }
 
   bool _isDateBooked(DateTime date) {
     for (var booking in _existingBookings) {
       if (booking.scheduledStartTime != null) {
-        DateTime bookingDay = DateTime(booking.scheduledStartTime!.year, booking.scheduledStartTime!.month, booking.scheduledStartTime!.day);
+        DateTime localStart = booking.scheduledStartTime!.toLocal();
+        DateTime bookingDay = DateTime(localStart.year, localStart.month, localStart.day);
         DateTime targetDay = DateTime(date.year, date.month, date.day);
         if (bookingDay == targetDay) {
            final String status = booking.status?.toUpperCase() ?? '';
@@ -323,18 +450,40 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     return false;
   }
 
-  String _getDayName(int weekday) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days[weekday - 1];
-  }
 
-  String _getMonthName(int month) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  String _getMonthFullName(int month) {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     return months[month - 1];
   }
 
+  List<DateTime?> _generateCalendarDays() {
+    int year = _calendarMonth.year;
+    int month = _calendarMonth.month;
+    
+    DateTime firstDayOfMonth = DateTime(year, month, 1);
+    int startWeekday = firstDayOfMonth.weekday; // 1 = Monday, 7 = Sunday
+    
+    int daysInMonth = DateTime(year, month + 1, 0).day;
+    
+    List<DateTime?> days = [];
+    
+    // Add empty spaces for leading days
+    for (int i = 1; i < startWeekday; i++) {
+      days.add(null);
+    }
+    
+    // Add all the days of the month
+    for (int i = 1; i <= daysInMonth; i++) {
+      days.add(DateTime(year, month, i));
+    }
+    
+    return days;
+  }
+
   void _confirmBooking() async {
-    bool isElectrician = widget.serviceName == 'Electricians';
+    bool isElectrician = widget.serviceName == 'Electricians' || 
+                        widget.serviceName == AppTranslations.translate(context, 'electricians');
     bool isQtyValid = isElectrician 
       ? (_selectedPurpose != null && (_selectedPurpose != 'Others' || _customPurposeController.text.isNotEmpty)) &&
         (_selectedAssetType != null && (_selectedAssetType != 'Others' || _customAssetController.text.isNotEmpty))
@@ -348,16 +497,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
 
-      String bookingId = DateTime.now().millisecondsSinceEpoch.toString();
-      String dateStr = _selectedDate.toString().split(' ')[0];
-      
-      // Format time slots
-      String timeStr;
-      if (_selectedSlots.length == 1) {
-        timeStr = _formatTimeRange(_selectedSlots.first);
-      } else {
-         timeStr = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}'; // Simplified range display
-      }
+      // Format time slots by joining individual formatted slots
+      String timeStr = _selectedSlots.map((hour) => _formatTimeRange(hour)).join(', ');
 
       final String? userId = prefs.getString('user_id');
       final String? userName = prefs.getString('user_name');
@@ -392,6 +533,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         status: 'PENDING',
         totalAmount: _totalPrice,
         addressText: _addressController.text,
+        locationLat: _detectedLat,
+        locationLng: _detectedLng,
         notes: jsonEncode(notesMap),
       );
       
@@ -464,8 +607,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isElectrician = widget.serviceName == 'Electricians';
     final l10n = AppLocalizations.of(context)!;
+    bool isElectrician = widget.serviceName == 'Electricians' || 
+                        widget.serviceName == AppTranslations.translate(context, 'electricians');
     
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F2),
@@ -618,26 +762,34 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
               title: 'Service Address',
               icon: Icons.location_on_rounded,
               isError: _fieldErrors.containsKey('address'),
-              child: _buildTextField(
-                controller: _addressController,
-                label: 'Mandatory for service',
-                hint: 'Enter full address...',
-                maxLines: 3,
-                errorKey: 'address',
-                icon: Icons.map_rounded,
-                suffixIcon: _isFetchingLocation
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
-                      tooltip: 'Use my current location',
-                      onPressed: _fetchCurrentLocation,
-                    ),
-                onChanged: (_) {
-                  if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
-                },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTextField(
+                    controller: _addressController,
+                    label: 'Mandatory for service',
+                    hint: 'Enter full address...',
+                    maxLines: 3,
+                    errorKey: 'address',
+                    icon: Icons.map_rounded,
+                    suffixIcon: _isFetchingLocation
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                          tooltip: 'Use my current location',
+                          onPressed: _fetchCurrentLocation,
+                        ),
+                    onChanged: (_) {
+                      if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
+                      _debounceGeocoding();
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCoordsBadge(),
+                ],
               ),
             ),
 
@@ -647,120 +799,214 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
               title: 'Schedule Booking',
               icon: Icons.event_available_rounded,
               isError: _fieldErrors.containsKey('date') || _fieldErrors.containsKey('slots'),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Select Date', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+              child: _isLoadingBookings
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const CircularProgressIndicator(color: Color(0xFF00AA55)),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Loading service schedule...',
+                            style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Select Date', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    height: 90,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: 14,
-                      itemBuilder: (context, index) {
-                        final date = DateTime.now().add(Duration(days: index));
-                        final bool isBooked = _isDateBooked(date);
-                        final bool isSelected = _selectedDate != null &&
-                            _selectedDate!.year == date.year &&
-                            _selectedDate!.month == date.month &&
-                            _selectedDate!.day == date.day;
+                  // Month navigation
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left_rounded, color: Color(0xFF1B5E20)),
+                        onPressed: _calendarMonth.year == DateTime.now().year && _calendarMonth.month == DateTime.now().month
+                          ? null
+                          : () {
+                              setState(() {
+                                _calendarMonth = DateTime(_calendarMonth.year, _calendarMonth.month - 1);
+                              });
+                            },
+                      ),
+                      Text(
+                        "${_getMonthFullName(_calendarMonth.month)} ${_calendarMonth.year}",
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right_rounded, color: Color(0xFF1B5E20)),
+                        onPressed: () {
+                          setState(() {
+                            _calendarMonth = DateTime(_calendarMonth.year, _calendarMonth.month + 1);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-                        final dayName = _getDayName(date.weekday);
-                        final monthName = _getMonthName(date.month);
+                  // Weekday labels
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) {
+                      return SizedBox(
+                        width: 40,
+                        child: Text(
+                          day,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey[500]),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
 
-                        if (isBooked) {
-                          return Container(
-                            width: 70,
-                            margin: const EdgeInsets.only(right: 12),
+                  // Days grid
+                  Builder(
+                    builder: (context) {
+                      final days = _generateCalendarDays();
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 7,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          childAspectRatio: 1.0,
+                        ),
+                        itemCount: days.length,
+                        itemBuilder: (context, index) {
+                          final date = days[index];
+                          if (date == null) {
+                            return const SizedBox();
+                          }
+                          
+                          final bool isPast = date.isBefore(DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day));
+                          final bool isBooked = _isDateBooked(date);
+                          final bool isSelected = _selectedDate != null &&
+                              _selectedDate!.year == date.year &&
+                              _selectedDate!.month == date.month &&
+                              _selectedDate!.day == date.day;
+                          final bool isToday = DateTime.now().year == date.year &&
+                              DateTime.now().month == date.month &&
+                              DateTime.now().day == date.day;
+                              
+                          if (isPast) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                "${date.day}",
+                                style: TextStyle(color: Colors.grey[300], fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                            );
+                          }
+                          
+                          if (isBooked) {
+                            return Material(
+                              color: const Color(0xFFFFEBEE),
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                onTap: () {
+                                  UiUtils.showCenteredToast(
+                                    context,
+                                    'This date has already been booked by someone else. Please select a free date.',
+                                    isError: true
+                                  );
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFFFCDD2)),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      Text(
+                                        "${date.day}",
+                                        style: TextStyle(
+                                          color: Colors.red[400],
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.bold,
+                                          decoration: TextDecoration.lineThrough,
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 4,
+                                        child: Container(
+                                          width: 4,
+                                          height: 4,
+                                          decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF5F5F5),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.grey[200]!),
+                              color: isSelected 
+                                ? const Color(0xFF00AA55) 
+                                : (isToday ? const Color(0xFFE8F5E9) : Colors.white),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected 
+                                  ? const Color(0xFF00AA55) 
+                                  : (isToday ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9)),
+                                width: isSelected || isToday ? 1.5 : 1.0,
+                              ),
+                              boxShadow: isSelected 
+                                ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 2))] 
+                                : null,
                             ),
-                            child: InkWell(
-                              onTap: () {
-                                UiUtils.showCenteredToast(
-                                  context, 
-                                  'This date has already been booked by someone else. Please select a free date.', 
-                                  isError: true
-                                );
-                              },
-                              borderRadius: BorderRadius.circular(20),
-                              child: Opacity(
-                                opacity: 0.5,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(dayName, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey[600])),
-                                    const SizedBox(height: 4),
-                                    Text('${date.day}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.grey[800])),
-                                    const SizedBox(height: 4),
-                                    Text(monthName, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey[500])),
-                                  ],
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedDate = date;
+                                    _selectedSlots.clear();
+                                    if (_fieldErrors.containsKey('date')) _fieldErrors.remove('date');
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    "${date.day}",
+                                    style: TextStyle(
+                                      color: isSelected 
+                                        ? Colors.white 
+                                        : (isToday ? const Color(0xFF1B5E20) : const Color(0xFF2C3E50)),
+                                      fontSize: 14,
+                                      fontWeight: isSelected || isToday ? FontWeight.w900 : FontWeight.w700,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           );
-                        }
-
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 70,
-                          margin: const EdgeInsets.only(right: 12),
-                          decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFF00AA55) : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
-                              width: 1.5,
-                            ),
-                            boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))] : null,
-                          ),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() {
-                                _selectedDate = date;
-                                _selectedStartHour = null;
-                                _durationHours = 1;
-                                if (_fieldErrors.containsKey('date')) _fieldErrors.remove('date');
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(20),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  dayName, 
-                                  style: TextStyle(
-                                    fontSize: 11, 
-                                    fontWeight: FontWeight.w700, 
-                                    color: isSelected ? Colors.white70 : Colors.grey[600]
-                                  )
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${date.day}', 
-                                  style: TextStyle(
-                                    fontSize: 18, 
-                                    fontWeight: FontWeight.w900, 
-                                    color: isSelected ? Colors.white : const Color(0xFF2C3E50)
-                                  )
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  monthName, 
-                                  style: TextStyle(
-                                    fontSize: 10, 
-                                    fontWeight: FontWeight.w600, 
-                                    color: isSelected ? Colors.white70 : Colors.grey[500]
-                                  )
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                        },
+                      );
+                    }
                   ),
 
                   const SizedBox(height: 30),
@@ -829,10 +1075,10 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                       },
                     ),
 
-                    if (_selectedStartHour != null) ...[
+                    if (_selectedSlots.isNotEmpty) ...[
                       const SizedBox(height: 30),
                       const Text(
-                        'Select Duration',
+                        'Selected Slots Details',
                         style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
                       ),
                       const SizedBox(height: 16),
@@ -844,29 +1090,18 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                           border: Border.all(color: const Color(0xFFE8F5E9)),
                         ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Row(
                                   children: [
-                                    _buildDurationButton(
-                                      icon: Icons.remove_rounded,
-                                      onPressed: _durationHours > 1 
-                                        ? () => setState(() => _durationHours--)
-                                        : null,
-                                    ),
-                                    const SizedBox(width: 16),
+                                    const Icon(Icons.access_time_filled_rounded, color: Color(0xFF1B5E20), size: 18),
+                                    const SizedBox(width: 8),
                                     Text(
-                                      '$_durationHours ${_durationHours == 1 ? 'Hour' : 'Hours'}',
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    _buildDurationButton(
-                                      icon: Icons.add_rounded,
-                                      onPressed: _isRangeAvailable(_selectedStartHour!, _durationHours + 1)
-                                        ? () => setState(() => _durationHours++)
-                                        : null,
+                                      '${_selectedSlots.length} ${_selectedSlots.length == 1 ? 'Hour' : 'Hours'} Selected',
+                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
                                     ),
                                   ],
                                 ),
@@ -877,20 +1112,29 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    '${_formatTime(_selectedStartHour!)} - ${_formatTime(_selectedStartHour! + _durationHours)}',
+                                    '₹${_totalPrice.toStringAsFixed(0)} Est.',
                                     style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w800, fontSize: 13),
                                   ),
                                 ),
                               ],
                             ),
-                            if (!_isRangeAvailable(_selectedStartHour!, _durationHours + 1) && (_selectedStartHour! + _durationHours) < _endHour)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 12),
-                                child: Text(
-                                  'Next slot is already booked or unavailable',
-                                  style: TextStyle(color: Colors.orange[800], fontSize: 12, fontWeight: FontWeight.w600),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _selectedSlots.map((hour) => Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFC8E6C9)),
                                 ),
-                              ),
+                                child: Text(
+                                  _formatTimeRange(hour),
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+                                ),
+                              )).toList(),
+                            ),
                           ],
                         ),
                       ),
@@ -1058,23 +1302,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     );
   }
 
-  Widget _buildDurationButton({required IconData icon, VoidCallback? onPressed}) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: onPressed == null ? Colors.white : const Color(0xFF00AA55),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: onPressed == null ? Colors.grey[200]! : Colors.transparent),
-        boxShadow: onPressed != null ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))] : null,
-      ),
-      child: IconButton(
-        icon: Icon(icon, size: 20, color: onPressed == null ? Colors.grey[300] : Colors.white),
-        onPressed: onPressed,
-        padding: EdgeInsets.zero,
-      ),
-    );
-  }
+
 
   Widget _buildDropdownField({
     required String label,

@@ -38,6 +38,32 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   final BookingManager _bookingManager = BookingManager();
   bool _isLoadingContact = false;
   Locale? _lastLocale;
+  DateTime? _filterDate;
+
+  String _getMonthName(int month) {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[month - 1];
+  }
+
+  Future<void> _openMap(String address) async {
+    final query = Uri.encodeComponent(address);
+    final googleMapsUrl = "https://www.google.com/maps/search/?api=1&query=$query";
+    final appleMapsUrl = "https://maps.apple.com/?q=$query";
+    
+    try {
+      if (await canLaunchUrl(Uri.parse(googleMapsUrl))) {
+        await launchUrl(Uri.parse(googleMapsUrl), mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(Uri.parse(appleMapsUrl))) {
+        await launchUrl(Uri.parse(appleMapsUrl), mode: LaunchMode.externalApplication);
+      } else {
+        await launchUrl(Uri.parse(googleMapsUrl));
+      }
+    } catch (e) {
+      if (mounted) {
+        UiUtils.showCenteredToast(context, 'Could not open maps application.', isError: true);
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -84,7 +110,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
       }
     }
   }
-
+  
   Future<void> _contactUser(BookingDetails booking, bool isCall) async {
     if (_isLoadingContact) return;
     setState(() => _isLoadingContact = true);
@@ -159,6 +185,50 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
             onPressed: () => Navigator.pop(context),
           ) : null,
           elevation: 0,
+          actions: [
+            IconButton(
+              icon: Icon(
+                _filterDate == null ? Icons.calendar_month_rounded : Icons.filter_alt_off_rounded,
+                color: const Color(0xFF00AA55),
+              ),
+              onPressed: () async {
+                if (_filterDate != null) {
+                  setState(() {
+                    _filterDate = null;
+                  });
+                  return;
+                }
+                final selected = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime(2030),
+                  builder: (context, child) {
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.light(
+                          primary: Color(0xFF00AA55),
+                          onPrimary: Colors.white,
+                          onSurface: Color(0xFF1B5E20),
+                        ),
+                        textButtonTheme: TextButtonThemeData(
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF00AA55),
+                          ),
+                        ),
+                      ),
+                      child: child!,
+                    );
+                  },
+                );
+                if (selected != null) {
+                  setState(() {
+                    _filterDate = selected;
+                  });
+                }
+              },
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(50),
             child: Container(
@@ -191,16 +261,73 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
             
             final allBookings = widget.categories.expand((cat) => _bookingManager.getBookingsByCategory(cat)).toList();
             
-            return RefreshIndicator(
-              onRefresh: _loadBookings,
-              color: const Color(0xFF00AA55),
-              child: TabBarView(
-                children: [
-                   _buildBookingList(allBookings, ['pending', 'requested'], 'No pending requests', Icons.hourglass_empty_rounded),
-                   _buildBookingList(allBookings, ['confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings', Icons.event_available_rounded),
-                   _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past history', Icons.history_rounded),
-                ],
-              ),
+            return Column(
+              children: [
+                if (_filterDate != null)
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFE8F5E9), Color(0xFFC8E6C9)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF00AA55).withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.filter_list_rounded, color: Color(0xFF1B5E20), size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Filtered by: ${_filterDate!.day} ${_getMonthName(_filterDate!.month)} ${_filterDate!.year}',
+                            style: const TextStyle(
+                              color: Color(0xFF1B5E20),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _filterDate = null;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close_rounded, color: Color(0xFF1B5E20), size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _loadBookings,
+                    color: const Color(0xFF00AA55),
+                    child: TabBarView(
+                      children: [
+                         _buildBookingList(allBookings, ['pending', 'requested'], 'No pending requests', Icons.hourglass_empty_rounded),
+                         _buildBookingList(allBookings, ['confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings', Icons.event_available_rounded),
+                         _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past history', Icons.history_rounded),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             );
           },
         ),
@@ -216,6 +343,12 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
       final s = b.status.trim().toLowerCase();
       final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
       final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+      
+      // If a date filter is selected, check if booking date matches selected date
+      if (_filterDate != null) {
+        final filterDay = DateTime(_filterDate!.year, _filterDate!.month, _filterDate!.day);
+        if (bookingDay != filterDay) return false;
+      }
       
       if (statuses.contains('completed') || statuses.contains('history')) {
          // This is the history tab. It shows history statuses PLUS past-due pending/active
@@ -244,6 +377,9 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
     }
 
     if (filtered.isEmpty) {
+      final displayMessage = _filterDate != null
+          ? 'No bookings found on ${_filterDate!.day} ${_getMonthName(_filterDate!.month)}'
+          : emptyMessage;
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -258,7 +394,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
               child: Icon(emptyIcon, size: 54, color: Colors.grey[200]),
             ),
             const SizedBox(height: 24),
-            Text(emptyMessage, style: TextStyle(color: Colors.grey[400], fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(displayMessage, style: TextStyle(color: Colors.grey[400], fontSize: 16, fontWeight: FontWeight.w700)),
           ],
         ),
       );
@@ -296,6 +432,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
             offset: const Offset(0, 4)
           )
         ],
+        border: Border.all(color: accentColor.withOpacity(0.2), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,6 +448,15 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: _buildCardRow(Icons.payments_rounded, 'Rate Info', booking.price),
+                  ),
+                if (booking.location != null && booking.location!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: InkWell(
+                      onTap: () => _openMap(booking.location!),
+                      borderRadius: BorderRadius.circular(8),
+                      child: _buildCardRow(Icons.near_me_rounded, 'Location', '${booking.location!} ➔'),
+                    ),
                   ),
                 
                 if (booking.details.isNotEmpty) ...[
@@ -356,6 +502,91 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                     ),
                   ),
                 ],
+
+                if (booking.status.toLowerCase() == 'cancelled') ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red[50],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.red[100]!, width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.cancel_outlined, size: 16, color: Colors.red[700]),
+                            const SizedBox(width: 8),
+                            Text(
+                              'CANCELLATION INFO',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.red[700],
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (booking.cancelledBy != null && booking.cancelledBy!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.person_outline_rounded, size: 14, color: Colors.grey),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Cancelled By: ',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50)),
+                                ),
+                                Text(
+                                  booking.cancelledBy!,
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.info_outline_rounded, size: 14, color: Colors.grey),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Reason: ',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50)),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      (booking.cancellationReason != null && booking.cancellationReason!.isNotEmpty)
+                                          ? booking.cancellationReason!
+                                          : 'No reason provided',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[700],
+                                        fontWeight: FontWeight.w500,
+                                        fontStyle: (booking.cancellationReason != null && booking.cancellationReason!.isNotEmpty)
+                                            ? FontStyle.normal
+                                            : FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 
                 if (['scheduled', 'active', 'confirmed', 'accepted', 'approved'].contains(booking.status.toLowerCase())) ...[
                   const SizedBox(height: 24),
@@ -365,6 +596,26 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                       const SizedBox(width: 12),
                       Expanded(child: _buildContactButton('WhatsApp', Icons.chat_bubble_rounded, accentColor, () => _contactUser(booking, false), isPrimary: true)),
                     ],
+                  ),
+                ],
+                if (!['completed', 'finished', 'rejected', 'cancelled'].contains(booking.status.toLowerCase())) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      onPressed: () => _confirmCancelBooking(booking),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.red[700],
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(color: Colors.red[100]!, width: 1.5),
+                        ),
+                        backgroundColor: Colors.red[50],
+                      ),
+                      icon: const Icon(Icons.cancel_outlined, size: 16),
+                      label: const Text('Cancel Booking', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+                    ),
                   ),
                 ],
               ],
@@ -415,6 +666,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
 
   Widget _buildCardRow(IconData icon, String label, String value) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           padding: const EdgeInsets.all(6),
@@ -422,9 +674,138 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
           child: Icon(icon, size: 14, color: const Color(0xFF00AA55)),
         ),
         const SizedBox(width: 12),
-        Text('$label : ', style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
-        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF2C3E50))),
+        Expanded(
+          child: Text.rich(
+            TextSpan(children: [
+              TextSpan(text: '$label : ', style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+              TextSpan(text: value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: const Color(0xFF2C3E50))),
+            ]),
+          ),
+        ),
       ],
+    );
+  }
+
+  void _confirmCancelBooking(BookingDetails booking) {
+    final TextEditingController reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.cancel_outlined, color: Color(0xFFD32F2F), size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Cancel Booking',
+                style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Are you sure you want to cancel this booking? This action cannot be undone and will release your scheduled time slot.',
+                style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Reason for cancellation (optional):',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2C3E50), fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: reasonController,
+                maxLength: 100,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  hintText: 'Enter a short description...',
+                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                  counterText: '',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FBF9),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey[200]!, width: 1.5),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+                  ),
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                'Keep Booking',
+                style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                Navigator.pop(dialogContext); // Close dialog
+                
+                // Show loading spinner
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+                  ),
+                );
+                
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  final userName = prefs.getString('user_name') ?? 'Farmer';
+                  final userRole = prefs.getString('user_role') ?? 'Farmer';
+                  final cancelledBy = '$userRole ($userName)';
+                  
+                  await _bookingManager.updateBookingStatus(
+                    booking.id, 
+                    'Cancelled',
+                    cancelledBy: cancelledBy,
+                    cancellationReason: reason.isNotEmpty ? reason : null,
+                  );
+                  
+                  if (mounted) {
+                    Navigator.pop(context); // Close spinner
+                    UiUtils.showCenteredToast(context, 'Booking cancelled successfully');
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    Navigator.pop(context); // Close spinner
+                    UiUtils.showCustomAlert(context, 'Failed to cancel booking: $e', isError: true);
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
     );
   }
 

@@ -6,7 +6,8 @@ import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
 
 class ManageItemsScreen extends StatefulWidget {
-  const ManageItemsScreen({super.key});
+  final int initialTabIndex;
+  const ManageItemsScreen({super.key, this.initialTabIndex = 0});
 
   @override
   State<ManageItemsScreen> createState() => _ManageItemsScreenState();
@@ -103,6 +104,7 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 4,
+      initialIndex: widget.initialTabIndex,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7F2),
         appBar: AppBar(

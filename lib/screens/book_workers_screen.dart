@@ -47,7 +47,38 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   String _bookingMode = 'Daily'; // 'Daily' or 'Hourly'
   DateTime? _selectedDate;
   TimeOfDay? _selectedStartTime;
-  final List<int> _selectedSlots = [];
+  int? _selectedStartHour;
+  int _durationHours = 1;
+
+  List<int> get _selectedSlots {
+    if (_selectedStartHour == null) return [];
+    return List.generate(_durationHours, (i) => _selectedStartHour! + i);
+  }
+
+  bool _isRangeAvailable(int startHour, int duration) {
+    for (int i = 0; i < duration; i++) {
+      if (_isSlotBlocked(startHour + i) || (startHour + i) >= _endHour) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  Widget _buildDurationControl({required IconData icon, VoidCallback? onPressed}) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: onPressed == null ? Colors.grey[100] : const Color(0xFF00AA55).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, size: 20, color: onPressed == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+      ),
+    );
+  }
   List<dynamic> _existingBookings = [];
   bool _isLoadingBookings = false;
   bool _isSubmitting = false;
@@ -137,7 +168,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       setState(() {
         _existingBookings = bookings;
         _isLoadingBookings = false;
-        _selectedSlots.clear(); // Clear selection when date or data changes
+        _selectedStartHour = null;
+        _durationHours = 1;
       });
       _recalculateAvailability();
     } catch (e) {
@@ -226,8 +258,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
          final String status = booking['status']?.toString().toUpperCase() ?? '';
          if (status == 'CANCELLED' || status == 'REJECTED' || status == 'COMPLETED' || status == 'FINISHED') continue;
          
-         DateTime bStart = DateTime.parse(booking['scheduledStartTime']);
-         DateTime bEnd = DateTime.parse(booking['scheduledEndTime']);
+         DateTime bStart = DateTime.parse(booking['scheduledStartTime']).toLocal();
+         DateTime bEnd = DateTime.parse(booking['scheduledEndTime']).toLocal();
          
          if (slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart)) {
             Map<String, dynamic> notes = {};
@@ -269,7 +301,11 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       if (_bookingMode == 'Hourly') {
           if (_selectedSlots.isNotEmpty) hoursToCheck = List.from(_selectedSlots);
       } else {
-          hoursToCheck = List.generate(10, (i) => 8 + i);
+          int startH = _selectedStartTime?.hour ?? 8;
+          int count = _endHour - startH;
+          if (count > 8) count = 8;
+          if (count < 1) count = 1;
+          hoursToCheck = List.generate(count, (i) => startH + i);
       }
       
       if (hoursToCheck.isEmpty) {
@@ -333,12 +369,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       return;
     }
     setState(() {
-      if (_selectedSlots.contains(hour)) {
-        _selectedSlots.remove(hour);
-      } else {
-        _selectedSlots.add(hour);
-        _selectedSlots.sort();
-      }
+      _selectedStartHour = hour;
+      _durationHours = 1;
     });
     _recalculateAvailability();
   }
@@ -699,7 +731,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                         onTap: () { 
                            setState(() {
                              _bookingMode = 'Daily';
-                             _selectedSlots.clear();
+                             _selectedStartHour = null;
+                             _durationHours = 1;
                            });
                            _recalculateAvailability();
                         },
@@ -877,53 +910,79 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                       key: _dailyTimeSectionKey,
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
                     ),
-                    const SizedBox(height: 10),
-                    GestureDetector(
-                      onTap: () async {
-                        final TimeOfDay? picked = await showTimePicker(
-                          context: context,
-                          initialTime: _selectedStartTime ?? const TimeOfDay(hour: 8, minute: 0),
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: const ColorScheme.light(primary: Color(0xFF00AA55), onPrimary: Colors.white, onSurface: Colors.black),
+                    if (_selectedDate == null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, left: 2),
+                        child: Text('Please select a date first', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
+                      )
+                    else ...[
+                      const SizedBox(height: 16),
+                      if (_isLoadingBookings)
+                        const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Color(0xFF00AA55))))
+                      else ...[
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3, 
+                            childAspectRatio: 2.2, 
+                            crossAxisSpacing: 10, 
+                            mainAxisSpacing: 10,
+                          ),
+                          itemCount: _endHour - _startHour,
+                          itemBuilder: (context, index) {
+                            final hour = _startHour + index;
+                            final isBlocked = _isSlotBlocked(hour);
+                            final isSelected = _selectedStartTime != null && _selectedStartTime!.hour == hour;
+
+                            return InkWell(
+                              onTap: () {
+                                if (isBlocked) {
+                                  UiUtils.showCenteredToast(context, 'This slot is already booked', isError: true);
+                                  return;
+                                }
+                                setState(() {
+                                  _selectedStartTime = TimeOfDay(hour: hour, minute: 0);
+                                  if (_fieldErrors.containsKey('dailyTime')) _fieldErrors.remove('dailyTime');
+                                });
+                                _recalculateAvailability();
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                decoration: BoxDecoration(
+                                  color: isBlocked ? Colors.grey[100] : (isSelected ? const Color(0xFF00AA55) : Colors.white),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9)),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8)] : null,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  _formatTime(hour),
+                                  style: TextStyle(
+                                    color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
+                                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                    fontSize: 11,
+                                    decoration: isBlocked ? TextDecoration.lineThrough : null,
+                                  ),
+                                ),
                               ),
-                              child: child!,
                             );
                           },
-                        );
-                        if (picked != null) {
-                          setState(() {
-                            _selectedStartTime = picked;
-                            if (_fieldErrors.containsKey('dailyTime')) _fieldErrors.remove('dailyTime');
-                          });
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF9FBF9),
-                          border: Border.all(color: _fieldErrors.containsKey('dailyTime') ? Colors.red : const Color(0xFFE8F5E9)),
-                          borderRadius: BorderRadius.circular(15),
                         ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.access_time_filled_rounded, size: 20, color: _selectedStartTime == null ? Colors.grey[400] : const Color(0xFF00AA55)),
-                            const SizedBox(width: 12),
-                            Text(
-                              _selectedStartTime == null ? 'Select starting time' : _selectedStartTime!.format(context),
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: _selectedStartTime == null ? Colors.grey[500] : Colors.black87,
-                                fontWeight: _selectedStartTime == null ? FontWeight.normal : FontWeight.w600,
-                              ),
+                        if (_fieldErrors.containsKey('dailyTime'))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8, left: 4),
+                            child: Text(
+                              _fieldErrors['dailyTime']!,
+                              style: const TextStyle(color: Colors.red, fontSize: 12),
                             ),
-                            const Spacer(),
-                            const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
-                          ],
-                        ),
-                      ),
-                    ),
+                          ),
+                      ],
+                    ],
                   ],
                   if (_bookingMode == 'Hourly') ...[
                     Text(
@@ -987,6 +1046,57 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                             );
                           },
                         ),
+                        if (_selectedStartHour != null) ...[
+                          const SizedBox(height: 24),
+                          const Text(
+                            'Rental Duration',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                          ),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF9FBF9),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE8F5E9)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    _buildDurationControl(
+                                      icon: Icons.remove_rounded,
+                                      onPressed: _durationHours > 1 ? () => setState(() => _durationHours--) : null,
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      child: Text(
+                                        '$_durationHours ${_durationHours == 1 ? 'Hour' : 'Hours'}',
+                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                                      ),
+                                    ),
+                                    _buildDurationControl(
+                                      icon: Icons.add_rounded,
+                                      onPressed: _isRangeAvailable(_selectedStartHour!, _durationHours + 1) ? () => setState(() => _durationHours++) : null,
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE8F5E9),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '${_formatTime(_selectedStartHour!)} - ${_formatTime(_selectedStartHour! + _durationHours)}',
+                                    style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w900, fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                     ],
                   ],
                 ],

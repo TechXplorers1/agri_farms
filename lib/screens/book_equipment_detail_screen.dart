@@ -368,7 +368,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
     for (var booking in _existingBookings) {
       if (booking.scheduledStartTime != null && booking.scheduledEndTime != null) {
-        if (slotStart.isBefore(booking.scheduledEndTime!) && slotEnd.isAfter(booking.scheduledStartTime!)) {
+        DateTime bStart = booking.scheduledStartTime!.toLocal();
+        DateTime bEnd = booking.scheduledEndTime!.toLocal();
+        if (slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart)) {
            final String status = booking.status?.toUpperCase() ?? '';
            if (status != 'CANCELLED' && status != 'REJECTED' && status != 'COMPLETED' && status != 'FINISHED') {
              return true;
