@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'verify_otp_screen.dart';
 import '../../services/api_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -14,7 +13,7 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  final TextEditingController _mobileController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   String? _selectedRole;
   bool _isLogin = true; // Default to Login
@@ -29,28 +28,25 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   void initState() {
     super.initState();
-    _mobileController.addListener(_validateInput);
+    _phoneController.addListener(_validateInput);
     _nameController.addListener(_validateInput);
   }
 
   @override
   void dispose() {
-    _mobileController.dispose();
+    _phoneController.dispose();
     _nameController.dispose();
     super.dispose();
   }
 
   void _validateInput() {
-    final mobile = _mobileController.text.trim();
-    final bool isMobileValid = mobile.length == 10 && RegExp(r'^[0-9]+$').hasMatch(mobile);
-
     setState(() {
       if (_isLogin) {
-        // Login: Only Mobile required
-        _isButtonEnabled = isMobileValid;
+        // Login: Only Phone required
+        _isButtonEnabled = _phoneController.text.length == 10;
       } else {
         // Sign Up: All fields required
-        _isButtonEnabled = isMobileValid &&
+        _isButtonEnabled = _phoneController.text.length == 10 &&
           _nameController.text.trim().isNotEmpty &&
           _selectedRole != null;
       }
@@ -92,99 +88,87 @@ class _AuthScreenState extends State<AuthScreen> {
         _isLoading = true;
       });
 
-      final String phoneNumber = "+91${_mobileController.text.trim()}"; // Assuming India, can be made dynamic
-
       try {
         final apiService = ApiService();
         
-        // 1. Backend Verification (Optional but good for UX)
         if (_isLogin) {
           try {
-            await apiService.getUserByPhone(_mobileController.text.trim());
+            await apiService.getUserByPhone(_phoneController.text);
           } catch (e) {
             if (e.toString().contains('404') || e.toString().contains('Not Found')) {
               if (mounted) {
-                setState(() => _isLoading = false);
                 _showErrorDialog('Account Not Found', 'Please sign up or register to get logged in.');
+                setState(() => _isLoading = false);
+              }
+              return;
+            } else {
+              if (mounted) {
+                _showErrorDialog('Error', 'Failed to verify account: $e');
+                setState(() => _isLoading = false);
               }
               return;
             }
           }
         } else {
           try {
-            await apiService.getUserByPhone(_mobileController.text.trim());
+            await apiService.getUserByPhone(_phoneController.text);
             if (mounted) {
-              setState(() => _isLoading = false);
               _showErrorDialog('Account Exists', 'This mobile number is already registered. Please login instead.');
+              setState(() => _isLoading = false);
             }
             return;
           } catch (e) {
-            // Expected
+            if (e.toString().contains('404') || e.toString().contains('Not Found')) {
+              // Expected missing user
+            } else {
+              if (mounted) {
+                _showErrorDialog('Error', 'Failed to check account: $e');
+                setState(() => _isLoading = false);
+              }
+              return;
+            }
           }
         }
 
-        // 2. Firebase Phone Auth Trigger (For actual live SMS delivery to users' mobile phones)
-        if (kIsWeb) {
-          try {
-            ConfirmationResult confirmationResult = await FirebaseAuth.instance.signInWithPhoneNumber(phoneNumber);
+        // Trigger real Firebase Phone Verification
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: '+91${_phoneController.text}',
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            // Auto-retrieval or instant verification on Android
+            try {
+              await FirebaseAuth.instance.signInWithCredential(credential);
+            } catch (e) {
+              debugPrint("Auto verification sign-in failed: $e");
+            }
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            if (mounted) {
+              setState(() => _isLoading = false);
+              _showErrorDialog('Verification Failed', e.message ?? 'An error occurred during verification.');
+            }
+          },
+          codeSent: (String verificationId, int? resendToken) {
             if (mounted) {
               setState(() => _isLoading = false);
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => VerifyOtpScreen(
-                    mobileNumber: _mobileController.text.trim(),
+                    mobileNumber: _phoneController.text,
                     fullName: _isLogin ? '' : _nameController.text,
                     role: _isLogin ? '' : _selectedRole!,
                     isLogin: _isLogin,
-                    verificationId: confirmationResult.verificationId, // Pass the verification ID
+                    verificationId: verificationId, // Real Firebase Verification ID
                   ),
                 ),
               );
             }
-          } on FirebaseAuthException catch (e) {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              _showErrorDialog('Verification Failed', e.message ?? 'An error occurred during web verification.');
-            }
-          }
-        } else {
-          await FirebaseAuth.instance.verifyPhoneNumber(
-            phoneNumber: phoneNumber,
-            verificationCompleted: (PhoneAuthCredential credential) async {
-              debugPrint("Verification Completed: ${credential.smsCode}");
-            },
-            verificationFailed: (FirebaseAuthException e) {
-              if (mounted) {
-                setState(() => _isLoading = false);
-                _showErrorDialog('Verification Failed', e.message ?? 'An error occurred during verification.');
-              }
-            },
-            codeSent: (String verificationId, int? resendToken) {
-              if (mounted) {
-                setState(() => _isLoading = false);
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => VerifyOtpScreen(
-                      mobileNumber: _mobileController.text.trim(),
-                      fullName: _isLogin ? '' : _nameController.text,
-                      role: _isLogin ? '' : _selectedRole!,
-                      isLogin: _isLogin,
-                      verificationId: verificationId, // Pass the verification ID
-                    ),
-                  ),
-                );
-              }
-            },
-            codeAutoRetrievalTimeout: (String verificationId) {
-              debugPrint("Auto retrieval timeout");
-            },
-          );
-        }
-
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {},
+        );
       } catch (e) {
         if (mounted) {
           setState(() => _isLoading = false);
-          _showErrorDialog('Error', 'Something went wrong: $e');
+          _showErrorDialog('Error', 'Verification process failed: $e');
         }
       }
     }
@@ -210,7 +194,7 @@ class _AuthScreenState extends State<AuthScreen> {
             Stack(
               children: [
                 Container(
-                  height: MediaQuery.of(context).size.height < 700 ? 250 : 320,
+                  height: 320,
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
@@ -384,16 +368,41 @@ class _AuthScreenState extends State<AuthScreen> {
                         const SizedBox(height: 24),
                       ],
 
-                      _buildLabel('Mobile Number'),
+                      _buildLabel(l10n.mobileNumber),
                       const SizedBox(height: 8),
-                      _buildInputField(
-                        controller: _mobileController,
-                        hint: '10-digit mobile number',
-                        icon: Icons.phone_android_rounded,
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                          LengthLimitingTextInputFormatter(10),
+                      Row(
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 52,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F8F1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE8F5E9)),
+                            ),
+                            child: const Text(
+                              '+91',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF1B5E20),
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildInputField(
+                              controller: _phoneController,
+                              hint: '0000 000 000',
+                              icon: null,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(10),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                       

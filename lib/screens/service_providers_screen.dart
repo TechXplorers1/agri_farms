@@ -57,6 +57,13 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     }
   }
 
+  Future<void> _handleRefresh() async {
+    setState(() {
+      _providersFuture = _fetchProviders();
+    });
+    await _providersFuture;
+  }
+
   Future<List<ServiceProvider>> _fetchProviders() async {
     final List<String> transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
     final List<String> equipmentTypes = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB', 'Rotavators', 'Cultivators', 'Seed Drills', 'Power Tillers'];
@@ -199,18 +206,27 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         double? userLat;
         double? userLng;
 
-        if (currentUserId != null) {
-          try {
-            final userData = await apiService.getUser(currentUserId);
-            if (userData != null && userData is Map) {
-              userLat = (userData['latitude'] as num?)?.toDouble();
-              userLng = (userData['longitude'] as num?)?.toDouble();
+        // 1. Try reading instantly from local SharedPreferences!
+        final prefs = await SharedPreferences.getInstance();
+        userLat = prefs.getDouble('user_latitude');
+        userLng = prefs.getDouble('user_longitude');
+
+        // 2. If null, fall back to backend user database coords
+        if (userLat == null || userLng == null) {
+          if (currentUserId != null) {
+            try {
+              final userData = await apiService.getUser(currentUserId);
+              if (userData != null && userData is Map) {
+                userLat = (userData['latitude'] as num?)?.toDouble();
+                userLng = (userData['longitude'] as num?)?.toDouble();
+              }
+            } catch(e) {
+              debugPrint('Failed to get user coords: $e');
             }
-          } catch(e) {
-            debugPrint('Failed to get user coords: $e');
           }
         }
 
+        // 3. Last fallback: Geolocator GPS lookup
         if (userLat == null || userLng == null) {
           bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
           if (serviceEnabled) {
@@ -233,7 +249,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
               if (distMeters < 1000) {
                 p.distance = '${distMeters.toStringAsFixed(0)} m';
               } else {
-                p.distance = '${(distMeters / 1000).toStringAsFixed(1)} km';
+                p.distance = '${(distMeters / 1000).toStringAsFixed(1)} km (${distMeters.toStringAsFixed(0)} m)';
               }
             } else {
                p.distance = 'Unknown';
@@ -277,12 +293,15 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             Padding(padding: const EdgeInsets.only(right: 8), child: _buildAddButton(context)),
         ],
       ),
-      body: FutureBuilder<List<ServiceProvider>>(
-        future: _providersFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
-          }
+      body: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        color: const Color(0xFF00AA55),
+        child: FutureBuilder<List<ServiceProvider>>(
+          future: _providersFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
+            }
           final allProviders = snapshot.data ?? [];
           
           final uniqueLocations = allProviders.map((p) => p.location).where((loc) => loc.isNotEmpty).toSet().toList();
@@ -309,13 +328,15 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
               if (_selectedLocation!.endsWith(' km')) {
                 // Distance filtering
                 double maxDist = double.parse(_selectedLocation!.split(' ')[0]);
-                // Parse provider distance (e.g., "3.5 km")
+                // Parse provider distance (e.g., "3.5 km (3500 m)" or "450 m")
                 double? pDist;
                 try {
-                  String dStr = provider.distance.replaceAll(RegExp(r'[^0-9.]'), '');
-                  pDist = double.tryParse(dStr);
-                  // If "m", convert to km
-                  if (provider.distance.contains(' m')) pDist = pDist! / 1000;
+                  final firstPart = provider.distance.split(' ').first;
+                  pDist = double.tryParse(firstPart);
+                  // If just "m", convert to km
+                  if (provider.distance.contains('m') && !provider.distance.contains('km')) {
+                    pDist = pDist! / 1000;
+                  }
                 } catch(_) {}
                 
                 if (pDist != null) {
@@ -338,6 +359,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                  child: filteredProviders.isEmpty
                  ? _buildEmptyState(l10n)
                  : ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     itemCount: filteredProviders.length,
                     itemBuilder: (context, index) {
@@ -353,8 +375,9 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFilterSection(List<String> makes, List<String> locations) {
     var l10n = AppLocalizations.of(context)!;
@@ -401,11 +424,21 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   }
 
   Widget _buildEmptyState(AppLocalizations l10n) {
-    return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]),
-      const SizedBox(height: 16),
-      Text(l10n.noMatchFound, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
-    ]));
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(l10n.noMatchFound, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildListingCard(BuildContext context, ServiceProvider provider) {
@@ -542,7 +575,19 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                 child: Container(
                   height: 160, width: double.infinity, margin: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-                  child: ClipRRect(borderRadius: BorderRadius.circular(16), child: Image.network(ApiConfig.getFullImageUrl(provider.image), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Colors.grey[100]))),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16), 
+                    child: Image.network(
+                      ApiConfig.getFullImageUrl(provider.image), 
+                      fit: BoxFit.cover, 
+                      errorBuilder: (_, __, ___) => Container(
+                        height: 160,
+                        width: double.infinity,
+                        color: Colors.grey[100],
+                        child: const Icon(Icons.image_not_supported, size: 40, color: Colors.grey),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             Padding(
@@ -554,7 +599,14 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                     const SizedBox(width: 16),
                     _iconLabel(Icons.location_on_rounded, const Color(0xFF00AA55), provider.distance),
                     const SizedBox(width: 16),
-                    Text(provider.location, style: TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w500)),
+                    Expanded(
+                      child: Text(
+                        provider.location, 
+                        style: TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
                   ]),
                   const SizedBox(height: 16),
                   child,
@@ -678,7 +730,7 @@ class _AssetDetailModal extends StatelessWidget {
         Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(2))),
         const SizedBox(height: 24),
         Flexible(child: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(24, 0, 24, 32), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.network(ApiConfig.getFullImageUrl(provider.image), height: 240, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(height: 240, color: Colors.grey[100], child: const Icon(Icons.image_not_supported, size: 50, color: Colors.grey)))),
+          ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.network(ApiConfig.getFullImageUrl(provider.image), height: 240, width: double.infinity, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(height: 240, width: double.infinity, color: Colors.grey[100], child: const Icon(Icons.image_not_supported, size: 50, color: Colors.grey)))),
           const SizedBox(height: 24),
           Row(children: [
             CircleAvatar(radius: 20, backgroundImage: provider.ownerProfileImage != null ? NetworkImage(ApiConfig.getFullImageUrl(provider.ownerProfileImage)) : null, child: provider.ownerProfileImage == null ? const Icon(Icons.person) : null),
@@ -711,7 +763,7 @@ class _AssetDetailModal extends StatelessWidget {
       _detailRow(Icons.info_outline_rounded, 'Condition', item.condition),
       _detailRow(Icons.person_outline_rounded, 'Operator', item.operatorAvailable ? 'Available' : 'Not Provided'),
       _detailRow(Icons.payments_outlined, 'Price Rate', item.price),
-      _detailRow(Icons.location_on_outlined, 'Location', item.location),
+      _detailRow(Icons.location_on_outlined, 'Location', '${item.location} (${item.distance})'),
       _detailRow(Icons.history_rounded, 'Jobs Completed', '${item.jobsCompleted}'),
     ]);
   }
@@ -722,7 +774,7 @@ class _AssetDetailModal extends StatelessWidget {
       _detailRow(Icons.fitness_center_rounded, 'Capacity', item.loadCapacity),
       _detailRow(Icons.person_pin_circle_outlined, 'Driver', item.driverIncluded ? 'Included' : 'Self-Drive'),
       _detailRow(Icons.payments_outlined, 'Rental Rate', item.price),
-      _detailRow(Icons.location_on_outlined, 'Location', item.location),
+      _detailRow(Icons.location_on_outlined, 'Location', '${item.location} (${item.distance})'),
       _detailRow(Icons.history_rounded, 'Jobs Completed', '${item.jobsCompleted}'),
     ]);
   }
@@ -731,7 +783,7 @@ class _AssetDetailModal extends StatelessWidget {
     return Column(children: [
       _detailRow(Icons.groups_rounded, 'Total Staff', '${item.maleCount + item.femaleCount} Members'),
       _detailRow(Icons.psychology_outlined, 'Expertise', item.skills),
-      _detailRow(Icons.location_on_outlined, 'Location', item.location),
+      _detailRow(Icons.location_on_outlined, 'Location', '${item.location} (${item.distance})'),
       _detailRow(Icons.history_rounded, 'Jobs Completed', '${item.jobsCompleted}'),
       const SizedBox(height: 16),
       Wrap(spacing: 8, runSpacing: 8, children: item.roleDistribution.map((r) => Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFF3F7F3), borderRadius: BorderRadius.circular(10)), child: Text(r, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32))))).toList()),
@@ -743,7 +795,7 @@ class _AssetDetailModal extends StatelessWidget {
       _detailRow(Icons.handyman_outlined, 'Tools', item.equipmentUsed),
       _detailRow(Icons.person_outline_rounded, 'Expert', item.operatorIncluded ? 'Provided' : 'Machine Only'),
       _detailRow(Icons.payments_outlined, 'Service Cost', item.price),
-      _detailRow(Icons.location_on_outlined, 'Location', item.location),
+      _detailRow(Icons.location_on_outlined, 'Location', '${item.location} (${item.distance})'),
       _detailRow(Icons.history_rounded, 'Jobs Completed', '${item.jobsCompleted}'),
     ]);
   }

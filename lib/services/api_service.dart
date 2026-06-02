@@ -135,8 +135,15 @@ class ApiService {
     }
   }
 
-  Future<dynamic> updateBookingStatus(String bookingId, String status) async {
-    return await putStatus('${ApiConfig.bookings}/$bookingId/status?status=$status');
+  Future<dynamic> updateBookingStatus(String bookingId, String status, {String? cancelledBy, String? cancellationReason}) async {
+    String endpoint = '${ApiConfig.bookings}/$bookingId/status?status=$status';
+    if (cancelledBy != null && cancelledBy.isNotEmpty) {
+      endpoint += '&cancelledBy=${Uri.encodeComponent(cancelledBy)}';
+    }
+    if (cancellationReason != null && cancellationReason.isNotEmpty) {
+      endpoint += '&cancellationReason=${Uri.encodeComponent(cancellationReason)}';
+    }
+    return await putStatus(endpoint);
   }
 
   // Inventory - Equipment
@@ -262,6 +269,22 @@ class ApiService {
 
   Future<dynamic> markAllNotificationsAsRead(String userId) async {
     return await putStatus('${ApiConfig.notifications}/user/$userId/read-all');
+  }
+
+  Future<dynamic> triggerDemoNotification({
+    required String userId,
+    required String title,
+    required String message,
+    required String type,
+    required String relatedId,
+  }) async {
+    return await post('${ApiConfig.notifications}/trigger-demo', {
+      'userId': userId,
+      'title': title,
+      'message': message,
+      'type': type,
+      'relatedId': relatedId,
+    });
   }
 
   // Media Upload

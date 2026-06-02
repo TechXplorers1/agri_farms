@@ -24,6 +24,9 @@ class BookingDetails {
   final String? farmerId;
   final DateTime rawBookingDate;
   final DateTime? rawScheduledStartTime;
+  final String? cancelledBy;
+  final String? cancellationReason;
+  final String? location;
 
   BookingDetails({
     required this.id,
@@ -37,6 +40,9 @@ class BookingDetails {
     this.farmerId,
     required this.rawBookingDate,
     this.rawScheduledStartTime,
+    this.cancelledBy,
+    this.cancellationReason,
+    this.location,
   });
 
   factory BookingDetails.fromDTO(BookingDTO dto) {
@@ -60,6 +66,10 @@ class BookingDetails {
     else if (parsedDetails.containsKey('Vehicle Type')) title = '${parsedDetails['Vehicle Type']} Service';
     else if (parsedDetails.containsKey('Provider')) title = parsedDetails['Provider'];
     else if (cat == BookingCategory.farmWorkers) title = 'Farm Workers Request';
+
+    final locationVal = (dto.addressText != null && dto.addressText!.isNotEmpty)
+        ? dto.addressText
+        : (parsedDetails['Location'] ?? parsedDetails['location'])?.toString();
     
     return BookingDetails(
       id: dto.bookingId ?? '',
@@ -73,6 +83,9 @@ class BookingDetails {
       details: parsedDetails,
       rawBookingDate: dto.bookingDate ?? DateTime.now(),
       rawScheduledStartTime: dto.scheduledStartTime,
+      cancelledBy: dto.cancelledBy,
+      cancellationReason: dto.cancellationReason,
+      location: locationVal,
     );
   }
 }
@@ -165,9 +178,9 @@ class BookingManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateBookingStatus(String id, String newStatus, {String? providerId}) async {
+  Future<void> updateBookingStatus(String id, String newStatus, {String? providerId, String? cancelledBy, String? cancellationReason}) async {
     try {
-      await _apiService.updateBookingStatus(id, newStatus);
+      await _apiService.updateBookingStatus(id, newStatus, cancelledBy: cancelledBy, cancellationReason: cancellationReason);
       // Immediately update local state for faster perceived performance
       final index = _bookings.indexWhere((b) => b.id == id);
       if (index != -1) {
@@ -184,6 +197,9 @@ class BookingManager extends ChangeNotifier {
           farmerId: old.farmerId,
           rawBookingDate: old.rawBookingDate,
           rawScheduledStartTime: old.rawScheduledStartTime,
+          cancelledBy: cancelledBy ?? old.cancelledBy,
+          cancellationReason: cancellationReason ?? old.cancellationReason,
+          location: old.location,
         );
         notifyListeners();
       }

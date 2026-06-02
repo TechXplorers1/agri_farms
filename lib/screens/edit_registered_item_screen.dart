@@ -128,13 +128,17 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
       final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
       final String village = addressData['village']!;
       final String district = addressData['district']!;
+      final String exactAddress = addressData['exactAddress']!;
       
       if (mounted) {
         setState(() {
-           _locationController.text = "$village, $district";
+           _locationController.text = exactAddress;
         });
         
-        UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
+        UiUtils.showCenteredToast(
+          context, 
+          'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}'
+        );
       }
 
     } catch (e) {

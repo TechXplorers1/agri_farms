@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:agriculture/l10n/app_localizations.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart' as geo;
@@ -15,6 +15,7 @@ import '../data/vehicle_data.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
+import '../utils/location_helper.dart';
 
 class UploadItemScreen extends StatefulWidget {
   final String category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
@@ -41,7 +42,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   Future<bool> _requestMediaPermission() async {
     if (kIsWeb) return true;
     PermissionStatus status;
-    if (Platform.isAndroid) {
+    final isAndroid = defaultTargetPlatform == TargetPlatform.android;
+    final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+    
+    if (isAndroid) {
       // In Android 13+ (API 33+), READ_EXTERNAL_STORAGE is deprecated.
       // Use Permission.photos. For older Androids, Permission.storage.
       // permission_handler makes it easy by requesting both or the relevant one.
@@ -58,7 +62,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         return true;
       }
       return false;
-    } else if (Platform.isIOS) {
+    } else if (isIOS) {
        status = await Permission.photos.request();
        return status.isGranted || status.isLimited;
     }
@@ -148,6 +152,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
       String? village;
       String? district;
+      String? houseNo;
+      String? street;
+      String? state;
+      String? pincode;
+      String? country;
+      String? exactAddress;
 
       // Try cross-platform geocoding (nominatim)
       try {
@@ -155,36 +165,70 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         final responseData = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
         final response = json.decode(responseData.body);
         if (response != null && response['address'] != null) {
-          village = response['address']['suburb'] ?? response['address']['village'] ?? response['address']['neighbourhood'] ?? response['address']['city_district'];
-          district = response['address']['district'] ?? response['address']['city'] ?? response['address']['county'];
+          final addr = response['address'];
+          houseNo = addr['house_number'];
+          street = addr['road'] ?? addr['suburb'] ?? addr['neighbourhood'];
+          village = addr['suburb'] ?? addr['village'] ?? addr['neighbourhood'] ?? addr['city_district'];
+          district = addr['district'] ?? addr['city'] ?? addr['county'];
+          state = addr['state'];
+          pincode = addr['postcode'];
+          country = addr['country'];
+          exactAddress = response['display_name'];
         }
       } catch (e) {
         debugPrint("Reverse geocoding failed: $e");
       }
 
-      // Fallback to mobile-specific if on Android/iOS and previous failed
-      if (village == null && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      // Fallback to mobile-specific if on Android/iOS safely
+      final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+      if (isMobile) {
         try {
           final placemarks = await geo.placemarkFromCoordinates(position.latitude, position.longitude);
           if (placemarks.isNotEmpty) {
             final place = placemarks[0];
-            village = place.subLocality ?? place.locality;
-            district = place.subAdministrativeArea ?? place.administrativeArea;
+            houseNo ??= place.subThoroughfare;
+            street ??= place.thoroughfare ?? place.subLocality;
+            village ??= place.subLocality ?? place.locality;
+            district ??= place.subAdministrativeArea ?? place.administrativeArea;
+            state ??= place.administrativeArea;
+            pincode ??= place.postalCode;
+            country ??= place.country;
+            
+            if (exactAddress == null) {
+              exactAddress = [
+                place.street,
+                place.subLocality,
+                place.locality,
+                place.subAdministrativeArea,
+                place.administrativeArea,
+                place.postalCode,
+                place.country
+              ].where((part) => part != null && part.isNotEmpty).join(', ');
+            }
           }
         } catch (e) {}
       }
 
       village ??= 'Unknown Village';
       district ??= 'District';
+      exactAddress ??= '$village, $district';
 
       setState(() {
-        _locationController.text = "$village, $district";
+        _locationController.text = exactAddress!;
         _villageController.text = village!;
         _districtController.text = district!;
+        if (houseNo != null) _houseNoController.text = houseNo;
+        if (street != null) _streetController.text = street;
+        if (state != null) _stateController.text = state;
+        if (pincode != null) _pincodeController.text = pincode;
+        if (country != null) _countryController.text = country;
       });
       
       if (mounted) {
-        UiUtils.showCenteredToast(context, 'Location detected: $village, $district');
+        UiUtils.showCenteredToast(
+          context, 
+          'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}'
+        );
       }
     } catch (e) {
       UiUtils.showCenteredToast(context, 'Error fetching location: $e');
@@ -447,6 +491,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'pricePerFemaleHourly': double.tryParse(_femalePriceHourlyController.text) ?? 0.0,
         'skills': derivedSkills.join(', '),
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        'houseNo': _houseNoController.text,
+        'street': _streetController.text,
+        'village': _villageController.text,
+        'district': _districtController.text,
+        'state': _stateController.text,
+        'country': _countryController.text,
+        'pincode': _pincodeController.text,
         'latitude': _selectedLatitude,
         'longitude': _selectedLongitude,
         'serviceRangeKm': 50, // default or add field later
@@ -704,7 +755,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             if (widget.category == 'Equipment') _buildEquipmentForm(),
             if (!['Farm Workers', 'Transport', 'Equipment'].contains(widget.category)) _buildServicesForm(),
 
-            if (!(widget.category == 'Farm Workers' || (widget.category == 'Services' && _selectedServiceType == 'Farm Workers'))) ...[
+            if (true) ...[
                _buildSectionCard(
                  title: 'Extra Details', 
                  icon: Icons.info_outline_rounded,
@@ -1515,136 +1566,171 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   Widget _buildRoleDistributionForm() {
-      return Column(
-          children: [
-                const SizedBox(height: 20),
-                _buildSectionTitle('Role Distribution (Optional)'),
-                const SizedBox(height: 8),
-                Text('Specify who does what (e.g. 5 Men - Sowing)', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-                const SizedBox(height: 12),
-                
-                Row(
-                children: [
-                    SizedBox(
-                    width: 80,
-                    child: _buildTextField('Count', _roleCountController, 'Num', keyboardType: TextInputType.number),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                    width: 100,
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                        const Text('Gender', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                            value: _roleGender,
-                            decoration: _inputDecoration('').copyWith(
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                            ),
-                            items: ['Male', 'Female'].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 14)))).toList(),
-                            onChanged: (v) => setState(() => _roleGender = v!),
-                        ),
-                        ],
-                    ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                           const Text('Task', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                           const SizedBox(height: 8),
-                           InkWell(
-                             onTap: _showMultiSelectDialog,
-                             child: InputDecorator(
-                               decoration: _inputDecoration('Select Tasks').copyWith(
-                                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                               ),
-                               child: Text(
-                                 _selectedRoleSkills.isEmpty ? 'Select Skills' : _selectedRoleSkills.join(', '),
-                                 style: TextStyle(
-                                   color: _selectedRoleSkills.isEmpty ? Colors.grey[400] : Colors.black87,
-                                   fontSize: 14,
-                                 ),
-                                 maxLines: 1,
-                                 overflow: TextOverflow.ellipsis,
-                               ),
-                             ),
-                           ),
-                        ],
-                      ),
-                    ),
-                ],
-                ),
-                const SizedBox(height: 8),
-                Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton.icon(
-                    onPressed: _addRoleDistribution,
-                    icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                    label: const Text('Add', style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00AA55),
-                    minimumSize: const Size(80, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                ),
-                ),
-
-                const SizedBox(height: 12),
-                if (_roleDistributions.isNotEmpty)
-                Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[300]!),
-                    ),
-                    child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _roleDistributions.map((item) {
-                        return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 6.0),
-                              child: Icon(Icons.circle, size: 8, color: Colors.green),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(item, style: const TextStyle(fontSize: 14))),
-                            InkWell(
-                                onTap: () {
-                                setState(() {
-                                    _roleDistributions.remove(item);
-                                });
-                                },
-                                child: const Icon(Icons.close, size: 16, color: Colors.red),
-                            )
-                            ],
-                        ),
-                        );
-                    }).toList(),
-                    ),
-                ),
-          ],
-      );
-  }
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w900,
-          color: Color(0xFF1B5E20),
-          letterSpacing: -0.5,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Role Distribution',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF1B5E20),
+            letterSpacing: 0.1,
+          ),
         ),
-      ),
+        const SizedBox(height: 6),
+        Text(
+          'Specify who does what (e.g. 5 Men - Sowing)',
+          style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.3),
+        ),
+        const SizedBox(height: 20),
+        
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 1,
+              child: _buildTextField(
+                'Count', 
+                _roleCountController, 
+                'e.g. 5', 
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Gender',
+                    style: TextStyle(
+                      fontSize: 13, 
+                      fontWeight: FontWeight.w700, 
+                      color: Color(0xFF2C3E50),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: _roleGender,
+                    decoration: _inputDecoration(''),
+                    items: ['Male', 'Female']
+                        .map((t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))))
+                        .toList(),
+                    onChanged: (v) => setState(() => _roleGender = v!),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Select Skills / Tasks',
+              style: TextStyle(
+                fontSize: 13, 
+                fontWeight: FontWeight.w700, 
+                color: Color(0xFF2C3E50),
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: _showMultiSelectDialog,
+              borderRadius: BorderRadius.circular(15),
+              child: InputDecorator(
+                decoration: _inputDecoration('Select Skills').copyWith(
+                  suffixIcon: const Icon(Icons.arrow_drop_down_rounded, size: 28, color: Colors.grey),
+                ),
+                child: Text(
+                  _selectedRoleSkills.isEmpty ? 'Tap to select skills' : _selectedRoleSkills.join(', '),
+                  style: TextStyle(
+                    color: _selectedRoleSkills.isEmpty ? Colors.grey[400] : Colors.black87,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton.icon(
+            onPressed: _addRoleDistribution,
+            icon: const Icon(Icons.add, size: 18, color: Colors.white),
+            label: const Text('Add Role', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00AA55),
+              minimumSize: const Size(120, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              elevation: 0,
+            ),
+          ),
+        ),
+
+        if (_roleDistributions.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FBF9),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE8F5E9), width: 1.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _roleDistributions.map((item) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4.0),
+                        child: Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF00AA55)),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          item, 
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF2C3E50), height: 1.3),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _roleDistributions.remove(item);
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
+                        ),
+                      )
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

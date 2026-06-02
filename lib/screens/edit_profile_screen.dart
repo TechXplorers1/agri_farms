@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import '../services/geocoding_service.dart';
 import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
 import 'package:geolocator/geolocator.dart';
@@ -37,6 +39,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isFetchingLocation = false;
   double? _detectedLat;
   double? _detectedLng;
+  bool _isGeocodingAddress = false;
 
   @override
   void initState() {
@@ -71,20 +74,83 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _detectedLng = position.longitude;
       });
 
-      List<geo.Placemark> placemarks = await geo.placemarkFromCoordinates(position.latitude, position.longitude);
-      if (placemarks.isNotEmpty) {
-        geo.Placemark place = placemarks.first;
-        setState(() {
-          _houseNoController.text = place.subThoroughfare ?? '';
-          _streetController.text = place.thoroughfare ?? place.subLocality ?? '';
-          _villageController.text = place.locality ?? '';
-          _districtController.text = place.subAdministrativeArea ?? '';
-          _stateController.text = place.administrativeArea ?? '';
-          _countryController.text = place.country ?? '';
-          _pincodeController.text = place.postalCode ?? '';
-        });
-        UiUtils.showCenteredToast(context, 'Location fetched successfully');
+      String? houseNo;
+      String? street;
+      String? village;
+      String? district;
+      String? state;
+      String? country;
+      String? pincode;
+      String? exactAddress;
+
+      // 1. Try cross-platform geocoding (nominatim)
+      try {
+        final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=${position.latitude}&lon=${position.longitude}&format=json');
+        final responseData = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
+        final response = json.decode(responseData.body);
+        if (response != null && response['address'] != null) {
+          final addr = response['address'];
+          houseNo = addr['house_number'];
+          street = addr['road'] ?? addr['suburb'] ?? addr['neighbourhood'];
+          village = addr['suburb'] ?? addr['village'] ?? addr['neighbourhood'] ?? addr['city_district'];
+          district = addr['district'] ?? addr['city'] ?? addr['county'];
+          state = addr['state'];
+          pincode = addr['postcode'];
+          country = addr['country'];
+          exactAddress = response['display_name'];
+        }
+      } catch (e) {
+        debugPrint("Reverse geocoding failed: $e");
       }
+
+      // 2. Fallback to mobile-specific if on Android/iOS safely
+      final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+      if (isMobile) {
+        try {
+          List<geo.Placemark> placemarks = await geo.placemarkFromCoordinates(position.latitude, position.longitude);
+          if (placemarks.isNotEmpty) {
+            geo.Placemark place = placemarks.first;
+            houseNo ??= place.subThoroughfare;
+            street ??= place.thoroughfare ?? place.subLocality;
+            village ??= place.subLocality ?? place.locality;
+            district ??= place.subAdministrativeArea ?? place.administrativeArea;
+            state ??= place.administrativeArea;
+            pincode ??= place.postalCode;
+            country ??= place.country;
+            
+            if (exactAddress == null) {
+              exactAddress = [
+                place.street,
+                place.subLocality,
+                place.locality,
+                place.subAdministrativeArea,
+                place.administrativeArea,
+                place.postalCode,
+                place.country
+              ].where((part) => part != null && part.isNotEmpty).join(', ');
+            }
+          }
+        } catch (e) {}
+      }
+
+      village ??= 'Unknown Village';
+      district ??= 'District';
+      exactAddress ??= '$village, $district';
+
+      setState(() {
+        _houseNoController.text = houseNo ?? '';
+        _streetController.text = street ?? '';
+        _villageController.text = village ?? '';
+        _districtController.text = district ?? '';
+        _stateController.text = state ?? '';
+        _countryController.text = country ?? '';
+        _pincodeController.text = pincode ?? '';
+      });
+      
+      UiUtils.showCenteredToast(
+        context, 
+        'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}'
+      );
     } catch (e) {
       if (mounted) UiUtils.showCustomAlert(context, 'Failed to get location: $e', isError: true);
     } finally {
@@ -92,11 +158,76 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Future<void> _geocodeManualAddress() async {
+    if (_houseNoController.text.isEmpty &&
+        _streetController.text.isEmpty &&
+        _villageController.text.isEmpty &&
+        _districtController.text.isEmpty &&
+        _stateController.text.isEmpty &&
+        _pincodeController.text.isEmpty) {
+      UiUtils.showCenteredToast(context, 'Please enter address details first.', isError: true);
+      return;
+    }
+
+    setState(() => _isGeocodingAddress = true);
+    try {
+      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
+      
+      double? lat, lng;
+      // 1. Try mobile native geocoding first
+      try {
+        final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+        if (isMobile) {
+          List<geo.Location> locations = await geo.locationFromAddress(fullAddress);
+          if (locations.isNotEmpty) {
+            lat = locations.first.latitude;
+            lng = locations.first.longitude;
+          }
+        }
+      } catch (e) {
+        debugPrint("Native geocoding failed: $e");
+      }
+
+      // 2. Try Nominatim/Fallback geocoding (Works beautifully on Web!)
+      if (lat == null || lng == null) {
+        String fallbackAddress = "${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}";
+        final coords = await GeocodingService.getCoordinates(fullAddress, fallbackAddress: fallbackAddress);
+        if (coords != null) {
+          lat = coords['latitude'];
+          lng = coords['longitude'];
+        }
+      }
+
+      if (lat != null && lng != null) {
+        setState(() {
+          _detectedLat = lat;
+          _detectedLng = lng;
+        });
+        if (mounted) {
+          UiUtils.showCenteredToast(
+            context, 
+            'Coordinates resolved successfully!\nCoords: ${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}'
+          );
+        }
+      } else {
+        throw Exception("Could not find coordinates for the entered address. Please verify your address fields.");
+      }
+    } catch (e) {
+      if (mounted) {
+        UiUtils.showCustomAlert(context, 'Geocoding failed: $e', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isGeocodingAddress = false);
+    }
+  }
+
   Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // 1. Instantly load from local preferences to show immediate feedback
     setState(() {
       _userId = prefs.getString('user_id');
-      _nameController.text = prefs.getString('user_name') ?? 'User';
+      _nameController.text = prefs.getString('user_name') ?? '';
       _villageController.text = prefs.getString('user_village') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
       _phoneController.text = prefs.getString('user_phone') ?? '';
@@ -111,6 +242,60 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _detectedLng = prefs.getDouble('user_longitude');
       _isLoading = false;
     });
+
+    // 2. Fetch the absolute latest records from the remote database and sync
+    if (_userId != null) {
+      try {
+        final apiService = ApiService();
+        final userData = await apiService.getUser(_userId!);
+        if (userData != null && userData is Map<String, dynamic>) {
+          if (mounted) {
+            setState(() {
+              _nameController.text = userData['fullName'] ?? _nameController.text;
+              _villageController.text = userData['village'] ?? _villageController.text;
+              _districtController.text = userData['district'] ?? _districtController.text;
+              _phoneController.text = userData['phoneNumber'] ?? _phoneController.text;
+              _emailController.text = userData['email'] ?? _emailController.text;
+              _houseNoController.text = userData['houseNo'] ?? _houseNoController.text;
+              _streetController.text = userData['street'] ?? _streetController.text;
+              _stateController.text = userData['state'] ?? _stateController.text;
+              _countryController.text = userData['country'] ?? _countryController.text;
+              _pincodeController.text = userData['pincode'] ?? _pincodeController.text;
+              _profileImageUrl = userData['profileImageUrl'] ?? _profileImageUrl;
+              if (userData['latitude'] != null) {
+                _detectedLat = (userData['latitude'] as num).toDouble();
+              }
+              if (userData['longitude'] != null) {
+                _detectedLng = (userData['longitude'] as num).toDouble();
+              }
+            });
+          }
+
+          // Sync database values back to SharedPreferences to keep the entire app coherent
+          await prefs.setString('user_name', _nameController.text);
+          await prefs.setString('user_phone', _phoneController.text);
+          await prefs.setString('user_email', _emailController.text);
+          await prefs.setString('user_village', _villageController.text);
+          await prefs.setString('user_district', _districtController.text);
+          await prefs.setString('user_houseNo', _houseNoController.text);
+          await prefs.setString('user_street', _streetController.text);
+          await prefs.setString('user_state', _stateController.text);
+          await prefs.setString('user_country', _countryController.text);
+          await prefs.setString('user_pincode', _pincodeController.text);
+          if (_profileImageUrl != null) {
+            await prefs.setString('user_profile_image', _profileImageUrl!);
+          }
+          if (_detectedLat != null) {
+            await prefs.setDouble('user_latitude', _detectedLat!);
+          }
+          if (_detectedLng != null) {
+            await prefs.setDouble('user_longitude', _detectedLng!);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error syncing profile settings with DB: $e');
+      }
+    }
   }
 
   Future<void> _saveProfileData() async {
@@ -157,7 +342,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
           
           try {
-            if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+            final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+            if (isMobile) {
                List<geo.Location> locations = await geo.locationFromAddress(fullAddress);
                if (locations.isNotEmpty) {
                  lat = locations.first.latitude;
@@ -442,28 +628,77 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                         const SizedBox(height: 20),
                         
-                        if (_detectedLat != null && _detectedLng != null) ...[
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F5E9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.gps_fixed_rounded, size: 14, color: Color(0xFF2E7D32)),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Coordinates: ${_detectedLat!.toStringAsFixed(6)}, ${_detectedLng!.toStringAsFixed(6)}",
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            if (_detectedLat != null && _detectedLng != null)
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE8F5E9),
+                                    borderRadius: BorderRadius.circular(15),
+                                    border: Border.all(color: const Color(0xFFC8E6C9)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.gps_fixed_rounded, size: 16, color: Color(0xFF2E7D32)),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          "Coords: ${_detectedLat!.toStringAsFixed(6)}, ${_detectedLng!.toStringAsFixed(6)}",
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                        ],
+                              )
+                            else
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFF3E0),
+                                    borderRadius: BorderRadius.circular(15),
+                                    border: Border.all(color: const Color(0xFFFFE0B2)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.location_off_rounded, size: 16, color: Colors.orange[800]),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Text(
+                                          "No Coordinates Set",
+                                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange[800]),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(width: 12),
+                            _isGeocodingAddress
+                              ? const SizedBox(width: 32, height: 32, child: Padding(padding: EdgeInsets.all(6), child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))))
+                              : ElevatedButton.icon(
+                                  onPressed: _geocodeManualAddress,
+                                  icon: const Icon(Icons.pin_drop_rounded, size: 16),
+                                  label: const Text('Get Coordinates', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF00AA55),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                    elevation: 0,
+                                  ),
+                                ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
                         _buildTextField(_countryController, 'Country', 'Country name...', Icons.public_rounded),
                         const SizedBox(height: 20),
                         _buildTextField(_phoneController, 'Mobile Number', '', Icons.phone_android_rounded, enabled: false),

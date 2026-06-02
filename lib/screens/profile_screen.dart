@@ -18,6 +18,9 @@ import 'manage_items_screen.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/ui_utils.dart';
 import '../services/notification_service.dart';
+import '../utils/app_translations.dart';
+import '../utils/language_provider.dart';
+import 'package:provider/provider.dart';
 
 
 class ProfileScreen extends StatefulWidget {
@@ -39,6 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userRole = 'User';
   String? _profileImageUrl;
   bool _isUploading = false;
+  bool _isLoading = true;
   
   int _ordersCount = 0;
   int _rentalsCount = 0;
@@ -51,6 +55,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfileData() async {
+    setState(() {
+      _isLoading = true;
+    });
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _selectedLanguage = prefs.getString('selected_language') ?? 'English';
@@ -74,11 +81,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
         // Fetch stats
         try {
           final stats = await apiService.getUserStats(userId);
+          int ordersVal = stats['ordersCount'] ?? 0;
+          int rentalsVal = stats['rentalsCount'] ?? 0;
+          int servicesVal = stats['servicesCount'] ?? 0;
+
+          final userRoleVal = userData['role'] ?? _userRole;
+          if (['Owner', 'Provider'].contains(userRoleVal)) {
+            try {
+              final response = await apiService.getProviderBookings(userId);
+              final List<dynamic> providerBookings = response as List<dynamic>? ?? [];
+              final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+              int pendingCount = 0;
+              for (var b in providerBookings) {
+                final status = b['status']?.toString().toLowerCase() ?? '';
+                if (status == 'pending') {
+                  final dateRaw = b['scheduledStartTime'] ?? b['bookingDate'];
+                  if (dateRaw != null) {
+                    try {
+                      final targetDate = DateTime.parse(dateRaw.toString());
+                      final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
+                      if (!bookingDay.isBefore(today)) {
+                        pendingCount++;
+                      }
+                    } catch (_) {
+                      pendingCount++;
+                    }
+                  } else {
+                    pendingCount++;
+                  }
+                }
+              }
+              ordersVal = pendingCount;
+            } catch (e) {
+              debugPrint('Error counting new orders: $e');
+            }
+          }
+
           if (mounted) {
             setState(() {
-              _ordersCount = stats['ordersCount'] ?? 0;
-              _rentalsCount = stats['rentalsCount'] ?? 0;
-              _servicesCount = stats['servicesCount'] ?? 0;
+              _ordersCount = ordersVal;
+              _rentalsCount = rentalsVal;
+              _servicesCount = servicesVal;
             });
           }
         } catch (e) {
@@ -86,11 +130,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
 
         await prefs.setString('user_name', userData['fullName'] ?? _userName);
-        await prefs.setString('user_village', userData['village'] ?? _userVillage);
-        await prefs.setString('user_district', userData['district'] ?? _userDistrict);
+        await prefs.setString('user_phone', userData['phoneNumber'] ?? '');
+        await prefs.setString('user_email', userData['email'] ?? '');
+        
+        final String? responseVillage = userData['village'];
+        final String? responseDistrict = userData['district'];
+        
+        if (responseVillage != null && responseVillage.trim().isNotEmpty && responseVillage != 'Your Village') {
+          await prefs.setString('user_village', responseVillage);
+        }
+        if (responseDistrict != null && responseDistrict.trim().isNotEmpty && responseDistrict != 'Your District') {
+          await prefs.setString('user_district', responseDistrict);
+        }
+
         await prefs.setString('user_houseNo', userData['houseNo'] ?? '');
         await prefs.setString('user_street', userData['street'] ?? '');
         await prefs.setString('user_state', userData['state'] ?? '');
+        await prefs.setString('user_country', userData['country'] ?? '');
         await prefs.setString('user_pincode', userData['pincode'] ?? '');
         await prefs.setString('user_role', userData['role'] ?? _userRole);
         if (userData['latitude'] != null) await prefs.setDouble('user_latitude', (userData['latitude'] as num).toDouble());
@@ -101,8 +157,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (mounted) {
           setState(() {
             _userName = userData['fullName'] ?? _userName;
-            _userVillage = userData['village'] ?? _userVillage;
-            _userDistrict = userData['district'] ?? _userDistrict;
+            if (responseVillage != null && responseVillage.trim().isNotEmpty && responseVillage != 'Your Village') {
+              _userVillage = responseVillage;
+            }
+            if (responseDistrict != null && responseDistrict.trim().isNotEmpty && responseDistrict != 'Your District') {
+              _userDistrict = responseDistrict;
+            }
             _userHouseNo = userData['houseNo'] ?? '';
             _userStreet = userData['street'] ?? '';
             _userState = userData['state'] ?? '';
@@ -113,6 +173,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       } catch (e) {
         debugPrint('Error fetching updated profile: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -120,77 +192,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     var l10n = AppLocalizations.of(context)!;
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF9FBF9),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFFF9FBF9),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  height: 260, width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft, end: Alignment.bottomRight,
-                      colors: [Color(0xFF1B5E20), Color(0xFF388E3C), Color(0xFF66BB6A)],
-                    ),
-                    borderRadius: BorderRadius.only(bottomLeft: Radius.circular(36), bottomRight: Radius.circular(36)),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 20),
-                      GestureDetector(
-                        onTap: _pickAndUploadImage,
-                        child: Stack(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                              child: CircleAvatar(
-                                radius: 44,
-                                backgroundColor: const Color(0xFFF1F8E9),
-                                backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                                    ? NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl))
-                                    : null,
-                                child: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                                    ? (_isUploading ? const CircularProgressIndicator(color: Color(0xFF00AA55)) : const Icon(Icons.person, size: 48, color: Color(0xFF2E7D32)))
-                                    : null,
-                              ),
-                            ),
-                            Positioned(bottom: 2, right: 2, child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]),
-                              child: const Icon(Icons.edit, size: 14, color: Color(0xFF2E7D32)),
-                            )),
-                          ],
+            Builder(
+              builder: (context) {
+                final double topPadding = MediaQuery.of(context).padding.top;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    Container(
+                      height: 315 + topPadding, width: double.infinity,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft, end: Alignment.bottomRight,
+                          colors: [Color(0xFF1B5E20), Color(0xFF388E3C), Color(0xFF66BB6A)],
                         ),
+                        borderRadius: BorderRadius.only(bottomLeft: Radius.circular(36), bottomRight: Radius.circular(36)),
                       ),
-                      const SizedBox(height: 12),
-                      Text(_userName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
-                          const Icon(Icons.location_on, color: Colors.white70, size: 14),
-                          const SizedBox(width: 4),
-                          Text(
-                            [_userHouseNo, _userStreet, _userVillage, _userDistrict, _userState, _userPincode]
-                                .where((s) => s.isNotEmpty && s != 'Your Village' && s != 'Your District')
-                                .join(', '),
-                            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
-                            textAlign: TextAlign.center,
+                          SizedBox(height: topPadding + 16),
+                          GestureDetector(
+                            onTap: _pickAndUploadImage,
+                            child: Stack(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                  child: CircleAvatar(
+                                    radius: 44,
+                                    backgroundColor: const Color(0xFFF1F8E9),
+                                    backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                                        ? NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl))
+                                        : null,
+                                    child: _profileImageUrl == null || _profileImageUrl!.isEmpty
+                                        ? (_isUploading ? const CircularProgressIndicator(color: Color(0xFF00AA55)) : const Icon(Icons.person, size: 48, color: Color(0xFF2E7D32)))
+                                        : null,
+                                  ),
+                                ),
+                                Positioned(bottom: 2, right: 2, child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]),
+                                  child: const Icon(Icons.edit, size: 14, color: Color(0xFF2E7D32)),
+                                )),
+                                if (_isUploading)
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black38,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Center(
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(_userName, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 6),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.location_on, color: Colors.white70, size: 14),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    [_userHouseNo, _userStreet, _userVillage, _userDistrict, _userState, _userPincode]
+                                        .where((s) => s.isNotEmpty && s != 'Your Village' && s != 'Your District')
+                                        .join(', '),
+                                    style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  bottom: -35, left: 20, right: 20,
+                    ),
+                    Positioned(
+                      bottom: -35, left: 20, right: 20,
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     decoration: BoxDecoration(
@@ -200,23 +303,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildStatItem('$_ordersCount', l10n.orders, Icons.shopping_bag_outlined, const Color(0xFF2E7D32)),
+                        Expanded(
+                          child: _buildStatItem(
+                            '$_ordersCount',
+                            l10n.orders,
+                            Icons.shopping_bag_outlined,
+                            const Color(0xFF2E7D32),
+                            onTap: () {
+                              if (['Owner', 'Provider'].contains(_userRole)) {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
+                              } else {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                                  title: 'My Bookings',
+                                  categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
+                                )));
+                              }
+                            },
+                          ),
+                        ),
                         _buildDivider(),
-                        _buildStatItem('$_rentalsCount', l10n.rentals, Icons.agriculture_outlined, const Color(0xFFF9A825)),
+                        Expanded(
+                          child: _buildStatItem(
+                            '$_rentalsCount',
+                            l10n.rentals,
+                            Icons.agriculture_outlined,
+                            const Color(0xFFF9A825),
+                            onTap: () {
+                              if (['Owner', 'Provider'].contains(_userRole)) {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
+                              } else {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                                  title: 'My Rentals',
+                                  categories: [BookingCategory.rentals],
+                                )));
+                              }
+                            },
+                          ),
+                        ),
                         _buildDivider(),
-                        _buildStatItem('$_servicesCount', l10n.services, Icons.handyman_outlined, const Color(0xFF1565C0)),
+                        Expanded(
+                          child: _buildStatItem(
+                            '$_servicesCount',
+                            l10n.services,
+                            Icons.handyman_outlined,
+                            const Color(0xFF1565C0),
+                            onTap: () {
+                              if (['Owner', 'Provider'].contains(_userRole)) {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen(initialTabIndex: 2)));
+                              } else {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+                                  title: 'My Services',
+                                  categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport],
+                                )));
+                              }
+                            },
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ),
               ],
-            ),
+            );
+          }
+        ),
             const SizedBox(height: 55),
             _buildSectionHeader(l10n.activity),
             _buildActionCard([
-              _buildListTile(Icons.history_rounded, 'Activity Bookings', subtitle: 'View your booking history', onTap: () {
-                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-                  title: 'Activity Bookings',
+              _buildListTile(Icons.history_rounded, AppTranslations.translate(context, 'activityBookings'), subtitle: AppTranslations.translate(context, 'viewBookingHistory'), onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(builder: (context) => GenericHistoryScreen(
+                  title: AppTranslations.translate(context, 'activityBookings'),
                   categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
                 )));
               }),
@@ -230,7 +386,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               }),
               if (['Owner', 'Provider'].contains(_userRole)) ...[
                 _buildDividerLine(),
-                _buildListTile(Icons.inventory_2_outlined, 'My Registered Items', onTap: () {
+                _buildListTile(Icons.inventory_2_outlined, AppTranslations.translate(context, 'myRegisteredItems'), onTap: () {
                   Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
                 }),
                 _buildDividerLine(),
@@ -259,12 +415,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: TextButton.icon(
-                onPressed: () async {
-                  await NotificationService().clearFCMToken();
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.clear();
-                  if (context.mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const AuthScreen()), (route) => false);
-                },
+                onPressed: () => _showLogoutConfirmationDialog(context),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.red[700],
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
@@ -298,24 +449,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
           await apiService.updateUser(userId, {'profileImageUrl': relativeUrl});
           await prefs.setString('user_profile_image', relativeUrl);
           setState(() => _profileImageUrl = relativeUrl);
-          if (mounted) UiUtils.showCenteredToast(context, 'Profile photo updated successfully!');
+          if (mounted) UiUtils.showCenteredToast(context, AppTranslations.translate(context, 'profilePhotoUpdated'));
         }
       }
     } catch (e) {
-      if (mounted) UiUtils.showCustomAlert(context, 'Failed to upload profile photo: $e', isError: true);
+      if (mounted) UiUtils.showCustomAlert(context, '${AppTranslations.translate(context, 'profilePhotoFailed')}$e', isError: true);
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
   }
 
-  Widget _buildStatItem(String count, String label, IconData icon, Color color) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(height: 6),
-        Text(count, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF1B5E20))),
-        Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5)),
-      ],
+  Widget _buildStatItem(String count, String label, IconData icon, Color color, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 6),
+            Text(
+              count, 
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Color(0xFF1B5E20)),
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              label, 
+              style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -362,4 +531,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildDividerLine() => const Divider(height: 1, indent: 64, endIndent: 20, thickness: 0.8, color: Color(0xFFF1F1F1));
+
+  void _showLogoutConfirmationDialog(BuildContext context) {
+    var l10n = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.logout_rounded, color: Colors.red[700], size: 22),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                l10n.logout,
+                style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18),
+              ),
+            ],
+          ),
+          content: Text(
+            AppTranslations.translate(context, 'logoutConfirm'),
+            style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                AppTranslations.translate(context, 'cancel'),
+                style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext); // Close dialog
+                
+                // Show loading indicator
+                if (context.mounted) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+                    ),
+                  );
+                }
+
+                await NotificationService().clearFCMToken();
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+                
+                if (context.mounted) {
+                  // Close loading indicator and redirect
+                  Navigator.pop(context); // Close loader
+                  Navigator.pushAndRemoveUntil(
+                    context, 
+                    MaterialPageRoute(builder: (context) => const AuthScreen()), 
+                    (route) => false,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: Text(l10n.logout, style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
