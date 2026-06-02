@@ -76,6 +76,12 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
     }
   }
 
+  Future<void> _handleRefresh() async {
+    if (_currentProviderId != null) {
+      await _bookingManager.fetchProviderBookings(_currentProviderId!);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -286,12 +292,16 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                           ),
                         ),
                       Expanded(
-                        child: TabBarView(
-                          children: [
-                            _buildRequestsList(pendingBookings, tabType: 'new', emptyIcon: Icons.inbox_rounded),
-                            _buildRequestsList(activeBookings, tabType: 'active', emptyIcon: Icons.task_alt_rounded),
-                            _buildRequestsList(historyBookings, tabType: 'history', emptyIcon: Icons.history_rounded),
-                          ],
+                        child: RefreshIndicator(
+                          onRefresh: _handleRefresh,
+                          color: const Color(0xFF2E7D32),
+                          child: TabBarView(
+                            children: [
+                              _buildRequestsList(pendingBookings, tabType: 'new', emptyIcon: Icons.inbox_rounded),
+                              _buildRequestsList(activeBookings, tabType: 'active', emptyIcon: Icons.task_alt_rounded),
+                              _buildRequestsList(historyBookings, tabType: 'history', emptyIcon: Icons.history_rounded),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -312,23 +322,29 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
           ? 'No bookings found on ${_filterDate!.day} ${_getMonthName(_filterDate!.month)}'
           : emptyMessage;
 
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
-              child: Icon(emptyIcon, size: 48, color: Colors.grey[300]),
-            ),
-            const SizedBox(height: 16),
-            Text(displayMessage, style: TextStyle(color: Colors.grey[500], fontSize: 15, fontWeight: FontWeight.w500)),
-          ],
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
+                child: Icon(emptyIcon, size: 48, color: Colors.grey[300]),
+              ),
+              const SizedBox(height: 16),
+              Text(displayMessage, style: TextStyle(color: Colors.grey[500], fontSize: 15, fontWeight: FontWeight.w500)),
+            ],
+          ),
         ),
       );
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       itemCount: bookings.length,
       itemBuilder: (context, index) {
@@ -484,13 +500,31 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
     );
   }
 
-  void _updateStatus(String id, String status) {
-    if (_currentProviderId != null) {
-      _bookingManager.updateBookingStatus(id, status, providerId: _currentProviderId);
-    } else {
-      _bookingManager.updateBookingStatus(id, status);
+  Future<void> _updateStatus(String id, String status) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+      ),
+    );
+
+    try {
+      if (_currentProviderId != null) {
+        await _bookingManager.updateBookingStatus(id, status, providerId: _currentProviderId);
+      } else {
+        await _bookingManager.updateBookingStatus(id, status);
+      }
+      if (mounted) {
+        Navigator.pop(context); // Close loading spinner
+        UiUtils.showCenteredToast(context, 'Booking status updated to $status');
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading spinner
+        UiUtils.showCustomAlert(context, 'Failed to update status: $e', isError: true);
+      }
     }
-    UiUtils.showCenteredToast(context, 'Booking status updated to $status');
   }
 
   Future<void> _handleCompletedTap(BookingDetails booking) async {

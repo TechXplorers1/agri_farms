@@ -17,6 +17,7 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
   final ApiService _apiService = ApiService();
   String? _userId;
   bool _isLoading = true;
+  bool _isInitialLoading = true;
 
   List<dynamic> _vehicles = [];
   List<dynamic> _equipment = [];
@@ -30,7 +31,6 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
   }
 
   Future<void> _fetchItems() async {
-    setState(() => _isLoading = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       _userId = prefs.getString('user_id');
@@ -55,7 +55,12 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
     } catch (e) {
       if (mounted) UiUtils.showCustomAlert(context, 'Failed to load items: $e', isError: true);
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isInitialLoading = false;
+        });
+      }
     }
   }
 
@@ -138,15 +143,19 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
             ),
           ),
         ),
-        body: _isLoading
+        body: _isLoading && _isInitialLoading
             ? const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)))
-            : TabBarView(
-                children: [
-                  _buildList(_vehicles, 'Vehicle', 'vehicleId', (item) => '${item["vehicleType"]}', (item) => 'Num: ${item["vehicleNumber"] ?? "N/A"} • ₹${item["pricePerKmOrTrip"]}'),
-                  _buildList(_equipment, 'Equipment', 'equipmentId', (item) => '${item["brandModel"]}', (item) => '${item["category"]} • ₹${item["pricePerHour"]}/hr'),
-                  _buildList(_services, 'Service', 'serviceId', (item) => '${item["businessName"]}', (item) => '${item["serviceType"]} • ₹${item["priceRate"]}'),
-                  _buildList(_workerGroups, 'WorkerGroup', 'groupId', (item) => '${item["groupName"]}', (item) => '${item["maleCount"]} Men, ${item["femaleCount"]} Women'),
-                ],
+            : RefreshIndicator(
+                onRefresh: _fetchItems,
+                color: const Color(0xFF00AA55),
+                child: TabBarView(
+                  children: [
+                    _buildList(_vehicles, 'Vehicle', 'vehicleId', (item) => '${item["vehicleType"]}', (item) => 'Num: ${item["vehicleNumber"] ?? "N/A"} • ₹${item["pricePerKmOrTrip"]}'),
+                    _buildList(_equipment, 'Equipment', 'equipmentId', (item) => '${item["brandModel"]}', (item) => '${item["category"]} • ₹${item["pricePerHour"]}/hr'),
+                    _buildList(_services, 'Service', 'serviceId', (item) => '${item["businessName"]}', (item) => '${item["serviceType"]} • ₹${item["priceRate"]}'),
+                    _buildList(_workerGroups, 'WorkerGroup', 'groupId', (item) => '${item["groupName"]}', (item) => '${item["maleCount"]} Men, ${item["femaleCount"]} Women'),
+                  ],
+                ),
               ),
       ),
     );
@@ -154,35 +163,41 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
 
   Widget _buildList(List<dynamic> items, String category, String idKey, String Function(Map<String, dynamic>) titleGetter, String Function(Map<String, dynamic>) subtitleGetter) {
     if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20)],
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20)],
+                ),
+                child: Icon(Icons.inventory_2_rounded, size: 64, color: Colors.grey[300]),
               ),
-              child: Icon(Icons.inventory_2_rounded, size: 64, color: Colors.grey[300]),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No $category registered yet', 
-              style: const TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.w800, fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Add your assets to start earning', 
-              style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w500, fontSize: 14),
-            ),
-          ],
+              const SizedBox(height: 24),
+              Text(
+                'No $category registered yet', 
+                style: const TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.w800, fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Add your assets to start earning', 
+                style: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w500, fontSize: 14),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       itemCount: items.length,
       itemBuilder: (context, index) {

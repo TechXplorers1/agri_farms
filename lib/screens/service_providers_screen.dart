@@ -57,6 +57,13 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     }
   }
 
+  Future<void> _handleRefresh() async {
+    setState(() {
+      _providersFuture = _fetchProviders();
+    });
+    await _providersFuture;
+  }
+
   Future<List<ServiceProvider>> _fetchProviders() async {
     final List<String> transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
     final List<String> equipmentTypes = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB', 'Rotavators', 'Cultivators', 'Seed Drills', 'Power Tillers'];
@@ -286,12 +293,15 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             Padding(padding: const EdgeInsets.only(right: 8), child: _buildAddButton(context)),
         ],
       ),
-      body: FutureBuilder<List<ServiceProvider>>(
-        future: _providersFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
-          }
+      body: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        color: const Color(0xFF00AA55),
+        child: FutureBuilder<List<ServiceProvider>>(
+          future: _providersFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
+            }
           final allProviders = snapshot.data ?? [];
           
           final uniqueLocations = allProviders.map((p) => p.location).where((loc) => loc.isNotEmpty).toSet().toList();
@@ -349,6 +359,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                  child: filteredProviders.isEmpty
                  ? _buildEmptyState(l10n)
                  : ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     itemCount: filteredProviders.length,
                     itemBuilder: (context, index) {
@@ -364,8 +375,9 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           );
         },
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildFilterSection(List<String> makes, List<String> locations) {
     var l10n = AppLocalizations.of(context)!;
@@ -412,11 +424,21 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   }
 
   Widget _buildEmptyState(AppLocalizations l10n) {
-    return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]),
-      const SizedBox(height: 16),
-      Text(l10n.noMatchFound, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
-    ]));
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.6,
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(l10n.noMatchFound, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildListingCard(BuildContext context, ServiceProvider provider) {

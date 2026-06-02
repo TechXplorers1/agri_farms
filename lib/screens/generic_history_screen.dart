@@ -39,6 +39,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   bool _isLoadingContact = false;
   Locale? _lastLocale;
   DateTime? _filterDate;
+  bool _isInitialLoading = true;
 
   String _getMonthName(int month) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -88,25 +89,41 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('user_id');
     if (userId != null) {
-      await _bookingManager.fetchFarmerBookings(userId);
-      
-      // Apply translation to all loaded bookings
-      if (targetLang != 'en') {
-        for (var b in _bookingManager.bookings) {
-          b.title = await trans.translate(b.title, targetLang);
-          b.status = await trans.translate(b.status, targetLang);
-          
-          // Translate dynamic details map keys and values
-          Map<String, dynamic> translatedDetails = {};
-          for (var entry in b.details.entries) {
-            final translatedKey = await trans.translate(entry.key, targetLang);
-            final translatedValue = await trans.translate(entry.value.toString(), targetLang);
-            translatedDetails[translatedKey] = translatedValue;
+      try {
+        await _bookingManager.fetchFarmerBookings(userId);
+        
+        // Apply translation to all loaded bookings
+        if (targetLang != 'en') {
+          for (var b in _bookingManager.bookings) {
+            b.title = await trans.translate(b.title, targetLang);
+            b.status = await trans.translate(b.status, targetLang);
+            
+            // Translate dynamic details map keys and values
+            Map<String, dynamic> translatedDetails = {};
+            for (var entry in b.details.entries) {
+              final translatedKey = await trans.translate(entry.key, targetLang);
+              final translatedValue = await trans.translate(entry.value.toString(), targetLang);
+              translatedDetails[translatedKey] = translatedValue;
+            }
+            b.details = translatedDetails;
           }
-          b.details = translatedDetails;
+          // Force rebuild of manager listeners
+          _bookingManager.forceRefresh();
         }
-        // Force rebuild of manager listeners
-        _bookingManager.forceRefresh();
+      } catch (e) {
+        debugPrint('Error loading bookings: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isInitialLoading = false;
+          });
+        }
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+        });
       }
     }
   }
@@ -255,7 +272,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
         body: AnimatedBuilder(
           animation: _bookingManager,
           builder: (context, _) {
-            if (_bookingManager.isLoading) {
+            if (_bookingManager.isLoading && _isInitialLoading) {
               return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
             }
             

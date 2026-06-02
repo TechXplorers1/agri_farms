@@ -42,6 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userRole = 'User';
   String? _profileImageUrl;
   bool _isUploading = false;
+  bool _isLoading = true;
   
   int _ordersCount = 0;
   int _rentalsCount = 0;
@@ -54,6 +55,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfileData() async {
+    setState(() {
+      _isLoading = true;
+    });
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _selectedLanguage = prefs.getString('selected_language') ?? 'English';
@@ -169,6 +173,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       } catch (e) {
         debugPrint('Error fetching updated profile: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -176,6 +192,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     var l10n = AppLocalizations.of(context)!;
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF9FBF9),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFFF9FBF9),
       body: SingleChildScrollView(
@@ -224,6 +248,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)]),
                                   child: const Icon(Icons.edit, size: 14, color: Color(0xFF2E7D32)),
                                 )),
+                                if (_isUploading)
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black38,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Center(
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
