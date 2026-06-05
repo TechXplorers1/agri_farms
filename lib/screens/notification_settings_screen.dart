@@ -19,7 +19,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   // State variables for toggles
   bool _orderUpdates = true;
   bool _bookingUpdates = true;
-  bool _paymentUpdates = true;
   bool _communityActivity = false; 
   bool _promotionalOffers = false;
 
@@ -40,7 +39,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             _userMap = userData;
             _orderUpdates = userData['notificationOrderUpdates'] ?? true;
             _bookingUpdates = userData['notificationBookingUpdates'] ?? true;
-            _paymentUpdates = userData['notificationPaymentUpdates'] ?? true;
             _communityActivity = userData['notificationCommunityActivity'] ?? false;
             _promotionalOffers = userData['notificationPromotionalOffers'] ?? false;
             _isLoading = false;
@@ -71,7 +69,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       // Instantly update local switch state
       if (key == 'notificationOrderUpdates') _orderUpdates = val;
       if (key == 'notificationBookingUpdates') _bookingUpdates = val;
-      if (key == 'notificationPaymentUpdates') _paymentUpdates = val;
       if (key == 'notificationCommunityActivity') _communityActivity = val;
       if (key == 'notificationPromotionalOffers') _promotionalOffers = val;
     });
@@ -102,7 +99,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       setState(() {
         if (key == 'notificationOrderUpdates') _orderUpdates = !val;
         if (key == 'notificationBookingUpdates') _bookingUpdates = !val;
-        if (key == 'notificationPaymentUpdates') _paymentUpdates = !val;
         if (key == 'notificationCommunityActivity') _communityActivity = !val;
         if (key == 'notificationPromotionalOffers') _promotionalOffers = !val;
       });
@@ -180,13 +176,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   subtitle: 'Rental and service bookings',
                   value: _bookingUpdates,
                   onChanged: (val) => _updateSetting('notificationBookingUpdates', val),
-                ),
-                const SizedBox(height: 24),
-                _buildSwitchTile(
-                  title: 'Payment Updates',
-                  subtitle: 'Transaction notifications',
-                  value: _paymentUpdates,
-                  onChanged: (val) => _updateSetting('notificationPaymentUpdates', val),
                 ),
                 const SizedBox(height: 24),
                 _buildSwitchTile(

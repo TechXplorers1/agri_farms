@@ -202,6 +202,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                       Container(
                         color: Colors.white,
                         child: TabBar(
+                          labelPadding: const EdgeInsets.symmetric(horizontal: 8.0),
                           labelColor: const Color(0xFF2E7D32),
                           indicatorColor: const Color(0xFF2E7D32),
                           indicatorSize: TabBarIndicatorSize.label,

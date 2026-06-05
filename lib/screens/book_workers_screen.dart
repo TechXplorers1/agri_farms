@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/booking_manager.dart'; // Import BookingManager
 import '../utils/ui_utils.dart';
@@ -44,15 +45,68 @@ class BookWorkersScreen extends StatefulWidget {
 class _BookWorkersScreenState extends State<BookWorkersScreen> {
   int _maleCount = 0;
   int _femaleCount = 0;
-  String _bookingMode = 'Daily'; // 'Daily' or 'Hourly'
+  String _bookingMode = 'Hourly'; // 'Daily' or 'Hourly'
   DateTime? _selectedDate;
   TimeOfDay? _selectedStartTime;
   int? _selectedStartHour;
   int _durationHours = 1;
+  final List<int> _selectedSlots = [];
 
-  List<int> get _selectedSlots {
-    if (_selectedStartHour == null) return [];
-    return List.generate(_durationHours, (i) => _selectedStartHour! + i);
+  void _addHour() {
+    if (_selectedSlots.isEmpty) return;
+    int lastHour = _selectedSlots.last;
+    for (int h = lastHour + 1; h < _endHour; h++) {
+      if (!_isSlotBlocked(h)) {
+        setState(() {
+          _selectedSlots.add(h);
+          _selectedSlots.sort();
+          _selectedStartHour = _selectedSlots.first;
+          _durationHours = _selectedSlots.length;
+        });
+        _recalculateAvailability();
+        break;
+      }
+    }
+  }
+
+  void _removeHour() {
+    if (_selectedSlots.isEmpty) return;
+    setState(() {
+      _selectedSlots.removeLast();
+      if (_selectedSlots.isNotEmpty) {
+        _selectedStartHour = _selectedSlots.first;
+        _durationHours = _selectedSlots.length;
+      } else {
+        _selectedStartHour = null;
+        _durationHours = 1;
+      }
+    });
+    _recalculateAvailability();
+  }
+
+  bool _canAddMoreHours() {
+    if (_selectedSlots.isEmpty) return false;
+    int lastHour = _selectedSlots.last;
+    for (int h = lastHour + 1; h < _endHour; h++) {
+      if (!_isSlotBlocked(h)) return true;
+    }
+    return false;
+  }
+
+  String _formatSelectedSlotsSummary() {
+    if (_selectedSlots.isEmpty) return '';
+    bool isContiguous = true;
+    for (int i = 0; i < _selectedSlots.length - 1; i++) {
+      if (_selectedSlots[i + 1] != _selectedSlots[i] + 1) {
+        isContiguous = false;
+        break;
+      }
+    }
+    if (isContiguous) {
+      return '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}';
+    } else {
+      return '${_selectedSlots.length} slots selected';
+    }
   }
 
   bool _isRangeAvailable(int startHour, int duration) {
@@ -170,6 +224,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         _isLoadingBookings = false;
         _selectedStartHour = null;
         _durationHours = 1;
+        _selectedSlots.clear();
       });
       _recalculateAvailability();
     } catch (e) {
@@ -255,25 +310,39 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
      DateTime slotEnd = slotStart.add(const Duration(hours: 1));
      
      for (var booking in _existingBookings) {
-         final String status = booking['status']?.toString().toUpperCase() ?? '';
-         if (status == 'CANCELLED' || status == 'REJECTED' || status == 'COMPLETED' || status == 'FINISHED') continue;
-         
-         DateTime bStart = DateTime.parse(booking['scheduledStartTime']).toLocal();
-         DateTime bEnd = DateTime.parse(booking['scheduledEndTime']).toLocal();
-         
-         if (slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart)) {
-            Map<String, dynamic> notes = {};
-            try { notes = jsonDecode(booking['notes']?.toString() ?? '{}'); } catch(_){}
-            
-            if (widget.roleDistribution.isNotEmpty) {
-               for (var r in widget.roleDistribution) {
-                  runningRoles[r] = runningRoles[r]! + _getRoleCount(notes, r);
-               }
-            } else {
-               runningMale += _getDetailsCount(notes, 'Male');
-               runningFemale += _getDetailsCount(notes, 'Female');
-            }
-         }
+          final String status = booking['status']?.toString().toUpperCase() ?? '';
+          if (status == 'CANCELLED' || status == 'REJECTED' || status == 'COMPLETED' || status == 'FINISHED') continue;
+          
+          DateTime bStart = DateTime.parse(booking['scheduledStartTime']).toLocal();
+          DateTime bEnd = DateTime.parse(booking['scheduledEndTime']).toLocal();
+          
+          Map<String, dynamic> notes = {};
+          try { notes = jsonDecode(booking['notes']?.toString() ?? '{}'); } catch(_){}
+          
+          List<int> bookedHours = [];
+          if (notes.containsKey('slots_list')) {
+            try {
+              bookedHours = (notes['slots_list'] as List<dynamic>).map((e) => int.parse(e.toString())).toList();
+            } catch (_) {}
+          }
+          
+          bool isOccupiedInThisSlot = false;
+          if (bookedHours.isNotEmpty) {
+            isOccupiedInThisSlot = bookedHours.contains(hour);
+          } else {
+            isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+          }
+          
+          if (isOccupiedInThisSlot) {
+             if (widget.roleDistribution.isNotEmpty) {
+                for (var r in widget.roleDistribution) {
+                   runningRoles[r] = runningRoles[r]! + _getRoleCount(notes, r);
+                }
+             } else {
+                runningMale += _getDetailsCount(notes, 'Male');
+                runningFemale += _getDetailsCount(notes, 'Female');
+             }
+          }
      }
      
      runningRoles['male'] = runningMale;
@@ -369,8 +438,20 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       return;
     }
     setState(() {
-      _selectedStartHour = hour;
-      _durationHours = 1;
+      if (_selectedSlots.contains(hour)) {
+        _selectedSlots.remove(hour);
+      } else {
+        _selectedSlots.add(hour);
+        _selectedSlots.sort();
+      }
+      
+      if (_selectedSlots.isNotEmpty) {
+        _selectedStartHour = _selectedSlots.first;
+        _durationHours = _selectedSlots.length;
+      } else {
+        _selectedStartHour = null;
+        _durationHours = 1;
+      }
     });
     _recalculateAvailability();
   }
@@ -425,6 +506,52 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     }
   }
 
+  Future<void> _pasteFromClipboard(TextEditingController controller, String errorKey) async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      if (data != null && data.text != null && data.text!.isNotEmpty) {
+        setState(() {
+          controller.text = data.text!;
+          if (_fieldErrors.containsKey(errorKey)) {
+            _fieldErrors.remove(errorKey);
+          }
+        });
+        UiUtils.showCenteredToast(context, 'Address pasted successfully');
+      } else {
+        UiUtils.showCenteredToast(context, 'Clipboard is empty or contains non-text content', isError: true);
+      }
+    } catch (e) {
+      UiUtils.showCenteredToast(context, 'Failed to paste from clipboard', isError: true);
+    }
+  }
+
+  Future<void> _useProfileAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final houseNo = prefs.getString('user_houseNo') ?? '';
+    final street = prefs.getString('user_street') ?? '';
+    final village = prefs.getString('user_village') ?? '';
+    final district = prefs.getString('user_district') ?? '';
+    final state = prefs.getString('user_state') ?? '';
+    final country = prefs.getString('user_country') ?? '';
+    final pincode = prefs.getString('user_pincode') ?? '';
+
+    final parts = [houseNo, street, village, district, state, country, pincode]
+        .where((part) => part.isNotEmpty)
+        .join(', ');
+
+    if (parts.isNotEmpty) {
+      setState(() {
+        _addressController.text = parts;
+        if (_fieldErrors.containsKey('address')) {
+          _fieldErrors.remove('address');
+        }
+      });
+      UiUtils.showCenteredToast(context, 'Profile address loaded');
+    } else {
+      UiUtils.showCenteredToast(context, 'No profile address saved. Please update in profile page.', isError: true);
+    }
+  }
+
   @override
   void dispose() {
     _addressController.dispose();
@@ -456,8 +583,8 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
        }
     } else {
        double hours = _selectedSlots.length.toDouble();
-       if (hours == 0) hours = 1.0;
-   
+       if (hours == 0) return 0;
+    
        if (widget.roleDistribution.isNotEmpty) {
          int total = 0;
          _selectedRoleCounts.forEach((role, count) {
@@ -505,10 +632,13 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
 
 
   void _confirmBooking() async {
-    bool hasWorkers = widget.roleDistribution.isNotEmpty ? _selectedRoleCounts.isNotEmpty : (_maleCount > 0 || _femaleCount > 0);
+    bool hasWorkers = widget.roleDistribution.isNotEmpty
+        ? _selectedRoleCounts.values.any((c) => c > 0)
+        : (_maleCount > 0 || _femaleCount > 0);
     bool hasValidTime = _bookingMode == 'Daily' ? _selectedStartTime != null : _selectedSlots.isNotEmpty;
+    bool hasValidPrice = _totalPrice > 0;
 
-    if (hasWorkers && hasValidTime && _selectedDate != null && _addressController.text.isNotEmpty) {
+    if (hasWorkers && hasValidTime && _selectedDate != null && _addressController.text.isNotEmpty && hasValidPrice) {
       setState(() {
         _isSubmitting = true;
       });
@@ -525,10 +655,17 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       if (_bookingMode == 'Daily') {
          durationText = 'Full Day';
       } else {
-         if (_selectedSlots.length == 1) {
-           durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.first + 1)}';
+         bool isContiguous = true;
+         for (int i = 0; i < _selectedSlots.length - 1; i++) {
+           if (_selectedSlots[i + 1] != _selectedSlots[i] + 1) {
+             isContiguous = false;
+             break;
+           }
+         }
+         if (isContiguous) {
+           durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}';
          } else {
-            durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}';
+           durationText = _selectedSlots.map((h) => '${_formatTime(h)}-${_formatTime(h + 1)}').join(', ');
          }
       }
       
@@ -556,6 +693,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         'Duration': durationText,
         'Location': _addressController.text,
         'Slots': _bookingMode == 'Daily' ? 'Full Day' : _selectedSlots.map((h) => _formatTime(h)).join(', '),
+        'slots_list': _bookingMode == 'Daily' ? [] : _selectedSlots,
         'male_count': _maleCount,
         'female_count': _femaleCount,
         'role_counts': _selectedRoleCounts,
@@ -614,6 +752,10 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
       }
     } else {
+      if (hasWorkers && hasValidTime && _selectedDate != null && _addressController.text.isNotEmpty && !hasValidPrice) {
+        UiUtils.showCenteredToast(context, 'Total price cannot be zero. Cannot book without cost info.', isError: true);
+        return;
+      }
       setState(() {
         _fieldErrors.clear();
         if (!hasWorkers) {
@@ -733,6 +875,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                              _bookingMode = 'Daily';
                              _selectedStartHour = null;
                              _durationHours = 1;
+                             _selectedSlots.clear();
                            });
                            _recalculateAvailability();
                         },
@@ -759,7 +902,12 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () { 
-                           setState(() => _bookingMode = 'Hourly');
+                           setState(() {
+                             _bookingMode = 'Hourly';
+                             _selectedStartHour = null;
+                             _durationHours = 1;
+                             _selectedSlots.clear();
+                           });
                            _recalculateAvailability();
                         },
                         child: AnimatedContainer(
@@ -802,11 +950,12 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                       final maxCount = _getMaxCountForRole(role);
                       final dynamicMax = _dynamicMaxRoles[role] ?? maxCount;
                       final currentCount = _selectedRoleCounts[role] ?? 0;
-                      final price = gender == 'Male' ? widget.priceMale : widget.priceFemale;
 
                       return _buildCounter(
                         label: skill,
-                        subtitle: '$gender | ₹$price ${l10n.perDay} | Available: $dynamicMax',
+                        gender: gender,
+                        skill: skill,
+                        role: role,
                         count: currentCount,
                         max: dynamicMax,
                         onChanged: (val) => setState(() => _selectedRoleCounts[role] = val),
@@ -815,14 +964,16 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                   else ...[
                      _buildCounter(
                        label: l10n.maleWorkers,
-                       subtitle: '₹${widget.priceMale} ${l10n.perDay} | ${l10n.available}: $_dynamicMaxMale',
+                       gender: 'Male',
+                       skill: l10n.maleWorkers,
                        count: _maleCount,
                        max: _dynamicMaxMale,
                        onChanged: (val) => setState(() => _maleCount = val),
                      ),
                      _buildCounter(
                        label: l10n.femaleWorkers,
-                       subtitle: '₹${widget.priceFemale} ${l10n.perDay} | ${l10n.available}: $_dynamicMaxFemale',
+                       gender: 'Female',
+                       skill: l10n.femaleWorkers,
                        count: _femaleCount,
                        max: _dynamicMaxFemale,
                        onChanged: (val) => setState(() => _femaleCount = val),
@@ -845,15 +996,26 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                 maxLines: 3,
                 errorKey: 'address',
                 icon: Icons.map_rounded,
-                suffixIcon: _isFetchingLocation
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
-                      onPressed: _fetchCurrentLocation,
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.home_rounded, color: Color(0xFF00AA55)),
+                      onPressed: _useProfileAddress,
+                      tooltip: 'Use profile address',
                     ),
+                    _isFetchingLocation
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                          onPressed: _fetchCurrentLocation,
+                          tooltip: 'Get current location',
+                        ),
+                  ],
+                ),
               ),
             ),
 
@@ -985,10 +1147,35 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                     ],
                   ],
                   if (_bookingMode == 'Hourly') ...[
-                    Text(
-                      'Select Time Slots',
-                      key: _timeSectionKey,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Select Time Slots',
+                          key: _timeSectionKey,
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                        ),
+                        if (_selectedSlots.isNotEmpty)
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedSlots.clear();
+                                _selectedStartHour = null;
+                                _durationHours = 1;
+                              });
+                              _recalculateAvailability();
+                            },
+                            style: TextButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              'Clear All',
+                              style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                      ],
                     ),
                     if (_selectedDate == null)
                       Padding(
@@ -1033,65 +1220,93 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                                   boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8)] : null,
                                 ),
                                 alignment: Alignment.center,
-                                child: Text(
-                                  _formatTimeRange(hour),
-                                  style: TextStyle(
-                                    color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
-                                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                                    fontSize: 11,
-                                    decoration: isBlocked ? TextDecoration.lineThrough : null,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                    child: Text(
+                                      _formatTimeRange(hour),
+                                      style: TextStyle(
+                                        color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
+                                        fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                        fontSize: 11,
+                                        decoration: isBlocked ? TextDecoration.lineThrough : null,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             );
                           },
                         ),
-                        if (_selectedStartHour != null) ...[
+                        if (_selectedSlots.isNotEmpty) ...[
                           const SizedBox(height: 24),
                           const Text(
-                            'Rental Duration',
+                            'Selected Slots Details',
                             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
                           ),
                           const SizedBox(height: 12),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF9FBF9),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: const Color(0xFFE8F5E9)),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    _buildDurationControl(
-                                      icon: Icons.remove_rounded,
-                                      onPressed: _durationHours > 1 ? () => setState(() => _durationHours--) : null,
+                                    Row(
+                                      children: [
+                                        _buildDurationControl(
+                                          icon: Icons.remove_rounded,
+                                          onPressed: _selectedSlots.length > 1 ? _removeHour : null,
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                          child: Text(
+                                            '${_selectedSlots.length} ${_selectedSlots.length == 1 ? 'Hour' : 'Hours'}',
+                                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                                          ),
+                                        ),
+                                        _buildDurationControl(
+                                          icon: Icons.add_rounded,
+                                          onPressed: _canAddMoreHours() ? _addHour : null,
+                                        ),
+                                      ],
                                     ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      child: Text(
-                                        '$_durationHours ${_durationHours == 1 ? 'Hour' : 'Hours'}',
-                                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF00AA55).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                    ),
-                                    _buildDurationControl(
-                                      icon: Icons.add_rounded,
-                                      onPressed: _isRangeAvailable(_selectedStartHour!, _durationHours + 1) ? () => setState(() => _durationHours++) : null,
+                                      child: Text(
+                                        '₹$_totalPrice Est.',
+                                        style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w800, fontSize: 13),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE8F5E9),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '${_formatTime(_selectedStartHour!)} - ${_formatTime(_selectedStartHour! + _durationHours)}',
-                                    style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w900, fontSize: 12),
-                                  ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: _selectedSlots.map((hour) => Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFC8E6C9)),
+                                    ),
+                                    child: Text(
+                                      _formatTimeRange(hour),
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+                                    ),
+                                  )).toList(),
                                 ),
                               ],
                             ),
@@ -1245,7 +1460,28 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     );
   }
 
-  Widget _buildCounter({required String label, required int count, required int max, required Function(int) onChanged, String? subtitle}) {
+  Widget _buildCounter({
+    required String label,
+    required int count,
+    required int max,
+    required Function(int) onChanged,
+    String? subtitle,
+    String? skill,
+    String? gender,
+    String? role,
+  }) {
+    int currentRate = 0;
+    if (gender != null) {
+      currentRate = _bookingMode == 'Hourly' 
+        ? (gender == 'Male' ? widget.priceMaleHourly : widget.priceFemaleHourly)
+        : (gender == 'Male' ? widget.priceMale : widget.priceFemale);
+    }
+    // Fallback if hourly rate is 0
+    if (_bookingMode == 'Hourly' && currentRate == 0 && gender != null) {
+      currentRate = (gender == 'Male' ? (widget.priceMale / 8).round() : (widget.priceFemale / 8).round());
+    }
+    String rateUnit = _bookingMode == 'Hourly' ? '/ hr' : '/ day';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -1260,7 +1496,12 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B5E20))),
-                if (subtitle != null)
+                if (gender != null)
+                   Padding(
+                     padding: const EdgeInsets.only(top: 4.0),
+                     child: Text('$gender | ₹$currentRate$rateUnit | Available: $max', style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w600)),
+                   )
+                else if (subtitle != null)
                    Padding(
                      padding: const EdgeInsets.only(top: 4.0),
                      child: Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w600)),

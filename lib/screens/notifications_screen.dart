@@ -74,6 +74,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
+      debugPrint('Error loading notifications: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }

@@ -32,6 +32,8 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   late TextEditingController _nameController;
   late TextEditingController _priceController;
   late TextEditingController _locationController;
+  late TextEditingController _ownerBusinessNameController;
+  late TextEditingController _descriptionController;
 
   // Specifics
   late TextEditingController _secondaryController; // e.g., brandModel, type, groupName
@@ -55,6 +57,8 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _locationController = TextEditingController(text: widget.itemData['location']?.toString() ?? '');
     _secondaryController = TextEditingController();
     _capacityController = TextEditingController();
+    _ownerBusinessNameController = TextEditingController(text: widget.itemData['ownerBusinessName']?.toString() ?? '');
+    _descriptionController = TextEditingController(text: widget.itemData['description']?.toString() ?? '');
     _imageUrl = widget.itemData['imageUrl']?.toString();
 
     if (widget.category == 'Vehicle') {
@@ -89,6 +93,8 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _locationController.dispose();
     _secondaryController.dispose();
     _capacityController.dispose();
+    _ownerBusinessNameController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -180,6 +186,18 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         await _apiService.updateVehicle(widget.itemData['vehicleId'], updatedData);
       } else if (widget.category == 'Equipment') {
         updatedData['brandModel'] = _nameController.text;
+        updatedData['ownerBusinessName'] = _ownerBusinessNameController.text.isNotEmpty ? _ownerBusinessNameController.text : null;
+        updatedData['description'] = _descriptionController.text.isNotEmpty ? _descriptionController.text : null;
+        
+        final parts = _nameController.text.trim().split(' ');
+        if (parts.length > 1) {
+          updatedData['brand'] = parts[0];
+          updatedData['model'] = parts.sublist(1).join(' ');
+        } else {
+          updatedData['brand'] = _nameController.text;
+          updatedData['model'] = '';
+        }
+
         updatedData['pricePerHour'] = double.tryParse(_priceController.text) ?? 0.0;
         updatedData['category'] = _secondaryController.text;
         updatedData['operatorAvailable'] = _boolFlag;
@@ -303,9 +321,13 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                     const SizedBox(height: 20),
                     _buildTextField('Vehicle Number', _nameController, Icons.badge_outlined, hint: 'e.g., TS 01 AB 1234'),
                   ] else if (widget.category == 'Equipment') ...[
-                    _buildTextField('Category', _secondaryController, Icons.category_rounded, hint: 'e.g., Harvester, Tools'),
+                    _buildTextField('Owner / Business Name', _ownerBusinessNameController, Icons.person_rounded, hint: 'e.g., Baldev Singh Farms'),
+                    const SizedBox(height: 20),
+                    _buildTextField('Category', _secondaryController, Icons.category_rounded, hint: 'e.g., Tractor, Harvester'),
                     const SizedBox(height: 20),
                     _buildTextField('Brand & Model', _nameController, Icons.branding_watermark_outlined, hint: 'e.g., Mahindra 575 DI'),
+                    const SizedBox(height: 20),
+                    _buildTextField('Description (Optional)', _descriptionController, Icons.description_rounded, hint: 'e.g., Accessories included, good condition', maxLines: 3),
                   ] else if (widget.category == 'Service') ...[
                     _buildTextField('Service Type', _secondaryController, Icons.category_rounded, hint: 'e.g., Electrical, Plumbing'),
                     const SizedBox(height: 20),
@@ -420,7 +442,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     );
   }
 
-  Widget _buildSectionCard({required String title, required IconData icon, required Widget child}) {
+  Widget _buildSectionCard({required String title, required IconData icon, required Widget child, Widget? trailing}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
@@ -434,13 +456,19 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(icon, size: 20, color: const Color(0xFF00AA55)),
-                const SizedBox(width: 12),
-                Text(
-                  title.toUpperCase(),
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: const Color(0xFF1B5E20).withOpacity(0.6), letterSpacing: 1.2),
+                Row(
+                  children: [
+                    Icon(icon, size: 20, color: const Color(0xFF00AA55)),
+                    const SizedBox(width: 12),
+                    Text(
+                      title.toUpperCase(),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: const Color(0xFF1B5E20).withOpacity(0.6), letterSpacing: 1.2),
+                    ),
+                  ],
                 ),
+                if (trailing != null) trailing,
               ],
             ),
           ),
@@ -453,7 +481,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType keyboardType = TextInputType.text, Widget? suffixIcon, String? hint}) {
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType keyboardType = TextInputType.text, Widget? suffixIcon, String? hint, int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -468,6 +496,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
           child: TextField(
             controller: controller,
             keyboardType: keyboardType,
+            maxLines: maxLines,
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
             decoration: InputDecoration(
               hintText: hint,

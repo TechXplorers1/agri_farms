@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import '../utils/app_translations.dart';
@@ -68,6 +69,63 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   final int _startHour = 6;
   final int _endHour = 20;
   final List<int> _selectedSlots = [];
+  int? _selectedStartHour;
+  int _durationHours = 1;
+
+  void _addHour() {
+    if (_selectedSlots.isEmpty) return;
+    int lastHour = _selectedSlots.last;
+    for (int h = lastHour + 1; h < _endHour; h++) {
+      if (!_isSlotBlocked(h)) {
+        setState(() {
+          _selectedSlots.add(h);
+          _selectedSlots.sort();
+          _selectedStartHour = _selectedSlots.first;
+          _durationHours = _selectedSlots.length;
+        });
+        break;
+      }
+    }
+  }
+
+  void _removeHour() {
+    if (_selectedSlots.isEmpty) return;
+    setState(() {
+      _selectedSlots.removeLast();
+      if (_selectedSlots.isNotEmpty) {
+        _selectedStartHour = _selectedSlots.first;
+        _durationHours = _selectedSlots.length;
+      } else {
+        _selectedStartHour = null;
+        _durationHours = 1;
+      }
+    });
+  }
+
+  bool _canAddMoreHours() {
+    if (_selectedSlots.isEmpty) return false;
+    int lastHour = _selectedSlots.last;
+    for (int h = lastHour + 1; h < _endHour; h++) {
+      if (!_isSlotBlocked(h)) return true;
+    }
+    return false;
+  }
+
+  Widget _buildDurationControl({required IconData icon, VoidCallback? onPressed}) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: onPressed == null ? Colors.grey[100] : const Color(0xFF00AA55).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, size: 20, color: onPressed == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+      ),
+    );
+  }
 
   // Electrician Specific Fields
   final List<String> _electricianPurposes = [
@@ -97,11 +155,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   final TextEditingController _customPurposeController = TextEditingController();
   final TextEditingController _customAssetController = TextEditingController();
 
-  // Real Logic: Check if a slot is blocked
-  bool _isSlotBlocked(int hour) {
-    if (_selectedDate == null) return false;
-    
-    DateTime slotStart = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, hour);
+  bool _isSlotBlockedForDate(DateTime date, int hour) {
+    DateTime slotStart = DateTime(date.year, date.month, date.day, hour);
     DateTime slotEnd = slotStart.add(const Duration(hours: 1)); 
 
     // Block past time slots for today
@@ -113,7 +168,25 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       if (booking.scheduledStartTime != null && booking.scheduledEndTime != null) {
         DateTime bStart = booking.scheduledStartTime!.toLocal();
         DateTime bEnd = booking.scheduledEndTime!.toLocal();
-        if (slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart)) {
+        
+        Map<String, dynamic> notes = {};
+        try { notes = jsonDecode(booking.notes ?? '{}'); } catch(_){}
+        
+        List<int> bookedHours = [];
+        if (notes.containsKey('slots_list')) {
+          try {
+            bookedHours = (notes['slots_list'] as List<dynamic>).map((e) => int.parse(e.toString())).toList();
+          } catch (_) {}
+        }
+        
+        bool isOccupiedInThisSlot = false;
+        if (bookedHours.isNotEmpty) {
+          isOccupiedInThisSlot = bookedHours.contains(hour);
+        } else {
+          isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+        }
+        
+        if (isOccupiedInThisSlot) {
            final String status = booking.status?.toUpperCase() ?? '';
            if (status != 'CANCELLED' && status != 'REJECTED' && status != 'COMPLETED' && status != 'FINISHED') {
              return true;
@@ -122,6 +195,12 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       }
     }
     return false;
+  }
+
+  // Real Logic: Check if a slot is blocked
+  bool _isSlotBlocked(int hour) {
+    if (_selectedDate == null) return false;
+    return _isSlotBlockedForDate(_selectedDate!, hour);
   }
 
   void _onSlotTap(int hour) {
@@ -140,6 +219,13 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       } else {
         _selectedSlots.add(hour);
         _selectedSlots.sort();
+      }
+      if (_selectedSlots.isNotEmpty) {
+        _selectedStartHour = _selectedSlots.first;
+        _durationHours = _selectedSlots.length;
+      } else {
+        _selectedStartHour = null;
+        _durationHours = 1;
       }
     });
   }
@@ -259,6 +345,54 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       if (mounted) UiUtils.showCenteredToast(context, 'Could not fetch location. Try again.', isError: true);
     } finally {
       if (mounted) setState(() => _isFetchingLocation = false);
+    }
+  }
+
+  Future<void> _pasteFromClipboard(TextEditingController controller, String errorKey) async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      if (data != null && data.text != null && data.text!.isNotEmpty) {
+        setState(() {
+          controller.text = data.text!;
+          if (_fieldErrors.containsKey(errorKey)) {
+            _fieldErrors.remove(errorKey);
+          }
+        });
+        _debounceGeocoding();
+        UiUtils.showCenteredToast(context, 'Address pasted successfully');
+      } else {
+        UiUtils.showCenteredToast(context, 'Clipboard is empty or contains non-text content', isError: true);
+      }
+    } catch (e) {
+      UiUtils.showCenteredToast(context, 'Failed to paste from clipboard', isError: true);
+    }
+  }
+
+  Future<void> _useProfileAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final houseNo = prefs.getString('user_houseNo') ?? '';
+    final street = prefs.getString('user_street') ?? '';
+    final village = prefs.getString('user_village') ?? '';
+    final district = prefs.getString('user_district') ?? '';
+    final state = prefs.getString('user_state') ?? '';
+    final country = prefs.getString('user_country') ?? '';
+    final pincode = prefs.getString('user_pincode') ?? '';
+
+    final parts = [houseNo, street, village, district, state, country, pincode]
+        .where((part) => part.isNotEmpty)
+        .join(', ');
+
+    if (parts.isNotEmpty) {
+      setState(() {
+        _addressController.text = parts;
+        if (_fieldErrors.containsKey('address')) {
+          _fieldErrors.remove('address');
+        }
+      });
+      _debounceGeocoding();
+      UiUtils.showCenteredToast(context, 'Profile address loaded');
+    } else {
+      UiUtils.showCenteredToast(context, 'No profile address saved. Please update in profile page.', isError: true);
     }
   }
 
@@ -434,20 +568,12 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   }
 
   bool _isDateBooked(DateTime date) {
-    for (var booking in _existingBookings) {
-      if (booking.scheduledStartTime != null) {
-        DateTime localStart = booking.scheduledStartTime!.toLocal();
-        DateTime bookingDay = DateTime(localStart.year, localStart.month, localStart.day);
-        DateTime targetDay = DateTime(date.year, date.month, date.day);
-        if (bookingDay == targetDay) {
-           final String status = booking.status?.toUpperCase() ?? '';
-           if (status != 'CANCELLED' && status != 'REJECTED' && status != 'COMPLETED' && status != 'FINISHED') {
-             return true;
-           }
-        }
+    for (int hour = _startHour; hour < _endHour; hour++) {
+      if (!_isSlotBlockedForDate(date, hour)) {
+        return false;
       }
     }
-    return false;
+    return true;
   }
 
 
@@ -489,7 +615,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         (_selectedAssetType != null && (_selectedAssetType != 'Others' || _customAssetController.text.isNotEmpty))
       : _quantityController.text.isNotEmpty;
 
-    if (_selectedDate != null && isQtyValid && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty) {
+    bool hasValidPrice = _totalPrice > 0;
+
+    if (_selectedDate != null && isQtyValid && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty && hasValidPrice) {
       setState(() {
         _isSubmitting = true;
       });
@@ -509,6 +637,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         'Service': widget.serviceName,
         'Location': _addressController.text,
         'Preferred Time': timeStr,
+        'slots_list': _selectedSlots,
         'Notes': _notesController.text,
       };
 
@@ -563,6 +692,10 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
       }
     } else {
+      if (_selectedDate != null && isQtyValid && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty && !hasValidPrice) {
+        UiUtils.showCenteredToast(context, 'Total price cannot be zero. Cannot book without cost info.', isError: true);
+        return;
+      }
       setState(() {
         _fieldErrors.clear();
         if (isElectrician) {
@@ -772,16 +905,26 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                     maxLines: 3,
                     errorKey: 'address',
                     icon: Icons.map_rounded,
-                    suffixIcon: _isFetchingLocation
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
-                          tooltip: 'Use my current location',
-                          onPressed: _fetchCurrentLocation,
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.home_rounded, color: Color(0xFF00AA55)),
+                          onPressed: _useProfileAddress,
+                          tooltip: 'Use profile address',
                         ),
+                        _isFetchingLocation
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                              tooltip: 'Use my current location',
+                              onPressed: _fetchCurrentLocation,
+                            ),
+                      ],
+                    ),
                     onChanged: (_) {
                       if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
                       _debounceGeocoding();
@@ -1010,10 +1153,34 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                   ),
 
                   const SizedBox(height: 30),
-                  Text(
-                    l10n.preferredTime,
-                    key: _timeSectionKey,
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        l10n.preferredTime,
+                        key: _timeSectionKey,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                      ),
+                      if (_selectedSlots.isNotEmpty)
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedSlots.clear();
+                              _selectedStartHour = null;
+                              _durationHours = 1;
+                            });
+                          },
+                          style: TextButton.styleFrom(
+                            minimumSize: Size.zero,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Clear All',
+                            style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                    ],
                   ),
                   if (_selectedDate == null)
                     Padding(
@@ -1061,13 +1228,19 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                               boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8)] : null,
                             ),
                             alignment: Alignment.center,
-                            child: Text(
-                              _formatTimeRange(hour),
-                              style: TextStyle(
-                                color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
-                                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                                fontSize: 11,
-                                decoration: isBlocked ? TextDecoration.lineThrough : null,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                child: Text(
+                                  _formatTimeRange(hour),
+                                  style: TextStyle(
+                                    color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
+                                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                    fontSize: 11,
+                                    decoration: isBlocked ? TextDecoration.lineThrough : null,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -1097,11 +1270,20 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                               children: [
                                 Row(
                                   children: [
-                                    const Icon(Icons.access_time_filled_rounded, color: Color(0xFF1B5E20), size: 18),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${_selectedSlots.length} ${_selectedSlots.length == 1 ? 'Hour' : 'Hours'} Selected',
-                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+                                    _buildDurationControl(
+                                      icon: Icons.remove_rounded,
+                                      onPressed: _selectedSlots.length > 1 ? _removeHour : null,
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      child: Text(
+                                        '${_selectedSlots.length} ${_selectedSlots.length == 1 ? 'Hour' : 'Hours'}',
+                                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                                      ),
+                                    ),
+                                    _buildDurationControl(
+                                      icon: Icons.add_rounded,
+                                      onPressed: _canAddMoreHours() ? _addHour : null,
                                     ),
                                   ],
                                 ),
@@ -1328,6 +1510,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: value,
+          isExpanded: true,
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
           decoration: _inputDecoration(hint, isError: hasError, icon: icon),
           items: items.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),

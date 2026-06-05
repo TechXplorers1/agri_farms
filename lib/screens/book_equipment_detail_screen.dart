@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
@@ -71,9 +72,45 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   bool _isSubmitting = false;
   bool _isFetchingLocation = false;
 
-  List<int> get _selectedSlots {
-    if (_selectedStartHour == null) return [];
-    return List.generate(_durationHours, (i) => _selectedStartHour! + i);
+  final List<int> _selectedSlots = [];
+
+  void _addHour() {
+    if (_selectedSlots.isEmpty) return;
+    int lastHour = _selectedSlots.last;
+    for (int h = lastHour + 1; h < _endHour; h++) {
+      if (!_isSlotBlocked(h)) {
+        setState(() {
+          _selectedSlots.add(h);
+          _selectedSlots.sort();
+          _selectedStartHour = _selectedSlots.first;
+          _durationHours = _selectedSlots.length;
+        });
+        break;
+      }
+    }
+  }
+
+  void _removeHour() {
+    if (_selectedSlots.isEmpty) return;
+    setState(() {
+      _selectedSlots.removeLast();
+      if (_selectedSlots.isNotEmpty) {
+        _selectedStartHour = _selectedSlots.first;
+        _durationHours = _selectedSlots.length;
+      } else {
+        _selectedStartHour = null;
+        _durationHours = 1;
+      }
+    });
+  }
+
+  bool _canAddMoreHours() {
+    if (_selectedSlots.isEmpty) return false;
+    int lastHour = _selectedSlots.last;
+    for (int h = lastHour + 1; h < _endHour; h++) {
+      if (!_isSlotBlocked(h)) return true;
+    }
+    return false;
   }
 
   @override
@@ -294,6 +331,92 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     }
   }
 
+  Future<void> _pasteAddressFromClipboard() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      if (data != null && data.text != null && data.text!.isNotEmpty) {
+        final addressText = data.text!;
+        final parts = addressText.split(',').map((e) => e.trim()).toList();
+        
+        setState(() {
+          if (parts.length >= 7) {
+            _houseNoController.text = parts[0];
+            _streetController.text = parts[1];
+            _villageController.text = parts[2];
+            _districtController.text = parts[3];
+            _stateController.text = parts[4];
+            _countryController.text = parts[5];
+            _pincodeController.text = parts[6];
+          } else if (parts.length == 6) {
+            _houseNoController.text = parts[0];
+            _streetController.text = parts[1];
+            _villageController.text = parts[2];
+            _districtController.text = parts[3];
+            _stateController.text = parts[4];
+            _pincodeController.text = parts[5];
+          } else if (parts.length == 5) {
+            _houseNoController.text = '';
+            _streetController.text = parts[0];
+            _villageController.text = parts[1];
+            _districtController.text = parts[2];
+            _stateController.text = parts[3];
+            _pincodeController.text = parts[4];
+          } else if (parts.length == 4) {
+            _houseNoController.text = '';
+            _streetController.text = '';
+            _villageController.text = parts[0];
+            _districtController.text = parts[1];
+            _stateController.text = parts[2];
+            _pincodeController.text = parts[3];
+          } else {
+            _houseNoController.text = '';
+            _streetController.text = '';
+            _villageController.text = parts[0];
+            if (parts.length > 1) _districtController.text = parts[1];
+            if (parts.length > 2) _stateController.text = parts[2];
+          }
+          if (_fieldErrors.containsKey('address')) {
+            _fieldErrors.remove('address');
+          }
+        });
+        UiUtils.showCenteredToast(context, 'Address pasted and filled successfully');
+      } else {
+        UiUtils.showCenteredToast(context, 'Clipboard is empty or contains non-text content', isError: true);
+      }
+    } catch (e) {
+      UiUtils.showCenteredToast(context, 'Failed to paste from clipboard', isError: true);
+    }
+  }
+
+  Future<void> _useProfileAddress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final houseNo = prefs.getString('user_houseNo') ?? '';
+    final street = prefs.getString('user_street') ?? '';
+    final village = prefs.getString('user_village') ?? '';
+    final district = prefs.getString('user_district') ?? '';
+    final state = prefs.getString('user_state') ?? '';
+    final country = prefs.getString('user_country') ?? 'India';
+    final pincode = prefs.getString('user_pincode') ?? '';
+
+    if (houseNo.isNotEmpty || street.isNotEmpty || village.isNotEmpty || district.isNotEmpty || state.isNotEmpty || pincode.isNotEmpty) {
+      setState(() {
+        _houseNoController.text = houseNo;
+        _streetController.text = street;
+        _villageController.text = village;
+        _districtController.text = district;
+        _stateController.text = state;
+        _countryController.text = country;
+        _pincodeController.text = pincode;
+        if (_fieldErrors.containsKey('address')) {
+          _fieldErrors.remove('address');
+        }
+      });
+      UiUtils.showCenteredToast(context, 'Profile address loaded');
+    } else {
+      UiUtils.showCenteredToast(context, 'No profile address saved. Please update in profile page.', isError: true);
+    }
+  }
+
   @override
   void dispose() {
     _houseNoController.dispose();
@@ -336,7 +459,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Colors.green, // Equipment Theme Green
+              primary: Color(0xFF00AA55), // Equipment Theme Green
               onPrimary: Colors.white,
               onSurface: Colors.black,
             ),
@@ -350,6 +473,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         _selectedDate = picked;
         _selectedStartHour = null;
         _durationHours = 1;
+        _selectedSlots.clear();
       });
     }
   }
@@ -370,7 +494,25 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       if (booking.scheduledStartTime != null && booking.scheduledEndTime != null) {
         DateTime bStart = booking.scheduledStartTime!.toLocal();
         DateTime bEnd = booking.scheduledEndTime!.toLocal();
-        if (slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart)) {
+        
+        Map<String, dynamic> notes = {};
+        try { notes = jsonDecode(booking.notes ?? '{}'); } catch(_){}
+        
+        List<int> bookedHours = [];
+        if (notes.containsKey('slots_list')) {
+          try {
+            bookedHours = (notes['slots_list'] as List<dynamic>).map((e) => int.parse(e.toString())).toList();
+          } catch (_) {}
+        }
+        
+        bool isOccupiedInThisSlot = false;
+        if (bookedHours.isNotEmpty) {
+          isOccupiedInThisSlot = bookedHours.contains(hour);
+        } else {
+          isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+        }
+
+        if (isOccupiedInThisSlot) {
            final String status = booking.status?.toUpperCase() ?? '';
            if (status != 'CANCELLED' && status != 'REJECTED' && status != 'COMPLETED' && status != 'FINISHED') {
              return true;
@@ -392,8 +534,19 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     }
 
     setState(() {
-      _selectedStartHour = hour;
-      _durationHours = 1;
+      if (_selectedSlots.contains(hour)) {
+        _selectedSlots.remove(hour);
+      } else {
+        _selectedSlots.add(hour);
+        _selectedSlots.sort();
+      }
+      if (_selectedSlots.isNotEmpty) {
+        _selectedStartHour = _selectedSlots.first;
+        _durationHours = _selectedSlots.length;
+      } else {
+        _selectedStartHour = null;
+        _durationHours = 1;
+      }
     });
   }
 
@@ -417,7 +570,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       _pincodeController.text
     ].where((part) => part.isNotEmpty).join(', ');
 
-    if (_selectedSlots.isNotEmpty && _selectedDate != null && fullAddress.isNotEmpty) {
+    bool hasValidPrice = _totalPrice > 0;
+
+    if (_selectedSlots.isNotEmpty && _selectedDate != null && fullAddress.isNotEmpty && hasValidPrice) {
       setState(() {
         _isSubmitting = true;
       });
@@ -452,6 +607,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         'Location': fullAddress,
         'Duration': durationText,
         'Operator Required': _includeOperator ? 'Yes' : 'No',
+        'slots_list': _selectedSlots,
         'Notes': _notesController.text,
       };
 
@@ -497,6 +653,10 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
       }
     } else {
+      if (_selectedSlots.isNotEmpty && _selectedDate != null && fullAddress.isNotEmpty && !hasValidPrice) {
+        UiUtils.showCenteredToast(context, 'Total price cannot be zero. Cannot book without cost info.', isError: true);
+        return;
+      }
       setState(() {
         _fieldErrors.clear();
         if (fullAddress.isEmpty) {
@@ -623,13 +783,22 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                         'FARM ADDRESS DETAILS',
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF546E7A), letterSpacing: 1.0),
                       ),
-                      _isFetchingLocation
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55)))
-                        : IconButton(
-                            icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
-                            tooltip: 'Auto Detect GPS Location',
-                            onPressed: _fetchCurrentLocation,
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.home_rounded, color: Color(0xFF00AA55)),
+                            tooltip: 'Use Profile Address',
+                            onPressed: _useProfileAddress,
                           ),
+                          _isFetchingLocation
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55)))
+                            : IconButton(
+                                icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                                tooltip: 'Auto Detect GPS Location',
+                                onPressed: _fetchCurrentLocation,
+                              ),
+                        ],
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -827,7 +996,34 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                   ),
 
                   const SizedBox(height: 24),
-                  const Text('Select Start Time', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Select Start Time',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                      ),
+                      if (_selectedSlots.isNotEmpty)
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedSlots.clear();
+                              _selectedStartHour = null;
+                              _durationHours = 1;
+                            });
+                          },
+                          style: TextButton.styleFrom(
+                            minimumSize: Size.zero,
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Clear All',
+                            style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                    ],
+                  ),
                   if (_selectedDate == null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -871,13 +1067,19 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                                 boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8)] : null,
                               ),
                               alignment: Alignment.center,
-                              child: Text(
-                                _formatTimeRange(hour),
-                                style: TextStyle(
-                                  color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
-                                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                                  fontSize: 11,
-                                  decoration: isBlocked ? TextDecoration.lineThrough : null,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                  child: Text(
+                                    _formatTimeRange(hour),
+                                    style: TextStyle(
+                                      color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
+                                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                      fontSize: 11,
+                                      decoration: isBlocked ? TextDecoration.lineThrough : null,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -886,58 +1088,75 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                       ),
                   ],
 
-                  if (_selectedStartHour != null) ...[
+                  if (_selectedSlots.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    const Text('Rental Duration', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    const Text('Selected Slots Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF9FBF9),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: const Color(0xFFE8F5E9)),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _buildDurationControl(
-                                icon: Icons.remove_rounded,
-                                onPressed: _durationHours > 1 ? () => setState(() => _durationHours--) : null,
+                              Row(
+                                children: [
+                                  _buildDurationControl(
+                                    icon: Icons.remove_rounded,
+                                    onPressed: _selectedSlots.length > 1 ? _removeHour : null,
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    child: Text(
+                                      '${_selectedSlots.length} ${_selectedSlots.length == 1 ? 'Hour' : 'Hours'}',
+                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                                    ),
+                                  ),
+                                  _buildDurationControl(
+                                    icon: Icons.add_rounded,
+                                    onPressed: _canAddMoreHours() ? _addHour : null,
+                                  ),
+                                ],
                               ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                child: Text(
-                                  '$_durationHours ${_durationHours == 1 ? 'Hour' : 'Hours'}',
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF00AA55).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                              ),
-                              _buildDurationControl(
-                                icon: Icons.add_rounded,
-                                onPressed: _isRangeAvailable(_selectedStartHour!, _durationHours + 1) ? () => setState(() => _durationHours++) : null,
+                                child: Text(
+                                  '₹${_totalPrice.toStringAsFixed(0)} Est.',
+                                  style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w800, fontSize: 13),
+                                ),
                               ),
                             ],
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F5E9),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${_formatTime(_selectedStartHour!)} - ${_formatTime(_selectedStartHour! + _durationHours)}',
-                              style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w900, fontSize: 12),
-                            ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _selectedSlots.map((hour) => Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFC8E6C9)),
+                              ),
+                              child: Text(
+                                _formatTimeRange(hour),
+                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+                              ),
+                            )).toList(),
                           ),
                         ],
                       ),
                     ),
-                    if (!_isRangeAvailable(_selectedStartHour!, _durationHours + 1) && (_selectedStartHour! + _durationHours) < _endHour)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8, left: 4),
-                        child: Text('Next slot is unavailable', style: TextStyle(color: Colors.orange[800], fontSize: 11, fontWeight: FontWeight.w600)),
-                      ),
                   ],
                 ],
               ),
