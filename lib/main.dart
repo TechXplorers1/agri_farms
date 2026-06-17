@@ -10,8 +10,18 @@ import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
 import 'dart:async';
+import 'dart:io';
+
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+  }
+}
 
 void main() {
+  HttpOverrides.global = MyHttpOverrides();
   runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
     

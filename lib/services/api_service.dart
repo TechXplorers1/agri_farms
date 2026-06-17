@@ -6,7 +6,7 @@ import '../config/api_config.dart';
 class ApiService {
   final String baseUrl;
 
-  ApiService({this.baseUrl = ApiConfig.baseUrl});
+  ApiService({String? baseUrl}) : baseUrl = baseUrl ?? ApiConfig.baseUrl;
 
   // Generic GET method
   Future<dynamic> get(String endpoint) async {

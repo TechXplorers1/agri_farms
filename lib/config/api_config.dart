@@ -1,8 +1,19 @@
-  import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
+
+  enum Environment { dev, prod }
 
   class ApiConfig {
-    // Automatically switches to localhost on web, and your local PC Wi-Fi IP on physical/emulated mobile devices!
-    static const String baseUrl = 'http://192.168.29.237:8083'; 
+    // Switches environment based on compile-time ENV variable (defaults to dev)
+    static const Environment env = Environment.dev;
+ 
+    // Development base API endpoint
+    static const String devBaseUrl = 'http://192.168.29.237:8083';
+    
+    // Production base API endpoint (AWS ECS Load Balancer / Custom Domain)
+    // Override at build time using: --dart-define=API_URL=https://your-load-balancer-url
+    static const String prodBaseUrl = String.fromEnvironment('API_URL', defaultValue: 'http://agri-prod-alb-1519009909.ap-south-2.elb.amazonaws.com');
+
+    static String get baseUrl => env == Environment.prod ? prodBaseUrl : devBaseUrl;
     static const String users = '/api/users';
     static const String bookings = '/api/bookings';
     static const String inventoryEquipment = '/api/inventory/equipment';
