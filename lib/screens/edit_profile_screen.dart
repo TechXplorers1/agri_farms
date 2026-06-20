@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/api_service.dart';
+import '../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import '../services/geocoding_service.dart';

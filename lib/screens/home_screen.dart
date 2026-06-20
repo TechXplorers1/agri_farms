@@ -24,8 +24,8 @@ import 'upload_item_screen.dart';
 import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
 
-import '../../services/api_service.dart';
-import '../../services/notification_service.dart';
+import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/ui_utils.dart';
 import '../utils/location_helper.dart';

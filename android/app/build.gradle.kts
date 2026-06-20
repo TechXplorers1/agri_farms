@@ -31,6 +31,7 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true
+        manifestPlaceholders += mapOf("appAuthRedirectScheme" to "agrifarms")
     }
 
     buildTypes {

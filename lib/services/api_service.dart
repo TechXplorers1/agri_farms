@@ -1,18 +1,86 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_appauth/flutter_appauth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 
 class ApiService {
   final String baseUrl;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  final FlutterAppAuth _appAuth = const FlutterAppAuth();
 
   ApiService({String? baseUrl}) : baseUrl = baseUrl ?? ApiConfig.baseUrl;
+
+  Future<String?> _getValidAccessToken() async {
+    final accessToken = await _secureStorage.read(key: 'access_token');
+    final refreshToken = await _secureStorage.read(key: 'refresh_token');
+    final expiryStr = await _secureStorage.read(key: 'access_token_expiry');
+
+    if (accessToken == null) return null;
+
+    if (expiryStr != null) {
+      final expiry = DateTime.parse(expiryStr);
+      if (expiry.difference(DateTime.now()).inSeconds > 15) {
+        return accessToken;
+      }
+    }
+
+    if (refreshToken != null) {
+      try {
+        final result = await _appAuth.token(TokenRequest(
+          ApiConfig.keycloakClientId,
+          ApiConfig.keycloakRedirectUri,
+          issuer: ApiConfig.keycloakIssuer,
+          refreshToken: refreshToken,
+          scopes: ApiConfig.keycloakScopes,
+        ));
+        if (result != null && result.accessToken != null) {
+          await _secureStorage.write(key: 'access_token', value: result.accessToken);
+          if (result.refreshToken != null) {
+            await _secureStorage.write(key: 'refresh_token', value: result.refreshToken);
+          }
+          if (result.accessTokenExpirationDateTime != null) {
+            await _secureStorage.write(
+              key: 'access_token_expiry',
+              value: result.accessTokenExpirationDateTime!.toIso8601String(),
+            );
+          }
+          return result.accessToken;
+        }
+      } catch (e) {
+        print('Error refreshing token: $e');
+        await clearTokens();
+      }
+    }
+    return null;
+  }
+
+  Future<void> clearTokens() async {
+    await _secureStorage.delete(key: 'access_token');
+    await _secureStorage.delete(key: 'refresh_token');
+    await _secureStorage.delete(key: 'access_token_expiry');
+  }
+
+  Future<Map<String, String>> _getHeaders({bool isJson = false}) async {
+    final headers = <String, String>{};
+    if (isJson) {
+      headers['Content-Type'] = 'application/json';
+    }
+    final token = await _getValidAccessToken();
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    return headers;
+  }
 
   // Generic GET method
   Future<dynamic> get(String endpoint) async {
     final url = Uri.parse('$baseUrl$endpoint');
     try {
-      final response = await http.get(url);
+      final headers = await _getHeaders();
+      final response = await http.get(url, headers: headers);
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
@@ -27,9 +95,10 @@ class ApiService {
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
     final url = Uri.parse('$baseUrl$endpoint');
     try {
+      final headers = await _getHeaders(isJson: true);
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: json.encode(data),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -46,9 +115,10 @@ class ApiService {
   Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
     final url = Uri.parse('$baseUrl$endpoint');
     try {
+      final headers = await _getHeaders(isJson: true);
       final response = await http.put(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: json.encode(data),
       );
       if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
@@ -66,7 +136,8 @@ class ApiService {
   Future<dynamic> delete(String endpoint) async {
     final url = Uri.parse('$baseUrl$endpoint');
     try {
-      final response = await http.delete(url);
+      final headers = await _getHeaders();
+      final response = await http.delete(url, headers: headers);
       if (response.statusCode == 200 || response.statusCode == 204) {
         return response.body.isNotEmpty ? json.decode(response.body) : {};
       } else {
@@ -104,6 +175,34 @@ class ApiService {
     return await get('${ApiConfig.users}/$userId/stats');
   }
 
+  /// DEV MODE: Static login — no Firebase required.
+  /// Calls /api/auth/static-login with phone + role.
+  /// Backend creates user on signup or returns existing user on login.
+  Future<Map<String, dynamic>> staticLogin({
+    required String mobileNumber,
+    required String role,
+    required String fullName,
+    required bool isLogin,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/auth/static-login');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'phoneNumber': mobileNumber,
+        'role': role,
+        'fullName': fullName.isNotEmpty ? fullName : null,
+        'isLogin': isLogin,
+      }),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    } else {
+      throw Exception('staticLogin failed: ${response.statusCode} ${response.body}');
+    }
+  }
+
+
   // Bookings
   Future<dynamic> createBooking(Map<String, dynamic> bookingData) async {
     return await post(ApiConfig.bookings, bookingData);
@@ -124,7 +223,8 @@ class ApiService {
   Future<dynamic> putStatus(String endpoint) async {
     final url = Uri.parse('$baseUrl$endpoint');
     try {
-      final response = await http.put(url);
+      final headers = await _getHeaders();
+      final response = await http.put(url, headers: headers);
       if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
         return response.body.isNotEmpty ? json.decode(response.body) : {};
       } else {
@@ -292,6 +392,8 @@ class ApiService {
     final url = Uri.parse('$baseUrl/api/media/upload');
     try {
       var request = http.MultipartRequest('POST', url);
+      final headers = await _getHeaders();
+      request.headers.addAll(headers);
       final bytes = await imageFile.readAsBytes();
       request.files.add(http.MultipartFile.fromBytes(
         'file',
@@ -310,5 +412,38 @@ class ApiService {
     } catch (e) {
       throw Exception('Error uploading image: $e');
     }
+  }
+
+  // Firebase login token sync endpoint integration
+  Future<dynamic> firebaseLogin({
+    required String idToken,
+    required String role,
+    String? fullName,
+  }) async {
+    final response = await post('/api/auth/firebase-login', {
+      'idToken': idToken,
+      'role': role,
+      'fullName': fullName ?? '',
+    });
+    
+    if (response != null && response['access_token'] != null) {
+      await _secureStorage.write(key: 'access_token', value: response['access_token']);
+      if (response['refresh_token'] != null) {
+        await _secureStorage.write(key: 'refresh_token', value: response['refresh_token']);
+      }
+      
+      final expiresIn = response['expires_in'] ?? 300;
+      final expiry = DateTime.now().add(Duration(seconds: expiresIn));
+      await _secureStorage.write(key: 'access_token_expiry', value: expiry.toIso8601String());
+
+      // Save credentials locally in SharedPreferences for UI consumption
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', response['userId'] ?? '');
+      await prefs.setString('user_role', response['role'] ?? '');
+      await prefs.setString('user_name', response['fullName'] ?? '');
+      await prefs.setString('user_phone', response['phoneNumber'] ?? '');
+      await prefs.setString('user_email', response['email'] ?? '');
+    }
+    return response;
   }
 }

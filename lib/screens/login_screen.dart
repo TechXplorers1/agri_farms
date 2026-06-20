@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import 'verify_otp_screen.dart';
-import '../../services/api_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -16,13 +14,12 @@ class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   String? _selectedRole;
-  bool _isLogin = true; // Default to Login
+  bool _isLogin = true; 
   bool _isButtonEnabled = false;
   bool _isLoading = false;
 
   List<String> _getRoles(BuildContext context) {
-    var l10n = AppLocalizations.of(context)!;
-    return [l10n.generalUser, l10n.farmer];
+    return ['Farmer', 'Owner'];
   }
 
   @override
@@ -42,13 +39,11 @@ class _AuthScreenState extends State<AuthScreen> {
   void _validateInput() {
     setState(() {
       if (_isLogin) {
-        // Login: Only Phone required
         _isButtonEnabled = _phoneController.text.length == 10;
       } else {
-        // Sign Up: All fields required
         _isButtonEnabled = _phoneController.text.length == 10 &&
-          _nameController.text.trim().isNotEmpty &&
-          _selectedRole != null;
+            _nameController.text.trim().isNotEmpty &&
+            _selectedRole != null;
       }
     });
   }
@@ -84,92 +79,22 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _getOtp() async {
     if (_isButtonEnabled) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      try {
-        final apiService = ApiService();
-        
-        if (_isLogin) {
-          try {
-            await apiService.getUserByPhone(_phoneController.text);
-          } catch (e) {
-            if (e.toString().contains('404') || e.toString().contains('Not Found')) {
-              if (mounted) {
-                _showErrorDialog('Account Not Found', 'Please sign up or register to get logged in.');
-                setState(() => _isLoading = false);
-              }
-              return;
-            } else {
-              if (mounted) {
-                _showErrorDialog('Error', 'Failed to verify account: $e');
-                setState(() => _isLoading = false);
-              }
-              return;
-            }
-          }
-        } else {
-          try {
-            await apiService.getUserByPhone(_phoneController.text);
-            if (mounted) {
-              _showErrorDialog('Account Exists', 'This mobile number is already registered. Please login instead.');
-              setState(() => _isLoading = false);
-            }
-            return;
-          } catch (e) {
-            if (e.toString().contains('404') || e.toString().contains('Not Found')) {
-              // Expected missing user
-            } else {
-              if (mounted) {
-                _showErrorDialog('Error', 'Failed to check account: $e');
-                setState(() => _isLoading = false);
-              }
-              return;
-            }
-          }
-        }
-
-        // Trigger real Firebase Phone Verification
-        await FirebaseAuth.instance.verifyPhoneNumber(
-          phoneNumber: '+91${_phoneController.text}',
-          verificationCompleted: (PhoneAuthCredential credential) async {
-            // Auto-retrieval or instant verification on Android
-            try {
-              await FirebaseAuth.instance.signInWithCredential(credential);
-            } catch (e) {
-              debugPrint("Auto verification sign-in failed: $e");
-            }
-          },
-          verificationFailed: (FirebaseAuthException e) {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              _showErrorDialog('Verification Failed', e.message ?? 'An error occurred during verification.');
-            }
-          },
-          codeSent: (String verificationId, int? resendToken) {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => VerifyOtpScreen(
-                    mobileNumber: _phoneController.text,
-                    fullName: _isLogin ? '' : _nameController.text,
-                    role: _isLogin ? '' : _selectedRole!,
-                    isLogin: _isLogin,
-                    verificationId: verificationId, // Real Firebase Verification ID
-                  ),
-                ),
-              );
-            }
-          },
-          codeAutoRetrievalTimeout: (String verificationId) {},
+      // DEV MODE: No backend checks. Any 10-digit number goes to OTP screen.
+      setState(() => _isLoading = true);
+      await Future.delayed(const Duration(milliseconds: 300)); // brief visual feedback
+      if (mounted) {
+        setState(() => _isLoading = false);
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => VerifyOtpScreen(
+              mobileNumber: _phoneController.text,
+              fullName: _isLogin ? '' : _nameController.text,
+              role: _isLogin ? 'Farmer' : (_selectedRole ?? 'Farmer'),
+              isLogin: _isLogin,
+              verificationId: 'static-dev-otp',
+            ),
+          ),
         );
-      } catch (e) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          _showErrorDialog('Error', 'Verification process failed: $e');
-        }
       }
     }
   }
@@ -177,7 +102,7 @@ class _AuthScreenState extends State<AuthScreen> {
   void _toggleAuthMode() {
     setState(() {
       _isLogin = !_isLogin;
-      _validateInput(); // Re-validate on toggle
+      _validateInput();
     });
   }
 
@@ -217,7 +142,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Column(
                       children: [
                         const SizedBox(height: 40),
-                        // Animated Logo Container
                         Container(
                           width: 80,
                           height: 80,
@@ -299,7 +223,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                _isLogin ? 'Login to continue' : 'Join the community',
+                                _isLogin ? 'Login with OTP' : 'Join the community',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey[500],
@@ -324,7 +248,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Sign Up Unique Fields
+                      // Sign Up Fields
                       if (!_isLogin) ...[
                         _buildLabel(l10n.fullName),
                         const SizedBox(height: 8),
@@ -384,10 +308,9 @@ class _AuthScreenState extends State<AuthScreen> {
                             child: const Text(
                               '+91',
                               style: TextStyle(
-                                fontSize: 16,
-                                color: Color(0xFF1B5E20),
-                                fontWeight: FontWeight.w900,
-                              ),
+                                  fontSize: 16,
+                                  color: Color(0xFF1B5E20),
+                                  fontWeight: FontWeight.w900),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -438,7 +361,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           child: _isLoading 
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3)) 
                             : Text(
-                                _isLogin ? 'Sign In'.toUpperCase() : 'Create Account'.toUpperCase(),
+                                _isLogin ? 'Get OTP'.toUpperCase() : 'Register'.toUpperCase(),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,
@@ -477,7 +400,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ),
             
-            // Premium Footer
+            // Footer
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Column(

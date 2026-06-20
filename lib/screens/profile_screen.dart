@@ -8,7 +8,7 @@ import 'help_support_screen.dart';
 import 'terms_privacy_screen.dart';
 import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
-import '../../services/api_service.dart';
+import '../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../config/api_config.dart';
