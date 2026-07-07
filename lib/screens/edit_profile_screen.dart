@@ -520,7 +520,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
                                           : Image.file(File(_selectedImage!.path), fit: BoxFit.cover))
                                       : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                                        ? Image.network(ApiConfig.getFullImageUrl(_profileImageUrl), fit: BoxFit.cover)
+                                        ? Image.network(
+                                            ApiConfig.getFullImageUrl(_profileImageUrl), 
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => const Icon(
+                                              Icons.person_rounded, 
+                                              size: 60, 
+                                              color: Color(0xFFB0BEC5),
+                                            ),
+                                          )
                                         : const Icon(Icons.person_rounded, size: 60, color: Color(0xFFB0BEC5))),
                                   ),
                                 ),

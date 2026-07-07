@@ -118,6 +118,15 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: Color(0xFF00AA55)),
+              onPressed: () {
+                setState(() => _isLoading = true);
+                _fetchItems();
+              },
+            ),
+          ],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(50),
             child: Container(
@@ -248,7 +257,7 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
                         style: TextStyle(fontSize: 13, color: Colors.grey[600], fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 8),
-                      _buildStatusBadge(item['approvalStatus']),
+                      _buildStatusBadge(item['isAvailable'] ?? true),
                     ],
                   ),
                 ),
@@ -274,27 +283,22 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
     );
   }
 
-  Widget _buildStatusBadge(String? status) {
+  Widget _buildStatusBadge(bool isAvailable) {
     Color bgColor;
     Color textColor;
     IconData icon;
+    String text;
 
-    switch (status?.toLowerCase()) {
-      case 'approved':
-        bgColor = const Color(0xFFE8F5E9);
-        textColor = const Color(0xFF2E7D32);
-        icon = Icons.check_circle_outline_rounded;
-        break;
-      case 'rejected':
-        bgColor = const Color(0xFFFFEBEE);
-        textColor = const Color(0xFFC62828);
-        icon = Icons.cancel_outlined;
-        break;
-      default: // Pending
-        bgColor = const Color(0xFFFFF3E0);
-        textColor = const Color(0xFFEF6C00);
-        icon = Icons.hourglass_empty_rounded;
-        status = 'Pending';
+    if (isAvailable) {
+      bgColor = const Color(0xFFE8F5E9);
+      textColor = const Color(0xFF2E7D32);
+      icon = Icons.check_circle_outline_rounded;
+      text = 'ACTIVATED';
+    } else {
+      bgColor = const Color(0xFFFFEBEE);
+      textColor = const Color(0xFFC62828);
+      icon = Icons.cancel_outlined;
+      text = 'DEACTIVATED';
     }
 
     return Container(
@@ -310,7 +314,7 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
           Icon(icon, size: 14, color: textColor),
           const SizedBox(width: 4),
           Text(
-            status!.toUpperCase(),
+            text,
             style: TextStyle(
               color: textColor, 
               fontSize: 10, 

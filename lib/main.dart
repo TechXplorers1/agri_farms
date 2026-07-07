@@ -61,6 +61,7 @@ class MyApp extends StatelessWidget {
     return Consumer<LanguageProvider>(
       builder: (context, languageProvider, child) {
         return MaterialApp(
+          navigatorKey: NotificationService.navigatorKey,
           title: 'Agri Farms',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(

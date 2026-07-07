@@ -8,6 +8,8 @@ abstract class ServiceProvider {
   final String id;
   final String? providerId;
   final String name;
+  final String? ownerName;
+  final String? businessName;
   String serviceName; // 'Farm Workers', 'Ploughing', etc.
   String distance;
   double? latitude;
@@ -24,6 +26,8 @@ abstract class ServiceProvider {
     required this.id,
     this.providerId,
     required this.name,
+    this.ownerName,
+    this.businessName,
     required this.serviceName,
     required this.distance,
     this.latitude,
@@ -47,6 +51,8 @@ class ServiceListing extends ServiceProvider {
     required super.id,
     super.providerId,
     required super.name,
+    super.ownerName,
+    super.businessName,
     required super.serviceName,
     required super.distance,
     super.latitude,
@@ -79,6 +85,8 @@ class FarmWorkerListing extends ServiceProvider {
     required super.id,
     super.providerId,
     required super.name,
+    super.ownerName,
+    super.businessName,
     required super.serviceName, // 'Farm Workers'
     required super.distance,
     super.latitude,
@@ -114,6 +122,8 @@ class TransportListing extends ServiceProvider {
     required super.id,
     super.providerId,
     required super.name,
+    super.ownerName,
+    super.businessName,
     required super.serviceName,
     required super.distance,
     super.latitude,
@@ -138,6 +148,7 @@ class EquipmentListing extends ServiceProvider {
   String brandModel;
   final String price; // '₹500 / hour'
   final bool operatorAvailable;
+  final double operatorPrice;
   String condition; // 'Good', 'New'
   final String? yearOfManufacture;
 
@@ -145,6 +156,8 @@ class EquipmentListing extends ServiceProvider {
     required super.id,
     super.providerId,
     required super.name,
+    super.ownerName,
+    super.businessName,
     required super.serviceName,
     required super.distance,
     super.latitude,
@@ -157,6 +170,7 @@ class EquipmentListing extends ServiceProvider {
     required this.brandModel,
     required this.price,
     required this.operatorAvailable,
+    this.operatorPrice = 0.0,
     this.condition = 'Good',
     this.yearOfManufacture,
     super.image,
@@ -191,7 +205,9 @@ class ProviderManager extends ChangeNotifier {
         for (var eq in equipmentList) {
           _providers.add(EquipmentListing(
             id: eq.equipmentId ?? DateTime.now().millisecondsSinceEpoch.toString(),
-            name: 'Provider ${eq.ownerId.substring(0, 4)}', // Placeholder name
+            name: eq.ownerName ?? 'Provider ${eq.ownerId.substring(0, 4)}',
+            ownerName: eq.ownerName,
+            businessName: eq.ownerBusinessName,
             serviceName: eq.category ?? 'Equipment',
             brandModel: eq.brandModel ?? 'Unknown Model',
             distance: eq.location ?? 'Unknown',
@@ -200,6 +216,7 @@ class ProviderManager extends ChangeNotifier {
             rating: eq.rating ?? 0.0,
             price: '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / hour',
             operatorAvailable: eq.operatorAvailable ?? false,
+            operatorPrice: eq.operatorPrice ?? 0.0,
             condition: 'Good', // Default
             location: eq.location ?? '',
             isAvailable: eq.isAvailable ?? true,
@@ -216,7 +233,9 @@ class ProviderManager extends ChangeNotifier {
         for (var v in vehicleList) {
           _providers.add(TransportListing(
             id: v.vehicleId ?? DateTime.now().millisecondsSinceEpoch.toString(),
-            name: 'Provider ${v.ownerId.substring(0, 4)}',
+            name: v.ownerName ?? 'Provider ${v.ownerId.substring(0, 4)}',
+            ownerName: v.ownerName,
+            businessName: v.ownerBusinessName,
             serviceName: v.vehicleType ?? 'Transport',
             vehicleType: v.vehicleType ?? 'Unknown',
             loadCapacity: v.loadCapacity ?? 'Unknown',
@@ -243,7 +262,9 @@ class ProviderManager extends ChangeNotifier {
         for (var s in serviceList) {
           _providers.add(ServiceListing(
             id: s.serviceId ?? DateTime.now().millisecondsSinceEpoch.toString(),
-            name: s.businessName ?? 'Provider ${s.ownerId.substring(0, 4)}',
+            name: s.ownerName ?? s.businessName ?? 'Provider ${s.ownerId.substring(0, 4)}',
+            ownerName: s.ownerName,
+            businessName: s.businessName,
             serviceName: s.serviceType ?? 'Service',
             distance: s.location ?? 'Unknown',
             latitude: s.latitude,

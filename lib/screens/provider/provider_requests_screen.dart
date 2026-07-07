@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/booking_manager.dart';
 import '../../utils/ui_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:agriculture/l10n/app_localizations.dart';
 
 String _formatProviderDate(String raw) {
   try {
@@ -84,14 +85,22 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    var l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFFF9FBF9),
       appBar: AppBar(
-        title: const Text('Service Requests', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        title: Text(l10n.serviceRequests, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF00AA55)),
+            onPressed: () async {
+              UiUtils.showCenteredToast(context, 'Refreshing requests...');
+              await _handleRefresh();
+            },
+          ),
           IconButton(
             icon: Icon(
               _filterDate == null ? Icons.calendar_month_rounded : Icons.filter_alt_off_rounded,
@@ -150,15 +159,13 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                 
                 final pendingBookings = allMyBookings.where((b) {
                   if (b.status.toLowerCase() != 'pending') return false;
-                  final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
-                  final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
-                  
                   if (_filterDate != null) {
+                    final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
+                    final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
                     final filterDay = DateTime(_filterDate!.year, _filterDate!.month, _filterDate!.day);
                     if (bookingDay != filterDay) return false;
                   }
-                  
-                  return !bookingDay.isBefore(today);
+                  return true;
                 }).toList()
                   ..sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate));
                   
@@ -190,8 +197,11 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                     if (bookingDay != filterDay) return false;
                   }
                   
-                  if (s != 'pending' && s != 'confirmed') return true;
-                  return bookingDay.isBefore(today); // Past pending/confirmed go to history
+                  if (['cancelled', 'rejected', 'completed'].contains(s)) return true;
+                  if (s == 'confirmed') {
+                    return bookingDay.isBefore(today);
+                  }
+                  return false;
                 }).toList()
                   ..sort((a, b) => b.rawBookingDate.compareTo(a.rawBookingDate));
 

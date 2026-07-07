@@ -19,8 +19,9 @@ import '../utils/location_helper.dart';
 
 class UploadItemScreen extends StatefulWidget {
   final String category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
+  final String? defaultSubtype;
 
-  const UploadItemScreen({super.key, required this.category});
+  const UploadItemScreen({super.key, required this.category, this.defaultSubtype});
 
   @override
   State<UploadItemScreen> createState() => _UploadItemScreenState();
@@ -347,6 +348,48 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   
+  @override
+  void initState() {
+    super.initState();
+    _fillWithProfileLocation();
+    if (widget.defaultSubtype != null) {
+      final subtype = widget.defaultSubtype!;
+      if (widget.category == 'Transport') {
+        if (_transportTypes.contains(subtype)) {
+          _selectedTransportType = subtype;
+        }
+      } else if (widget.category == 'Equipment') {
+        if (_equipmentCategories.contains(subtype)) {
+          _selectedEquipmentType = subtype;
+        } else if (subtype == 'Tractors' && _equipmentCategories.contains('Tractors')) {
+          _selectedEquipmentType = 'Tractors';
+        } else {
+          for (var cat in _equipmentCategories) {
+            if (cat.toLowerCase() == subtype.toLowerCase() ||
+                cat.toLowerCase() + 's' == subtype.toLowerCase() ||
+                cat.toLowerCase() == subtype.toLowerCase() + 's') {
+              _selectedEquipmentType = cat;
+              break;
+            }
+          }
+        }
+      } else {
+        if (_serviceCategories.contains(subtype)) {
+          _selectedServiceType = subtype;
+        } else {
+          for (var cat in _serviceCategories) {
+            if (cat.toLowerCase() == subtype.toLowerCase() ||
+                cat.toLowerCase() + 's' == subtype.toLowerCase() ||
+                cat.toLowerCase() == subtype.toLowerCase() + 's') {
+              _selectedServiceType = cat;
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
   Future<void> _fillWithProfileLocation() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -733,7 +776,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
             if (true) ...[
                _buildSectionCard(
-                 title: 'Extra Details', 
+                 title: 'Details', 
                  icon: Icons.info_outline_rounded,
                  trailing: TextButton.icon(
                     onPressed: _fillWithProfileLocation,
@@ -1035,7 +1078,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         return;
       }
 
-      if (userRole != 'Owner' && userRole != 'Provider') { // Allowing Provider just in case
+      if (userRole == null || (userRole.toLowerCase() != 'owner' && userRole.toLowerCase() != 'provider')) { // Allowing Provider just in case
         _showError('Only an Owner can upload vehicles.');
         return;
       }
@@ -1104,6 +1147,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'equipmentUsed': _equipmentUsedController.text.isNotEmpty ? _equipmentUsedController.text : 'Standard Equipment',
         'priceRate': parsedPrice,
         'operatorIncluded': _operatorIncludedService,
+        'operatorPrice': _operatorIncludedService ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
         'latitude': _selectedLatitude,
         'longitude': _selectedLongitude,
@@ -1141,6 +1185,50 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   // ... (existing _submitEquipment ...)
 
   Widget _buildServicesForm() {
+    final String serviceType = _selectedServiceType ?? widget.category;
+
+    String nameLabel = 'Provider / Business Name';
+    String namePlaceholder = 'e.g. Ramesh Services';
+    IconData nameIcon = Icons.business_rounded;
+
+    String equipmentLabel = 'Equipment Used';
+    String equipmentPlaceholder = 'e.g. John Deere Tractor + Plough';
+    IconData equipmentIcon = Icons.handyman_rounded;
+
+    if (serviceType == 'Vet Care') {
+      nameLabel = 'Clinic / Doctor Name';
+      namePlaceholder = 'e.g. Dr. Ramesh (Vet Clinic)';
+      nameIcon = Icons.local_hospital_rounded;
+
+      equipmentLabel = 'Specialization / Animals Treated';
+      equipmentPlaceholder = 'e.g. Cows, Buffaloes, Sheep, Poultry, Pets';
+      equipmentIcon = Icons.pets_rounded;
+    } else if (serviceType == 'Electricians') {
+      nameLabel = 'Technician / Business Name';
+      namePlaceholder = 'e.g. Ramesh Electricals';
+      nameIcon = Icons.person_rounded;
+
+      equipmentLabel = 'Specialization / Skills';
+      equipmentPlaceholder = 'e.g. Motor rewinding, House wiring, Pump repair';
+      equipmentIcon = Icons.flash_on_rounded;
+    } else if (serviceType == 'Mechanics') {
+      nameLabel = 'Technician / Business Name';
+      namePlaceholder = 'e.g. Ramesh Mechanicals';
+      nameIcon = Icons.person_rounded;
+
+      equipmentLabel = 'Specialization / Skills';
+      equipmentPlaceholder = 'e.g. Tractor repair, Harvester servicing, Engine work';
+      equipmentIcon = Icons.build_rounded;
+    } else if (serviceType == 'Soil Testing') {
+      equipmentLabel = 'Testing Methods / Parameters';
+      equipmentPlaceholder = 'e.g. NPK analysis, pH testing, Soil moisture';
+      equipmentIcon = Icons.science_rounded;
+    } else if (serviceType == 'Drone Spraying') {
+      equipmentLabel = 'Drone / Sprayer Details';
+      equipmentPlaceholder = 'e.g. DJI Agras T30 Drone';
+      equipmentIcon = Icons.airplay_rounded;
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1152,7 +1240,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               // If category is generic 'Services', show dropdown
               if (widget.category == 'Services') 
                  DropdownButtonFormField<String>(
-                   value: null, 
+                   value: _selectedServiceType, 
                    decoration: _inputDecoration('Select Service Type', icon: Icons.category_rounded),
                    items: _serviceCategories.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                    onChanged: (val) {
@@ -1174,9 +1262,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                  _buildFarmWorkerForm(),
               ] else ...[
                  const SizedBox(height: 20),
-                 _buildTextField('Provider / Business Name', _nameController, 'e.g. Ramesh Services', errorKey: 'name', icon: Icons.business_rounded),
+                 _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
                  const SizedBox(height: 20),
-                 _buildTextField('Equipment Used', _equipmentUsedController, 'e.g. John Deere Tractor + Plough', icon: Icons.handyman_rounded),
+                 _buildTextField(equipmentLabel, _equipmentUsedController, equipmentPlaceholder, icon: equipmentIcon),
               ],
             ],
           ),
@@ -1204,10 +1292,17 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 SwitchListTile(
                   title: const Text('Operator Included?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   value: _operatorIncludedService,
-                  onChanged: (v) => setState(() => _operatorIncludedService = v),
+                  onChanged: (v) => setState(() {
+                    _operatorIncludedService = v;
+                    if (!v) _operatorPriceController.clear();
+                  }),
                   activeColor: const Color(0xFF00AA55),
                   contentPadding: EdgeInsets.zero,
                 ),
+                if (_operatorIncludedService) ...[
+                  const SizedBox(height: 12),
+                  _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, icon: Icons.person_add_rounded),
+                ],
               ],
             ),
           ),

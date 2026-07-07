@@ -40,6 +40,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   Locale? _lastLocale;
   DateTime? _filterDate;
   bool _isInitialLoading = true;
+  String _userRole = 'Farmer';
 
   String _getMonthName(int month) {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -87,7 +88,13 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
     final trans = TranslationService();
 
     final prefs = await SharedPreferences.getInstance();
+    final role = prefs.getString('user_role') ?? 'Farmer';
     final userId = prefs.getString('user_id');
+    if (mounted) {
+      setState(() {
+        _userRole = role;
+      });
+    }
     if (userId != null) {
       try {
         await _bookingManager.fetchFarmerBookings(userId);
@@ -184,8 +191,9 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isFarmer = _userRole.toLowerCase() == 'farmer';
     return DefaultTabController(
-      length: 3,
+      length: isFarmer ? 2 : 3,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7F2),
         appBar: AppBar(
@@ -201,8 +209,14 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
             onPressed: () => Navigator.pop(context),
           ) : null,
-          elevation: 0,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh_rounded, color: Color(0xFF00AA55)),
+              onPressed: () async {
+                UiUtils.showCenteredToast(context, 'Refreshing bookings...');
+                await _loadBookings();
+              },
+            ),
             IconButton(
               icon: Icon(
                 _filterDate == null ? Icons.calendar_month_rounded : Icons.filter_alt_off_rounded,
@@ -252,19 +266,24 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
               decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: Colors.grey[100]!, width: 1)),
               ),
-              child: const TabBar(
-                labelColor: Color(0xFF00AA55),
-                indicatorColor: Color(0xFF00AA55),
+              child: TabBar(
+                labelColor: const Color(0xFF00AA55),
+                indicatorColor: const Color(0xFF00AA55),
                 indicatorWeight: 3,
-                unselectedLabelColor: Color(0xFF90A4AE),
-                labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.3),
-                unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                unselectedLabelColor: const Color(0xFF90A4AE),
+                labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.3),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 indicatorSize: TabBarIndicatorSize.label,
-                tabs: [
-                  Tab(text: 'Requests'),
-                  Tab(text: 'Active'),
-                  Tab(text: 'History'),
-                ],
+                tabs: isFarmer
+                    ? const [
+                        Tab(text: 'Active'),
+                        Tab(text: 'History'),
+                      ]
+                    : const [
+                        Tab(text: 'Requests'),
+                        Tab(text: 'Active'),
+                        Tab(text: 'History'),
+                      ],
               ),
             ),
           ),
@@ -336,11 +355,16 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                     onRefresh: _loadBookings,
                     color: const Color(0xFF00AA55),
                     child: TabBarView(
-                      children: [
-                         _buildBookingList(allBookings, ['pending', 'requested'], 'No pending requests', Icons.hourglass_empty_rounded),
-                         _buildBookingList(allBookings, ['confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings', Icons.event_available_rounded),
-                         _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past history', Icons.history_rounded),
-                      ],
+                      children: isFarmer
+                          ? [
+                              _buildBookingList(allBookings, ['pending', 'requested', 'confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings', Icons.event_available_rounded),
+                              _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past history', Icons.history_rounded),
+                            ]
+                          : [
+                              _buildBookingList(allBookings, ['pending', 'requested'], 'No pending requests', Icons.hourglass_empty_rounded),
+                              _buildBookingList(allBookings, ['confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings', Icons.event_available_rounded),
+                              _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past history', Icons.history_rounded),
+                            ],
                     ),
                   ),
                 ),

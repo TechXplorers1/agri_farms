@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import 'verify_otp_screen.dart';
+import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
+import 'package:agriculture/config/api_config.dart';
+import '../services/api_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -17,6 +20,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLogin = true; 
   bool _isButtonEnabled = false;
   bool _isLoading = false;
+  String? _errorMessage;
 
   List<String> _getRoles(BuildContext context) {
     return ['Farmer', 'Owner'];
@@ -27,6 +31,8 @@ class _AuthScreenState extends State<AuthScreen> {
     super.initState();
     _phoneController.addListener(_validateInput);
     _nameController.addListener(_validateInput);
+    // Initialize MSG91 OTP Widget
+    OTPWidget.initializeWidget(ApiConfig.msg91WidgetId, ApiConfig.msg91AuthToken);
   }
 
   @override
@@ -38,6 +44,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _validateInput() {
     setState(() {
+      _errorMessage = null;
       if (_isLogin) {
         _isButtonEnabled = _phoneController.text.length == 10;
       } else {
@@ -79,22 +86,70 @@ class _AuthScreenState extends State<AuthScreen> {
 
   Future<void> _getOtp() async {
     if (_isButtonEnabled) {
-      // DEV MODE: No backend checks. Any 10-digit number goes to OTP screen.
-      setState(() => _isLoading = true);
-      await Future.delayed(const Duration(milliseconds: 300)); // brief visual feedback
-      if (mounted) {
-        setState(() => _isLoading = false);
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => VerifyOtpScreen(
-              mobileNumber: _phoneController.text,
-              fullName: _isLogin ? '' : _nameController.text,
-              role: _isLogin ? 'Farmer' : (_selectedRole ?? 'Farmer'),
-              isLogin: _isLogin,
-              verificationId: 'static-dev-otp',
-            ),
-          ),
-        );
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+      try {
+        final phoneNumber = _phoneController.text.trim();
+        bool userExists = false;
+        try {
+          final apiService = ApiService();
+          final user = await apiService.getUserByPhone(phoneNumber);
+          userExists = user != null;
+        } catch (e) {
+          if (e.toString().contains('404')) {
+            userExists = false;
+          } else {
+            rethrow;
+          }
+        }
+
+        if (_isLogin && !userExists) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'No account found for this number. Please register first to get started!';
+          });
+          return;
+        }
+
+        if (!_isLogin && userExists) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Account already exists. Please login instead.';
+          });
+          return;
+        }
+
+        final response = await OTPWidget.sendOTP({
+          'identifier': '91' + phoneNumber,
+        });
+        
+        if (response != null && response['type'] == 'success') {
+          final String reqId = response['message']?.toString() ?? '';
+          if (mounted) {
+            setState(() => _isLoading = false);
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => VerifyOtpScreen(
+                  mobileNumber: phoneNumber,
+                  fullName: _isLogin ? '' : _nameController.text,
+                  role: _isLogin ? 'Farmer' : (_selectedRole ?? 'Farmer'),
+                  isLogin: _isLogin,
+                  verificationId: reqId,
+                ),
+              ),
+            );
+          }
+        } else {
+          final errorMsg = response != null ? (response['message'] ?? 'Failed to send OTP') : 'Failed to send OTP';
+          throw Exception(errorMsg);
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showErrorDialog('Error', e.toString().replaceAll('Exception: ', ''));
+        }
       }
     }
   }
@@ -102,6 +157,7 @@ class _AuthScreenState extends State<AuthScreen> {
   void _toggleAuthMode() {
     setState(() {
       _isLogin = !_isLogin;
+      _errorMessage = null;
       _validateInput();
     });
   }
@@ -329,6 +385,35 @@ class _AuthScreenState extends State<AuthScreen> {
                         ],
                       ),
                       
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.red[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red[100]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline_rounded, color: Colors.red[700], size: 20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: TextStyle(
+                                    color: Colors.red[700],
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       const SizedBox(height: 40),
                       
                       // Action Button (Premium Lush)

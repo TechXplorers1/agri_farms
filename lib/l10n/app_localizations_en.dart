@@ -434,10 +434,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get femaleWorkers => 'Female Workers';
 
   @override
-  String get priceMale => 'Price/Male (₹)';
+  String get priceMale => 'Price per day - Male(₹)';
 
   @override
-  String get priceFemale => 'Price/Female (₹)';
+  String get priceFemale => 'Price per day - Female(₹)';
 
   @override
   String get dailyWage => 'Daily Wage';
@@ -458,7 +458,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loadCapacity => 'Load Capacity';
 
   @override
-  String get serviceArea => 'Service Area';
+  String get serviceArea => 'Service Distance';
 
   @override
   String get pricingAvailability => 'Pricing & Availability';

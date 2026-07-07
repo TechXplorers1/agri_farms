@@ -131,61 +131,61 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     var l10n = AppLocalizations.of(context)!;
     return [
       HomeServiceItem(l10n.tractors, Icons.agriculture, Colors.green[50]!, Colors.green, 'Rentals',
-          ServiceProvidersScreen(serviceKey: 'Tractors', title: l10n.tractors, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Tractors', title: l10n.tractors, userRole: _userRole),
           imagePath: 'assets/images/tractor_card.webp', subtitle: AppTranslations.translate(context, 'ploughCultivate')),
       HomeServiceItem(l10n.harvesters, Icons.grass, Colors.yellow[50]!, Colors.orange, 'Rentals',
-          ServiceProvidersScreen(serviceKey: 'Harvesters', title: l10n.harvesters, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Harvesters', title: l10n.harvesters, userRole: _userRole),
           imagePath: 'assets/images/harvester_card.webp', subtitle: AppTranslations.translate(context, 'wheatPaddyHarvest')),
       HomeServiceItem(l10n.sprayers, Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals',
-          ServiceProvidersScreen(serviceKey: 'Sprayers', title: l10n.sprayers, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Sprayers', title: l10n.sprayers, userRole: _userRole),
           imagePath: 'assets/images/sprayer_card.webp', subtitle: AppTranslations.translate(context, 'pestControl')),
       HomeServiceItem(l10n.trolleys, Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals',
-          ServiceProvidersScreen(serviceKey: 'Trolleys', title: l10n.trolleys, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Trolleys', title: l10n.trolleys, userRole: _userRole),
           imagePath: 'assets/images/trolley_card.webp', subtitle: AppTranslations.translate(context, 'loadCarry')),
       HomeServiceItem(l10n.jcb, Icons.construction, Colors.orange[50]!, Colors.orange, 'Rentals',
-          ServiceProvidersScreen(serviceKey: 'JCB', title: l10n.jcb, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'JCB', title: l10n.jcb, userRole: _userRole),
           imagePath: 'assets/images/jcb_card.webp', subtitle: AppTranslations.translate(context, 'diggingLeveling')),
       HomeServiceItem(l10n.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services',
-          ServiceProvidersScreen(serviceKey: 'Ploughing', title: l10n.ploughing, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Ploughing', title: l10n.ploughing, userRole: _userRole),
           imagePath: 'assets/images/agri_services_card.webp', subtitle: AppTranslations.translate(context, 'fieldPreparation')),
       HomeServiceItem(l10n.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services',
-          ServiceProvidersScreen(serviceKey: 'Harvesting', title: l10n.harvesting, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Harvesting', title: l10n.harvesting, userRole: _userRole),
           imagePath: 'assets/images/harvester_card.webp', subtitle: AppTranslations.translate(context, 'cropCollection')),
       HomeServiceItem(l10n.farmWorkers, Icons.groups, const Color(0xFFF3E5F5), Colors.purple, 'Services',
-          ServiceProvidersScreen(serviceKey: 'Farm Workers', title: l10n.farmWorkers, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Farm Workers', title: l10n.farmWorkers, userRole: _userRole),
           imagePath: 'assets/images/farm_workers_card.webp', subtitle: AppTranslations.translate(context, 'skilledLabour')),
       HomeServiceItem(AppTranslations.translate(context, 'electricians'), Icons.electrical_services, const Color(0xFFE8F5E9), Colors.green, 'Services',
-          ServiceProvidersScreen(serviceKey: 'Electricians', title: AppTranslations.translate(context, 'electricians'), userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Electricians', title: AppTranslations.translate(context, 'electricians'), userRole: _userRole),
           imagePath: 'assets/images/electrician_card.webp', subtitle: AppTranslations.translate(context, 'expertRepairs')),
       HomeServiceItem(l10n.droneSpraying, Icons.airplanemode_active, const Color(0xFFE8F5E9), Colors.green, 'Services',
-          ServiceProvidersScreen(serviceKey: 'Drone Spraying', title: l10n.droneSpraying, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Drone Spraying', title: l10n.droneSpraying, userRole: _userRole),
           imagePath: 'assets/images/drone_spraying_card.webp', subtitle: AppTranslations.translate(context, 'modernSpraying')),
       HomeServiceItem(l10n.soilTesting, Icons.science, const Color(0xFFE8F5E9), Colors.green, 'Services',
-          ServiceProvidersScreen(serviceKey: 'Soil Testing', title: l10n.soilTesting, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Soil Testing', title: l10n.soilTesting, userRole: _userRole),
           imagePath: 'assets/images/soil_testing_card.webp', subtitle: AppTranslations.translate(context, 'knowYourSoil'), isComingSoon: true),
       HomeServiceItem(l10n.irrigation, Icons.water_drop, const Color(0xFFE1F5FE), Colors.cyan, 'Services',
-          ServiceProvidersScreen(serviceKey: 'Irrigation', title: l10n.irrigation, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Irrigation', title: l10n.irrigation, userRole: _userRole),
           imagePath: 'assets/images/irrigation_card.webp', subtitle: AppTranslations.translate(context, 'waterManagement'), isComingSoon: true),
       HomeServiceItem(l10n.vetCare, Icons.pets, const Color(0xFFFCE4EC), Colors.pink, 'Services',
-          ServiceProvidersScreen(serviceKey: 'Vet Care', title: l10n.vetCare, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Vet Care', title: l10n.vetCare, userRole: _userRole),
           imagePath: 'assets/images/vet_care_card.webp', subtitle: AppTranslations.translate(context, 'animalHealth')),
       HomeServiceItem(l10n.miniTruck, Icons.local_shipping, const Color(0xFFE3F2FD), Colors.blue, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Mini Truck', title: l10n.miniTruck, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Mini Truck', title: l10n.miniTruck, userRole: _userRole),
           imagePath: 'assets/images/transport_truck_card.webp', subtitle: AppTranslations.translate(context, 'fastDelivery')),
       HomeServiceItem(l10n.tractorTrolley, Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: l10n.tractorTrolley, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: l10n.tractorTrolley, userRole: _userRole),
           imagePath: 'assets/images/tractor_trolley_card.webp', subtitle: AppTranslations.translate(context, 'bulkCarry')),
       HomeServiceItem(l10n.fullTruck, Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Full Truck', title: l10n.fullTruck, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Full Truck', title: l10n.fullTruck, userRole: _userRole),
           imagePath: 'assets/images/full_truck_card.webp', subtitle: AppTranslations.translate(context, 'longDistance')),
       HomeServiceItem(l10n.tempo, Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Tempo', title: l10n.tempo, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Tempo', title: l10n.tempo, userRole: _userRole),
           imagePath: 'assets/images/tractor_trolley_card.webp', subtitle: AppTranslations.translate(context, 'cityVillage')),
       HomeServiceItem(l10n.pickupVan, Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Pickup Van', title: l10n.pickupVan, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Pickup Van', title: l10n.pickupVan, userRole: _userRole),
           imagePath: 'assets/images/pickup_van_card.webp', subtitle: AppTranslations.translate(context, 'quickPickup')),
       HomeServiceItem(l10n.container, Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Container', title: l10n.container, userRole: widget.userRole),
+          ServiceProvidersScreen(serviceKey: 'Container', title: l10n.container, userRole: _userRole),
           imagePath: 'assets/images/full_truck_card.webp', subtitle: AppTranslations.translate(context, 'largeCargo')),
     ];
   }
@@ -340,50 +340,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _fetchCurrentLocation() async {
-    setState(() => _isFetchingLocation = true);
-    final startTime = DateTime.now();
-
-    // Show a high-fidelity, themed, non-dismissible loading dialog with a green progress indicator!
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return PopScope(
-          canPop: false,
-          child: AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            backgroundColor: Colors.white,
-            content: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(color: Color(0xFF00AA55), strokeWidth: 4),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Detecting Location...',
-                    style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Acquiring GPS coordinates & address details',
-                    style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[500], fontSize: 12),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
+    // Check permission and services status FIRST before showing dialog, to prevent route popping race conditions.
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         UiUtils.showCenteredToast(context, 'Location services are disabled.');
-        setState(() => _isFetchingLocation = false);
-        Navigator.of(context, rootNavigator: true).pop(); // Dismiss loader dialog
         return;
       }
       LocationPermission permission = await Geolocator.checkPermission();
@@ -391,52 +352,93 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           UiUtils.showCenteredToast(context, 'Location permissions are denied');
-          setState(() => _isFetchingLocation = false);
-          Navigator.of(context, rootNavigator: true).pop(); // Dismiss loader dialog
           return;
         }
       }
       if (permission == LocationPermission.deniedForever) {
         UiUtils.showCenteredToast(context, 'Location permissions are permanently denied');
-        setState(() => _isFetchingLocation = false);
-        Navigator.of(context, rootNavigator: true).pop(); // Dismiss loader dialog
         return;
       }
-      
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      
-      final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
-      final String village = addressData['village']!;
-      final String district = addressData['district']!;
-      final String exactAddress = addressData['exactAddress']!;
 
-      setState(() => _userLocation = '$village, $district');
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_village', village);
-      await prefs.setString('user_district', district);
-      await prefs.setDouble('user_latitude', position.latitude);
-      await prefs.setDouble('user_longitude', position.longitude);
-      
-      if (mounted) {
-        UiUtils.showCenteredToast(
-          context, 
-          'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}'
-        );
+      setState(() => _isFetchingLocation = true);
+      final startTime = DateTime.now();
+
+      bool dialogClosed = false;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext dialogContext) {
+          return PopScope(
+            canPop: false,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              backgroundColor: Colors.white,
+              content: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: Color(0xFF00AA55), strokeWidth: 4),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Detecting Location...',
+                      style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Acquiring GPS coordinates & address details',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[500], fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ).then((_) {
+        dialogClosed = true;
+      });
+
+      try {
+        Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+        
+        final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
+        final String village = addressData['village']!;
+        final String district = addressData['district']!;
+        final String exactAddress = addressData['exactAddress']!;
+
+        setState(() => _userLocation = '$village, $district');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_village', village);
+        await prefs.setString('user_district', district);
+        await prefs.setDouble('user_latitude', position.latitude);
+        await prefs.setDouble('user_longitude', position.longitude);
+        
+        if (mounted) {
+          UiUtils.showCenteredToast(
+            context, 
+            'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}'
+          );
+        }
+      } catch (e) {
+        UiUtils.showCenteredToast(context, 'Error fetching location: $e');
+      } finally {
+        // Ensure the buffer spinner displays for at least 1 second!
+        final elapsed = DateTime.now().difference(startTime);
+        if (elapsed < const Duration(seconds: 1)) {
+          await Future.delayed(const Duration(seconds: 1) - elapsed);
+        }
+
+        if (mounted) {
+          setState(() => _isFetchingLocation = false);
+          if (!dialogClosed) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+        }
       }
     } catch (e) {
-      UiUtils.showCenteredToast(context, 'Error fetching location: $e');
-    } finally {
-      // Ensure the buffer spinner displays for at least 1 second!
-      final elapsed = DateTime.now().difference(startTime);
-      if (elapsed < const Duration(seconds: 1)) {
-        await Future.delayed(const Duration(seconds: 1) - elapsed);
-      }
-
-      if (mounted) {
-        setState(() => _isFetchingLocation = false);
-        // Dismiss loader dialog
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      UiUtils.showCenteredToast(context, 'Unexpected location error: $e');
     }
   }
 
@@ -569,6 +571,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final bool isOwner = ['owner', 'provider'].contains(_userRole.toLowerCase());
+
     final List<Widget> widgetOptions = <Widget>[
       _buildHomeTab(),
       GenericHistoryScreen(
@@ -576,6 +580,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
         showBackButton: false,
       ),
+      if (isOwner) const ProviderRequestsScreen(),
       const ProfileScreen(),
     ];
 
@@ -605,6 +610,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             items: [
               BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), activeIcon: const Icon(Icons.home), label: AppLocalizations.of(context)!.navHome),
               BottomNavigationBarItem(icon: const Icon(Icons.history_outlined), activeIcon: const Icon(Icons.history), label: AppLocalizations.of(context)!.activity),
+              if (isOwner) BottomNavigationBarItem(icon: const Icon(Icons.assignment_outlined), activeIcon: const Icon(Icons.assignment), label: AppTranslations.translate(context, 'requests')),
               BottomNavigationBarItem(icon: const Icon(Icons.person_outline), activeIcon: const Icon(Icons.person), label: AppLocalizations.of(context)!.navProfile),
             ],
           ),
@@ -630,7 +636,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           SliverToBoxAdapter(child: _buildEquipmentSection()),
           SliverToBoxAdapter(child: _buildServicesSection()),
           SliverToBoxAdapter(child: _buildTransportSection()),
-          if (['Owner', 'Provider'].contains(_userRole))
+          if (['owner', 'provider'].contains(_userRole.toLowerCase()))
             SliverToBoxAdapter(child: _buildListYourAssetsSection()),
           SliverToBoxAdapter(child: _buildToolsSection()),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
@@ -666,7 +672,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 const Text('Agri Farms', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 0.3)),
               ]),
               Row(children: [
-                if (['Owner', 'Provider'].contains(_userRole))
+                if (['owner', 'provider'].contains(_userRole.toLowerCase()))
                   _headerIconBtn(Icons.assignment_outlined, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProviderRequestsScreen()))),
                 _headerIconBtn(Icons.location_on_outlined, () => _showLocationSelector(context)),
                 Stack(children: [
@@ -768,7 +774,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => AgriServicesScreen(userRole: widget.userRole)),
+                  MaterialPageRoute(builder: (_) => AgriServicesScreen(userRole: _userRole)),
                 );
               },
               child: Container(
@@ -789,8 +795,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       title: AppLocalizations.of(context)!.rentEquipment,
       emoji: '🚜',
       accentColor: _primaryGreen,
-      onViewMore: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EquipmentRentalsScreen(userRole: widget.userRole))),
-      onAdd: ['Owner', 'Provider'].contains(_userRole) ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Equipment'))) : null,
+      onViewMore: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EquipmentRentalsScreen(userRole: _userRole))),
+      onAdd: ['owner', 'provider'].contains(_userRole.toLowerCase()) ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Equipment'))) : null,
       child: GridView.count(
         shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
         crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14,
@@ -806,8 +812,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       title: AppLocalizations.of(context)!.bookServices,
       emoji: '🧑‍🌾',
       accentColor: const Color(0xFF1565C0),
-      onViewMore: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AgriServicesScreen(userRole: widget.userRole))),
-      onAdd: ['Owner', 'Provider'].contains(_userRole) ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Services'))) : null,
+      onViewMore: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AgriServicesScreen(userRole: _userRole))),
+      onAdd: ['owner', 'provider'].contains(_userRole.toLowerCase()) ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Services'))) : null,
       child: GridView.count(
         shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
         crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14,
@@ -823,8 +829,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       title: AppLocalizations.of(context)!.bookTransport,
       emoji: '🚛',
       accentColor: const Color(0xFFE65100),
-      onViewMore: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BookTransportScreen(userRole: widget.userRole))),
-      onAdd: ['Owner', 'Provider'].contains(_userRole) ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Transport'))) : null,
+      onViewMore: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BookTransportScreen(userRole: _userRole))),
+      onAdd: ['owner', 'provider'].contains(_userRole.toLowerCase()) ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadItemScreen(category: 'Transport'))) : null,
       child: SizedBox(
         height: 160,
         child: ListView.separated(
@@ -901,7 +907,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(width: 8),
             ],
             Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1A1A2E))),
-            if (['Owner', 'Provider'].contains(_userRole) && onAdd != null) ...[ 
+            if (['owner', 'provider'].contains(_userRole.toLowerCase()) && onAdd != null) ...[ 
               const SizedBox(width: 8),
               GestureDetector(onTap: onAdd, child: Container(
                 padding: const EdgeInsets.all(4),

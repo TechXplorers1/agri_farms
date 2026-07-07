@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home_screen.dart';
 import '../services/api_service.dart';
+import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
 
 
 class VerifyOtpScreen extends StatefulWidget {
@@ -93,69 +94,96 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
 
   Future<void> _resendCode() async {
     if (!_canResend) return;
-    // DEV MODE: static OTP — just restart the timer
-    _startTimer();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('OTP is: 123456 (dev mode)'),
-          backgroundColor: Color(0xFF2E7D32),
-        ),
-      );
+    
+    setState(() => _isLoading = true);
+    try {
+      final response = await OTPWidget.sendOTP({
+        'identifier': '91' + widget.mobileNumber,
+      });
+      
+      if (response != null && response['type'] == 'success') {
+        final String newReqId = response['message']?.toString() ?? '';
+        setState(() {
+          _currentVerificationId = newReqId;
+        });
+        _startTimer();
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Verification code resent successfully.'),
+              backgroundColor: Color(0xFF00AA55),
+            ),
+          );
+        }
+      } else {
+        final errorMsg = response != null ? (response['message'] ?? 'Failed to send OTP') : 'Failed to send OTP';
+        throw Exception(errorMsg);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorDialog('Error', e.toString().replaceAll('Exception: ', ''));
+      }
     }
   }
 
   Future<void> _verifyOtp() async {
     if (!_isButtonEnabled || _isLoading) return;
 
-    setState(() => _isLoading = true);
-
-    // DEV MODE: Accept any 6-digit OTP — no Firebase, no backend required.
     final entered = _otpController.text.trim();
     if (entered.length != 6 || int.tryParse(entered) == null) {
-      setState(() => _isLoading = false);
       _showErrorDialog('Invalid OTP', 'Please enter a valid 6-digit code.');
       return;
     }
 
-    await Future.delayed(const Duration(milliseconds: 400)); // simulate verification
+    setState(() => _isLoading = true);
 
-    // Cache basic user data locally
-    final prefs = await SharedPreferences.getInstance();
-    final role = widget.role.isNotEmpty ? widget.role : 'Farmer';
-    final name = widget.fullName.isNotEmpty ? widget.fullName : 'User';
-    await prefs.setString('user_phone', widget.mobileNumber);
-    await prefs.setString('user_role', role);
-    await prefs.setString('user_name', name);
-
-    // Try to sync with backend silently (don't block the user if it fails)
     try {
-      final apiService = ApiService();
-      final response = await apiService.staticLogin(
-        mobileNumber: widget.mobileNumber,
-        role: role,
-        fullName: name,
-        isLogin: widget.isLogin,
-      ).timeout(const Duration(seconds: 5));
+      // 1. Verify OTP via MSG91 Widget SDK
+      final response = await OTPWidget.verifyOTP({
+        'reqId': _currentVerificationId,
+        'otp': entered,
+      });
 
-      // Update cache with server response if available
-      await prefs.setString('user_id', response['userId']?.toString() ?? '');
-      await prefs.setString('user_name', response['fullName'] ?? name);
-      await prefs.setString('user_role', response['role'] ?? role);
+      if (response != null && response['type'] == 'success') {
+        // 2. On success, login/register user in the backend
+        final apiService = ApiService();
+        final role = widget.role.isNotEmpty ? widget.role : 'Farmer';
+        final name = widget.fullName.isNotEmpty ? widget.fullName : 'User';
+
+        final backendResponse = await apiService.staticLogin(
+          mobileNumber: widget.mobileNumber,
+          role: role,
+          fullName: name,
+          isLogin: widget.isLogin,
+        );
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_phone', backendResponse['phoneNumber']?.toString() ?? widget.mobileNumber);
+        await prefs.setString('user_role', backendResponse['role'] ?? role);
+        await prefs.setString('user_name', backendResponse['fullName'] ?? name);
+        await prefs.setString('user_id', backendResponse['userId']?.toString() ?? '');
+
+        if (mounted) {
+          setState(() => _isLoading = false);
+          final finalRole = backendResponse['role'] ?? role;
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(userRole: finalRole),
+            ),
+            (route) => false,
+          );
+        }
+      } else {
+        final errorMsg = response != null ? (response['message'] ?? 'OTP verification failed') : 'OTP verification failed';
+        throw Exception(errorMsg);
+      }
     } catch (e) {
-      // Backend unreachable or returned error — proceed offline in dev mode
-      debugPrint('Backend sync skipped (dev mode): $e');
-    }
-
-    if (mounted) {
-      setState(() => _isLoading = false);
-      final finalRole = prefs.getString('user_role') ?? role;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(userRole: finalRole),
-        ),
-        (route) => false,
-      );
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showErrorDialog('Verification Failed', e.toString().replaceAll('Exception: ', ''));
+      }
     }
   }
 

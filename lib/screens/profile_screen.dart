@@ -86,7 +86,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           int servicesVal = stats['servicesCount'] ?? 0;
 
           final userRoleVal = userData['role'] ?? _userRole;
-          if (['Owner', 'Provider'].contains(userRoleVal)) {
+          if (['owner', 'provider'].contains(userRoleVal.toString().toLowerCase())) {
             try {
               final response = await apiService.getProviderBookings(userId);
               final List<dynamic> providerBookings = response as List<dynamic>? ?? [];
@@ -270,23 +270,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 6),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.location_on, color: Colors.white70, size: 14),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    [_userHouseNo, _userStreet, _userVillage, _userDistrict, _userState, _userPincode]
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  const WidgetSpan(
+                                    alignment: PlaceholderAlignment.middle,
+                                    child: Padding(
+                                      padding: EdgeInsets.only(right: 4),
+                                      child: Icon(Icons.location_on_rounded, color: Colors.white70, size: 14),
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: [_userHouseNo, _userStreet, _userVillage, _userDistrict, _userState, _userPincode]
                                         .where((s) => s.isNotEmpty && s != 'Your Village' && s != 'Your District')
                                         .join(', '),
                                     style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -310,7 +314,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Icons.shopping_bag_outlined,
                             const Color(0xFF2E7D32),
                             onTap: () {
-                              if (['Owner', 'Provider'].contains(_userRole)) {
+                              if (['owner', 'provider'].contains(_userRole.toLowerCase())) {
                                 Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
                               } else {
                                 Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
@@ -321,44 +325,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             },
                           ),
                         ),
-                        _buildDivider(),
-                        Expanded(
-                          child: _buildStatItem(
-                            '$_rentalsCount',
-                            l10n.rentals,
-                            Icons.agriculture_outlined,
-                            const Color(0xFFF9A825),
-                            onTap: () {
-                              if (['Owner', 'Provider'].contains(_userRole)) {
+                        if (['owner', 'provider'].contains(_userRole.toLowerCase())) ...[
+                          _buildDivider(),
+                          Expanded(
+                            child: _buildStatItem(
+                              '$_rentalsCount',
+                              l10n.rentals,
+                              Icons.agriculture_outlined,
+                              const Color(0xFFF9A825),
+                              onTap: () {
                                 Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
-                              } else {
-                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-                                  title: 'My Rentals',
-                                  categories: [BookingCategory.rentals],
-                                )));
-                              }
-                            },
+                              },
+                            ),
                           ),
-                        ),
-                        _buildDivider(),
-                        Expanded(
-                          child: _buildStatItem(
-                            '$_servicesCount',
-                            l10n.services,
-                            Icons.handyman_outlined,
-                            const Color(0xFF1565C0),
-                            onTap: () {
-                              if (['Owner', 'Provider'].contains(_userRole)) {
+                          _buildDivider(),
+                          Expanded(
+                            child: _buildStatItem(
+                              '$_servicesCount',
+                              l10n.services,
+                              Icons.handyman_outlined,
+                              const Color(0xFF1565C0),
+                              onTap: () {
                                 Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen(initialTabIndex: 2)));
-                              } else {
-                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-                                  title: 'My Services',
-                                  categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport],
-                                )));
-                              }
-                            },
+                              },
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -384,7 +376,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final result = await Navigator.of(context).push(MaterialPageRoute(builder: (context) => const EditProfileScreen()));
                 if (result == true) _loadProfileData();
               }),
-              if (['Owner', 'Provider'].contains(_userRole)) ...[
+              if (['owner', 'provider'].contains(_userRole.toLowerCase())) ...[
                 _buildDividerLine(),
                 _buildListTile(Icons.inventory_2_outlined, AppTranslations.translate(context, 'myRegisteredItems'), onTap: () {
                   Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
@@ -585,6 +577,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
 
                 await NotificationService().clearFCMToken();
+                await ApiService().clearTokens();
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.clear();
                 

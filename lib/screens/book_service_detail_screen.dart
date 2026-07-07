@@ -155,6 +155,28 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   final TextEditingController _customPurposeController = TextEditingController();
   final TextEditingController _customAssetController = TextEditingController();
 
+  // Vet Care Specific Fields
+  final List<String> _vetAnimalTypes = [
+    'Cow',
+    'Buffalo',
+    'Sheep/Goat',
+    'Poultry',
+    'Dog/Cat',
+    'Others'
+  ];
+  String? _selectedAnimalType;
+
+  // Mechanic Specific Fields
+  final List<String> _mechanicMachineryTypes = [
+    'Tractor',
+    'Harvester',
+    'Rotavator/Cultivator',
+    'Power Tiller',
+    'Water Pump Engine',
+    'Others'
+  ];
+  String? _selectedMachineryType;
+
   bool _isSlotBlockedForDate(DateTime date, int hour) {
     DateTime slotStart = DateTime(date.year, date.month, date.day, hour);
     DateTime slotEnd = slotStart.add(const Duration(hours: 1)); 
@@ -608,12 +630,23 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   }
 
   void _confirmBooking() async {
-    bool isElectrician = widget.serviceName == 'Electricians' || 
-                        widget.serviceName == AppTranslations.translate(context, 'electricians');
-    bool isQtyValid = isElectrician 
-      ? (_selectedPurpose != null && (_selectedPurpose != 'Others' || _customPurposeController.text.isNotEmpty)) &&
-        (_selectedAssetType != null && (_selectedAssetType != 'Others' || _customAssetController.text.isNotEmpty))
-      : _quantityController.text.isNotEmpty;
+    final serviceLower = widget.serviceName.toLowerCase();
+    bool isElectrician = serviceLower.contains('electrician');
+    bool isVetCare = serviceLower.contains('vet') || serviceLower.contains('animal') || serviceLower.contains('paw') || serviceLower.contains('pet');
+    bool isMechanic = serviceLower.contains('mechanic');
+    bool isSoilTesting = serviceLower.contains('soil') || serviceLower.contains('test');
+
+    bool isQtyValid = false;
+    if (isElectrician) {
+      isQtyValid = (_selectedPurpose != null && (_selectedPurpose != 'Others' || _customPurposeController.text.isNotEmpty)) &&
+                   (_selectedAssetType != null && (_selectedAssetType != 'Others' || _customAssetController.text.isNotEmpty));
+    } else if (isVetCare) {
+      isQtyValid = _selectedAnimalType != null && _quantityController.text.isNotEmpty;
+    } else if (isMechanic) {
+      isQtyValid = _selectedMachineryType != null && _quantityController.text.isNotEmpty;
+    } else {
+      isQtyValid = _quantityController.text.isNotEmpty;
+    }
 
     bool hasValidPrice = _totalPrice > 0;
 
@@ -644,6 +677,14 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       if (isElectrician) {
         notesMap['Purpose of Visit'] = _selectedPurpose == 'Others' ? _customPurposeController.text : _selectedPurpose;
         notesMap['Asset to Repair'] = _selectedAssetType == 'Others' ? _customAssetController.text : _selectedAssetType;
+      } else if (isVetCare) {
+        notesMap['Animal Type'] = _selectedAnimalType;
+        notesMap['Number of Animals'] = _quantityController.text;
+      } else if (isMechanic) {
+        notesMap['Machinery Type'] = _selectedMachineryType;
+        notesMap['Model/Brand'] = _quantityController.text;
+      } else if (isSoilTesting) {
+        notesMap['Number of Samples'] = _quantityController.text;
       } else {
         notesMap['Number of Acres'] = _quantityController.text;
       }
@@ -704,6 +745,14 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
           
           if (_selectedAssetType == null) _fieldErrors['asset'] = 'Please select asset type';
           else if (_selectedAssetType == 'Others' && _customAssetController.text.isEmpty) _fieldErrors['asset_custom'] = 'Please specify asset name';
+        } else if (isVetCare) {
+          if (_selectedAnimalType == null) _fieldErrors['purpose'] = 'Please select animal type';
+          if (_quantityController.text.isEmpty) _fieldErrors['qty'] = 'Please enter number of animals';
+        } else if (isMechanic) {
+          if (_selectedMachineryType == null) _fieldErrors['purpose'] = 'Please select machinery type';
+          if (_quantityController.text.isEmpty) _fieldErrors['qty'] = 'Please enter model or brand name';
+        } else if (isSoilTesting) {
+          if (_quantityController.text.isEmpty) _fieldErrors['qty'] = 'Please enter number of soil samples';
         } else {
           if (_quantityController.text.isEmpty) {
             _fieldErrors['qty'] = 'Please enter number of acres';
@@ -741,8 +790,11 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    bool isElectrician = widget.serviceName == 'Electricians' || 
-                        widget.serviceName == AppTranslations.translate(context, 'electricians');
+    final serviceLower = widget.serviceName.toLowerCase();
+    bool isElectrician = serviceLower.contains('electrician');
+    bool isVetCare = serviceLower.contains('vet') || serviceLower.contains('animal') || serviceLower.contains('paw') || serviceLower.contains('pet');
+    bool isMechanic = serviceLower.contains('mechanic');
+    bool isSoilTesting = serviceLower.contains('soil') || serviceLower.contains('test');
     
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F2),
@@ -834,59 +886,115 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
               title: 'Requirement Details',
               icon: Icons.list_alt_rounded,
               isError: (_fieldErrors.containsKey('qty') || _fieldErrors.containsKey('purpose') || _fieldErrors.containsKey('asset')),
-              child: isElectrician ? Column(
-                children: [
-                  _buildDropdownField(
-                    label: 'Purpose of Visit',
-                    hint: 'Choose purpose of visit',
-                    value: _selectedPurpose,
-                    items: _electricianPurposes,
-                    errorKey: 'purpose',
-                    icon: Icons.help_outline_rounded,
-                    onChanged: (val) => setState(() => _selectedPurpose = val),
-                  ),
-                  if (_selectedPurpose == 'Others') ...[
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _customPurposeController,
-                      label: 'Specify Purpose',
-                      hint: 'Enter your custom purpose...',
-                      errorKey: 'purpose_custom',
-                      icon: Icons.edit_note_rounded,
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  _buildDropdownField(
-                    label: 'Type of Asset',
-                    hint: 'Choose type of asset/machinery',
-                    value: _selectedAssetType,
-                    items: _electricianAssets,
-                    errorKey: 'asset',
-                    icon: Icons.precision_manufacturing_rounded,
-                    onChanged: (val) => setState(() => _selectedAssetType = val),
-                  ),
-                  if (_selectedAssetType == 'Others') ...[
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _customAssetController,
-                      label: 'Specify Asset Name',
-                      hint: 'Enter asset/machinery name...',
-                      errorKey: 'asset_custom',
-                      icon: Icons.edit_rounded,
-                    ),
-                  ],
-                ],
-              ) : _buildTextField(
-                controller: _quantityController,
-                label: 'Number of Acres',
-                hint: 'e.g. 2 Acres',
-                keyboardType: TextInputType.number,
-                errorKey: 'qty',
-                icon: Icons.landscape_rounded,
-                onChanged: (_) {
-                  if (_fieldErrors.containsKey('qty')) setState(() => _fieldErrors.remove('qty'));
-                },
-              ),
+              child: isElectrician
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDropdownField(
+                          label: 'Purpose of Visit',
+                          hint: 'Choose purpose of visit',
+                          value: _selectedPurpose,
+                          items: _electricianPurposes,
+                          errorKey: 'purpose',
+                          icon: Icons.help_outline_rounded,
+                          onChanged: (val) => setState(() => _selectedPurpose = val),
+                        ),
+                        if (_selectedPurpose == 'Others') ...[
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            controller: _customPurposeController,
+                            label: 'Specify Purpose',
+                            hint: 'Enter your custom purpose...',
+                            errorKey: 'purpose_custom',
+                            icon: Icons.edit_note_rounded,
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+                        _buildDropdownField(
+                          label: 'Type of Asset',
+                          hint: 'Choose type of asset/machinery',
+                          value: _selectedAssetType,
+                          items: _electricianAssets,
+                          errorKey: 'asset',
+                          icon: Icons.precision_manufacturing_rounded,
+                          onChanged: (val) => setState(() => _selectedAssetType = val),
+                        ),
+                        if (_selectedAssetType == 'Others') ...[
+                          const SizedBox(height: 16),
+                          _buildTextField(
+                            controller: _customAssetController,
+                            label: 'Specify Asset Name',
+                            hint: 'Enter asset/machinery name...',
+                            errorKey: 'asset_custom',
+                            icon: Icons.edit_rounded,
+                          ),
+                        ],
+                      ],
+                    )
+                  : isVetCare
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildDropdownField(
+                              label: 'Animal Type',
+                              hint: 'Choose animal type',
+                              value: _selectedAnimalType,
+                              items: _vetAnimalTypes,
+                              errorKey: 'purpose',
+                              icon: Icons.pets_rounded,
+                              onChanged: (val) => setState(() => _selectedAnimalType = val),
+                            ),
+                            const SizedBox(height: 20),
+                            _buildTextField(
+                              controller: _quantityController,
+                              label: 'Number of Animals',
+                              hint: 'e.g. 5 Animals',
+                              keyboardType: TextInputType.number,
+                              errorKey: 'qty',
+                              icon: Icons.numbers_rounded,
+                              onChanged: (_) {
+                                if (_fieldErrors.containsKey('qty')) setState(() => _fieldErrors.remove('qty'));
+                              },
+                            ),
+                          ],
+                        )
+                      : isMechanic
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildDropdownField(
+                                  label: 'Machinery / Vehicle Type',
+                                  hint: 'Choose machinery type',
+                                  value: _selectedMachineryType,
+                                  items: _mechanicMachineryTypes,
+                                  errorKey: 'purpose',
+                                  icon: Icons.precision_manufacturing_rounded,
+                                  onChanged: (val) => setState(() => _selectedMachineryType = val),
+                                ),
+                                const SizedBox(height: 20),
+                                _buildTextField(
+                                  controller: _quantityController,
+                                  label: 'Model / Brand Name',
+                                  hint: 'e.g. Mahindra 575 DI',
+                                  errorKey: 'qty',
+                                  icon: Icons.branding_watermark_rounded,
+                                  onChanged: (_) {
+                                    if (_fieldErrors.containsKey('qty')) setState(() => _fieldErrors.remove('qty'));
+                                  },
+                                ),
+                              ],
+                            )
+                          : _buildTextField(
+                              controller: _quantityController,
+                              label: isSoilTesting ? 'Number of Soil Samples' : 'Number of Acres',
+                              hint: isSoilTesting ? 'e.g. 3 Samples' : 'e.g. 2 Acres',
+                              keyboardType: TextInputType.number,
+                              errorKey: 'qty',
+                              icon: isSoilTesting ? Icons.science_outlined : Icons.landscape_rounded,
+                              onChanged: (_) {
+                                if (_fieldErrors.containsKey('qty')) setState(() => _fieldErrors.remove('qty'));
+                              },
+                            ),
             ),
 
             // Address Card
@@ -1507,7 +1615,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             color: hasError ? Colors.red : const Color(0xFF2C3E50),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           value: value,
           isExpanded: true,
@@ -1548,7 +1656,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             color: hasError ? Colors.red : const Color(0xFF2C3E50),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         TextField(
           controller: controller,
           maxLines: maxLines,
@@ -1568,6 +1676,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     return InputDecoration(
       hintText: hint,
       prefixIcon: icon != null ? Icon(icon, size: 20, color: const Color(0xFF00AA55)) : null,
+      prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 0),
       hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.w500),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
@@ -1583,7 +1692,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       ),
       filled: true,
       fillColor: const Color(0xFFF9FBF9),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     );
   }
 }

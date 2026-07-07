@@ -9,6 +9,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../screens/provider/provider_requests_screen.dart';
+import '../screens/generic_history_screen.dart';
+import '../screens/notifications_screen.dart';
+import '../utils/booking_manager.dart';
+import 'api_service.dart';
 
 /// Must be top-level — runs in a separate isolate
 @pragma('vm:entry-point')
@@ -48,6 +53,9 @@ class _NotificationHelper {
     final notification = message.notification;
     if (notification == null) return;
 
+    final dataPayload = Map<String, dynamic>.from(message.data);
+    final payloadString = jsonEncode(dataPayload);
+
     await _plugin.show(
       message.hashCode,
       notification.title,
@@ -62,11 +70,13 @@ class _NotificationHelper {
           icon: '@mipmap/ic_launcher',
         ),
       ),
+      payload: payloadString,
     );
   }
 }
 
 class NotificationService {
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   static final NotificationService _instance = NotificationService._internal();
 
   factory NotificationService() => _instance;
@@ -126,8 +136,11 @@ class NotificationService {
 
     await _localNotificationsPlugin.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: (details) {
-        print('Local notification tapped: ${details.payload}');
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) {
+          _handleNotificationClick(payload);
+        }
       },
     );
 
@@ -149,6 +162,23 @@ class NotificationService {
       }
     });
 
+    // Foreground tap listener (runs when user taps on push notification bar from system drawer)
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      final payload = jsonEncode(message.data);
+      _handleNotificationClick(payload);
+    });
+
+    // Handle message click when app is opened from terminated state
+    _firebaseMessaging.getInitialMessage().then((RemoteMessage? message) {
+      if (message != null) {
+        final payload = jsonEncode(message.data);
+        // Delay navigation slightly to let widgets load
+        Future.delayed(const Duration(milliseconds: 800), () {
+          _handleNotificationClick(payload);
+        });
+      }
+    });
+
     // Step 7: Handle token refresh
     _firebaseMessaging.onTokenRefresh.listen((newToken) {
       print('FCM Token refreshed: $newToken');
@@ -158,9 +188,63 @@ class NotificationService {
     print('NotificationService initialized successfully.');
   }
 
+  void _handleNotificationClick(String payloadString) async {
+    try {
+      final Map<String, dynamic> data = jsonDecode(payloadString);
+      final String? notificationId = data['notificationId'];
+      final String? type = data['type'];
+      final String? relatedId = data['relatedId'];
+
+      if (notificationId != null && notificationId.isNotEmpty) {
+        // Mark as read in backend
+        try {
+          final apiService = ApiService();
+          await apiService.markNotificationAsRead(notificationId);
+        } catch (e) {
+          print('Error marking notification as read on tap: $e');
+        }
+      }
+
+      // Perform routing based on type
+      final context = navigatorKey.currentContext;
+      if (context != null) {
+        final prefs = await SharedPreferences.getInstance();
+        final userRole = (prefs.getString('user_role') ?? 'Farmer').toLowerCase();
+
+        if (type == 'booking_request') {
+          Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
+        } else if (type == 'booking_status_update') {
+          Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+            title: 'Activity Bookings',
+            categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
+            showBackButton: true,
+          )));
+        } else if (type == 'booking_cancelled') {
+          if (['owner', 'provider'].contains(userRole)) {
+            Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
+          } else {
+            Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+              title: 'Activity Bookings',
+              categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
+              showBackButton: true,
+            )));
+          }
+        } else {
+          // Default: open the notification page
+          Navigator.of(context).push(MaterialPageRoute(builder: (context) => const NotificationsScreen()));
+        }
+      }
+    } catch (e) {
+      print('Error parsing notification tap payload: $e');
+    }
+  }
+
   Future<void> _showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;
     if (notification == null) return;
+
+    final dataPayload = Map<String, dynamic>.from(message.data);
+    final payloadString = jsonEncode(dataPayload);
 
     await _localNotificationsPlugin.show(
       message.hashCode,
@@ -177,6 +261,7 @@ class NotificationService {
           color: const Color(0xFF00AA55),
         ),
       ),
+      payload: payloadString,
     );
   }
 

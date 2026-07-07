@@ -196,9 +196,93 @@ class ApiService {
       }),
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
-      return json.decode(response.body) as Map<String, dynamic>;
+      final responseData = json.decode(response.body) as Map<String, dynamic>;
+      
+      if (responseData['access_token'] != null) {
+        await _secureStorage.write(key: 'access_token', value: responseData['access_token']);
+        if (responseData['refresh_token'] != null) {
+          await _secureStorage.write(key: 'refresh_token', value: responseData['refresh_token']);
+        }
+        final expiresIn = responseData['expires_in'] ?? 300;
+        final expiry = DateTime.now().add(Duration(seconds: expiresIn));
+        await _secureStorage.write(key: 'access_token_expiry', value: expiry.toIso8601String());
+      } else {
+        await clearTokens();
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', responseData['userId']?.toString() ?? '');
+      await prefs.setString('user_role', responseData['role'] ?? role);
+      await prefs.setString('user_name', responseData['fullName'] ?? fullName);
+      await prefs.setString('user_phone', responseData['phoneNumber']?.toString() ?? mobileNumber);
+      await prefs.setString('user_email', responseData['email'] ?? '');
+
+      return responseData;
     } else {
       throw Exception('staticLogin failed: ${response.statusCode} ${response.body}');
+    }
+  }
+
+  /// Sends OTP to the given phone number via MSG91 backend proxy.
+  Future<void> sendMsg91Otp({required String phoneNumber}) async {
+    final url = Uri.parse('$baseUrl/api/auth/msg91/send-otp');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'phoneNumber': phoneNumber}),
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final errorMsg = json.decode(response.body)['message'] ?? 'Failed to send OTP';
+      throw Exception(errorMsg);
+    }
+  }
+
+  /// Verifies OTP via MSG91 backend proxy and performs login/signup.
+  Future<Map<String, dynamic>> verifyMsg91Otp({
+    required String phoneNumber,
+    required String otp,
+    required String role,
+    required String fullName,
+    required bool isLogin,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/auth/msg91/verify-otp');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'phoneNumber': phoneNumber,
+        'otp': otp,
+        'role': role,
+        'fullName': fullName.isNotEmpty ? fullName : null,
+        'isLogin': isLogin,
+      }),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = json.decode(response.body) as Map<String, dynamic>;
+      
+      if (responseData['access_token'] != null) {
+        await _secureStorage.write(key: 'access_token', value: responseData['access_token']);
+        if (responseData['refresh_token'] != null) {
+          await _secureStorage.write(key: 'refresh_token', value: responseData['refresh_token']);
+        }
+        final expiresIn = responseData['expires_in'] ?? 300;
+        final expiry = DateTime.now().add(Duration(seconds: expiresIn));
+        await _secureStorage.write(key: 'access_token_expiry', value: expiry.toIso8601String());
+      } else {
+        await clearTokens();
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', responseData['userId']?.toString() ?? '');
+      await prefs.setString('user_role', responseData['role'] ?? role);
+      await prefs.setString('user_name', responseData['fullName'] ?? fullName);
+      await prefs.setString('user_phone', responseData['phoneNumber']?.toString() ?? phoneNumber);
+      await prefs.setString('user_email', responseData['email'] ?? '');
+
+      return responseData;
+    } else {
+      final errorMsg = json.decode(response.body)['message'] ?? 'OTP verification failed';
+      throw Exception(errorMsg);
     }
   }
 

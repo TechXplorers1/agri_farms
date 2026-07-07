@@ -19,6 +19,8 @@ class TransportVehicle {
   final bool? isAvailable;
   final String? imageUrl;
   final double? rating;
+  final String? ownerBusinessName;
+  final String? ownerName;
 
   TransportVehicle({
     this.vehicleId,
@@ -41,6 +43,8 @@ class TransportVehicle {
     this.isAvailable,
     this.imageUrl,
     this.rating,
+    this.ownerBusinessName,
+    this.ownerName,
   });
 
   factory TransportVehicle.fromJson(Map<String, dynamic> json) {
@@ -65,6 +69,8 @@ class TransportVehicle {
       isAvailable: json['isAvailable'],
       imageUrl: json['imageUrl'],
       rating: (json['rating'] as num?)?.toDouble(),
+      ownerBusinessName: json['ownerBusinessName'],
+      ownerName: json['ownerName'],
     );
   }
 
@@ -90,6 +96,8 @@ class TransportVehicle {
       'isAvailable': isAvailable,
       'imageUrl': imageUrl,
       'rating': rating,
+      'ownerBusinessName': ownerBusinessName,
+      'ownerName': ownerName,
     };
   }
 }
