@@ -40,6 +40,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   double? _detectedLat;
   double? _detectedLng;
   bool _isGeocodingAddress = false;
+  final Map<String, String> _errors = {};
 
   @override
   void initState() {
@@ -299,6 +300,69 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _saveProfileData() async {
+    setState(() {
+      _errors.clear();
+    });
+
+    bool hasErrors = false;
+
+    if (_nameController.text.trim().isEmpty) {
+      _errors['name'] = 'Full Name is required';
+      hasErrors = true;
+    }
+    if (_houseNoController.text.trim().isEmpty) {
+      _errors['houseNo'] = 'House No is required';
+      hasErrors = true;
+    }
+    if (_streetController.text.trim().isEmpty) {
+      _errors['street'] = 'Street is required';
+      hasErrors = true;
+    }
+    if (_villageController.text.trim().isEmpty) {
+      _errors['village'] = 'Village is required';
+      hasErrors = true;
+    }
+    if (_districtController.text.trim().isEmpty) {
+      _errors['district'] = 'District is required';
+      hasErrors = true;
+    }
+    if (_stateController.text.trim().isEmpty) {
+      _errors['state'] = 'State is required';
+      hasErrors = true;
+    }
+    if (_pincodeController.text.trim().isEmpty) {
+      _errors['pincode'] = 'Pincode is required';
+      hasErrors = true;
+    } else {
+      final pin = _pincodeController.text.trim();
+      if (pin.length != 6 || int.tryParse(pin) == null) {
+        _errors['pincode'] = 'Please enter a valid 6-digit Pincode';
+        hasErrors = true;
+      }
+    }
+    if (_countryController.text.trim().isEmpty) {
+      _errors['country'] = 'Country is required';
+      hasErrors = true;
+    }
+    
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _errors['email'] = 'Email Address is required';
+      hasErrors = true;
+    } else {
+      final emailRegExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+      if (!emailRegExp.hasMatch(email)) {
+        _errors['email'] = 'Please enter a valid Email Address';
+        hasErrors = true;
+      }
+    }
+
+    if (hasErrors) {
+      setState(() {});
+      UiUtils.showCenteredToast(context, 'Please fill all mandatory fields', isError: true);
+      return;
+    }
+
     setState(() => _isLoading = true);
     
     try {
@@ -608,30 +672,33 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: 24),
-                        _buildTextField(_nameController, 'Full Name', 'Enter your name...', Icons.badge_outlined),
+                        _buildTextField(_nameController, 'Full Name', 'Enter your name...', Icons.badge_outlined, errorKey: 'name'),
                         const SizedBox(height: 20),
                         
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: _buildTextField(_houseNoController, 'House No', 'H.No...', Icons.home_outlined)),
+                            Expanded(child: _buildTextField(_houseNoController, 'House No', 'H.No...', Icons.home_outlined, errorKey: 'houseNo')),
                             const SizedBox(width: 16),
-                            Expanded(child: _buildTextField(_streetController, 'Street', 'Street name...', Icons.add_road_rounded)),
+                            Expanded(child: _buildTextField(_streetController, 'Street', 'Street name...', Icons.add_road_rounded, errorKey: 'street')),
                           ],
                         ),
                         const SizedBox(height: 20),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: _buildTextField(_villageController, 'Village', 'Village name...', Icons.landscape_rounded)),
+                            Expanded(child: _buildTextField(_villageController, 'Village', 'Village name...', Icons.landscape_rounded, errorKey: 'village')),
                             const SizedBox(width: 16),
-                            Expanded(child: _buildTextField(_districtController, 'District', 'District name...', Icons.location_city_rounded)),
+                            Expanded(child: _buildTextField(_districtController, 'District', 'District name...', Icons.location_city_rounded, errorKey: 'district')),
                           ],
                         ),
                         const SizedBox(height: 20),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: _buildTextField(_stateController, 'State', 'State name...', Icons.map_outlined)),
+                            Expanded(child: _buildTextField(_stateController, 'State', 'State name...', Icons.map_outlined, errorKey: 'state')),
                             const SizedBox(width: 16),
-                            Expanded(child: _buildTextField(_pincodeController, 'Pincode', 'Zip code...', Icons.pin_drop_rounded)),
+                            Expanded(child: _buildTextField(_pincodeController, 'Pincode', 'Zip code...', Icons.pin_drop_rounded, errorKey: 'pincode')),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -707,11 +774,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: 20),
-                        _buildTextField(_countryController, 'Country', 'Country name...', Icons.public_rounded),
+                        _buildTextField(_countryController, 'Country', 'Country name...', Icons.public_rounded, errorKey: 'country'),
                         const SizedBox(height: 20),
                         _buildTextField(_phoneController, 'Mobile Number', '', Icons.phone_android_rounded, enabled: false),
                         const SizedBox(height: 20),
-                        _buildTextField(_emailController, 'Email Address', 'Enter your email...', Icons.email_outlined),
+                        _buildTextField(_emailController, 'Email Address', 'Enter your email...', Icons.email_outlined, errorKey: 'email'),
                       ],
                     ),
                   ),
@@ -756,34 +823,58 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, String hint, IconData icon, {bool enabled = true}) {
+  Widget _buildTextField(TextEditingController controller, String label, String hint, IconData icon, {bool enabled = true, String? errorKey}) {
+    final errorText = errorKey != null ? _errors[errorKey] : null;
+    final hasError = errorText != null && errorText.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+          style: TextStyle(
+            fontSize: 13, 
+            fontWeight: FontWeight.w700, 
+            color: hasError ? Colors.red : const Color(0xFF2C3E50),
+          ),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: const Color(0xFFF9FBF9),
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: const Color(0xFFE8F5E9)),
+            border: Border.all(
+              color: hasError ? Colors.red : const Color(0xFFE8F5E9),
+              width: hasError ? 1.5 : 1.0,
+            ),
           ),
           child: TextField(
             controller: controller,
             enabled: enabled,
+            onChanged: (val) {
+              if (errorKey != null && _errors.containsKey(errorKey)) {
+                setState(() {
+                  _errors.remove(errorKey);
+                });
+              }
+            },
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
-              prefixIcon: Icon(icon, color: const Color(0xFF00AA55), size: 20),
+              prefixIcon: Icon(icon, color: hasError ? Colors.red : const Color(0xFF00AA55), size: 20),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
           ),
         ),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(top: 6.0, left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ),
       ],
     );
   }
