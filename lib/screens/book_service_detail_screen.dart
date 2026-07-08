@@ -649,9 +649,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       isQtyValid = _quantityController.text.isNotEmpty;
     }
 
-    bool isNotesValid = _notesController.text.trim().isNotEmpty;
-
-    if (_selectedDate != null && isQtyValid && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty && isNotesValid) {
+    if (_selectedDate != null && isQtyValid && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty) {
       setState(() {
         _isSubmitting = true;
       });
@@ -765,9 +763,6 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         if (_selectedSlots.isEmpty) {
           _fieldErrors['slots'] = 'Please select at least one time slot';
         }
-        if (_notesController.text.trim().isEmpty) {
-          _fieldErrors['notes'] = 'Please enter additional notes / instructions';
-        }
       });
 
       // Scroll to first error
@@ -781,8 +776,6 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         _scrollToField(_dateSectionKey);
       } else if (_fieldErrors.containsKey('slots')) {
         _scrollToField(_timeSectionKey);
-      } else if (_fieldErrors.containsKey('notes')) {
-        _scrollToField(_notesSectionKey);
       }
 
       UiUtils.showCenteredToast(context, AppLocalizations.of(context)!.fillAllDetails, isError: true);
@@ -1454,20 +1447,15 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
             // Additional Notes Card
             _buildSectionCard(
-              key: _notesSectionKey,
               title: 'Additional Notes',
               icon: Icons.note_add_rounded,
-              isError: _fieldErrors.containsKey('notes'),
               child: _buildTextField(
                 controller: _notesController,
-                label: 'Any specific instructions? (Required)',
+                label: 'Any specific instructions?',
                 hint: 'Type here...',
                 maxLines: 3,
                 errorKey: 'notes',
                 icon: Icons.speaker_notes_rounded,
-                onChanged: (_) {
-                  if (_fieldErrors.containsKey('notes')) setState(() => _fieldErrors.remove('notes'));
-                },
               ),
             ),
 
