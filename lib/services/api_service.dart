@@ -28,6 +28,42 @@ class ApiService {
     }
 
     if (refreshToken != null) {
+      // 1. Try refreshing using standard HTTP POST endpoint (cross-platform, works flawlessly on Web & Mobile)
+      try {
+        final tokenUrl = Uri.parse('${ApiConfig.keycloakIssuer}/protocol/openid-connect/token');
+        final response = await http.post(
+          tokenUrl,
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: {
+            'grant_type': 'refresh_token',
+            'client_id': ApiConfig.keycloakClientId,
+            'refresh_token': refreshToken,
+          },
+        );
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final newAccessToken = data['access_token'];
+          final newRefreshToken = data['refresh_token'];
+          final expiresIn = data['expires_in'] ?? 300;
+          final expiry = DateTime.now().add(Duration(seconds: expiresIn));
+
+          if (newAccessToken != null) {
+            await _secureStorage.write(key: 'access_token', value: newAccessToken);
+            if (newRefreshToken != null) {
+              await _secureStorage.write(key: 'refresh_token', value: newRefreshToken);
+            }
+            await _secureStorage.write(key: 'access_token_expiry', value: expiry.toIso8601String());
+            return newAccessToken;
+          }
+        } else {
+          print('HTTP token refresh failed: ${response.statusCode} - ${response.body}');
+        }
+      } catch (e) {
+        print('Error refreshing token via HTTP: $e');
+      }
+
+      // 2. Fallback to FlutterAppAuth token refresh (primarily for native mobile platforms)
       try {
         final result = await _appAuth.token(TokenRequest(
           ApiConfig.keycloakClientId,
@@ -50,7 +86,7 @@ class ApiService {
           return result.accessToken;
         }
       } catch (e) {
-        print('Error refreshing token: $e');
+        print('Error refreshing token via AppAuth fallback: $e');
         await clearTokens();
       }
     }
