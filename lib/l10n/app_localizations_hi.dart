@@ -458,7 +458,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get loadCapacity => 'Load Capacity';
 
   @override
-  String get serviceArea => 'Service Distance';
+  String get serviceArea => 'Service Area';
 
   @override
   String get pricingAvailability => 'Pricing & Availability';
