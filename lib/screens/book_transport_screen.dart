@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'upload_item_screen.dart';
 import 'service_providers_screen.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
+import '../utils/app_translations.dart';
 
 class BookTransportScreen extends StatelessWidget {
   final String? userRole;
@@ -21,12 +22,12 @@ class BookTransportScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Transport Services',
-          style: TextStyle(color: Color(0xFF1B5E20), fontSize: 18, fontWeight: FontWeight.w900),
+        title: Text(
+          AppTranslations.translate(context, 'transportServices'),
+          style: const TextStyle(color: Color(0xFF1B5E20), fontSize: 18, fontWeight: FontWeight.w900),
         ),
         actions: [
-          if (userRole != null && ['Owner', 'Provider'].contains(userRole))
+          if (userRole != null && ['owner', 'provider'].contains(userRole!.toLowerCase()))
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: IconButton(
@@ -50,13 +51,13 @@ class BookTransportScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   const Text(
-                    'Haulage & Logistics',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.5),
+                   Text(
+                    AppTranslations.translate(context, 'haulageLogistics'),
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Reliable transport for your farm produce',
+                    AppTranslations.translate(context, 'reliableTransport'),
                     style: TextStyle(fontSize: 15, color: Colors.grey[600], fontWeight: FontWeight.w500),
                   ),
                 ],
@@ -71,12 +72,12 @@ class BookTransportScreen extends StatelessWidget {
               crossAxisSpacing: 16,
               childAspectRatio: 0.85,
               children: [
-                _buildVehicleCard(context, 'Mini Truck', l10n.miniTruck, 'assets/images/transport_truck_card.webp', '1-2 tons capacity'),
-                _buildVehicleCard(context, 'Tractor Trolley', l10n.tractorTrolley, 'assets/images/tractor_trolley_card.webp', '2-3 tons capacity'),
-                _buildVehicleCard(context, 'Full Truck', l10n.fullTruck, 'assets/images/full_truck_card.webp', '5-10 tons capacity'),
-                _buildVehicleCard(context, 'Tempo', l10n.tempo, 'assets/images/tractor_trolley_card.webp', '500kg-1 ton capacity'),
-                _buildVehicleCard(context, 'Pickup Van', l10n.pickupVan, 'assets/images/pickup_van_card.webp', '300-500 kg capacity'), 
-                _buildVehicleCard(context, 'Container', l10n.container, 'assets/images/full_truck_card.webp', '10+ tons capacity'),
+                _buildVehicleCard(context, 'Mini Truck', l10n.miniTruck, 'assets/images/transport_truck_card.webp', AppTranslations.translate(context, '1_2_tons_capacity')),
+                _buildVehicleCard(context, 'Tractor Trolley', l10n.tractorTrolley, 'assets/images/tractor_trolley_card.webp', AppTranslations.translate(context, '2_3_tons_capacity')),
+                _buildVehicleCard(context, 'Full Truck', l10n.fullTruck, 'assets/images/full_truck_card.webp', AppTranslations.translate(context, '5_10_tons_capacity')),
+                _buildVehicleCard(context, 'Tempo', l10n.tempo, 'assets/images/tractor_trolley_card.webp', AppTranslations.translate(context, '500kg_1_ton_capacity')),
+                _buildVehicleCard(context, 'Pickup Van', l10n.pickupVan, 'assets/images/pickup_van_card.webp', AppTranslations.translate(context, '300_500_kg_capacity')), 
+                _buildVehicleCard(context, 'Container', l10n.container, 'assets/images/full_truck_card.webp', AppTranslations.translate(context, '10_plus_tons_capacity')),
               ],
             ),
           ),

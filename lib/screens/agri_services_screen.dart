@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'service_providers_screen.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
+import '../utils/app_translations.dart';
 
 class AgriServicesScreen extends StatelessWidget {
   final String? userRole;
@@ -13,7 +14,7 @@ class AgriServicesScreen extends StatelessWidget {
       backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
         title: Text(
-          'Agri Services',
+          AppTranslations.translate(context, 'agriServices'),
           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF1B5E20)),
         ),
         backgroundColor: Colors.white,
@@ -48,15 +49,15 @@ class AgriServicesScreen extends StatelessWidget {
               mainAxisSpacing: 20,
               crossAxisSpacing: 20,
               children: [
-                 _buildServiceCard(context, 'Ploughing', l10n.ploughing, 'assets/images/agri_services_card.webp', 'Lush Field Preparation'),
-                 _buildServiceCard(context, 'Electricians', 'Electricians', 'assets/images/electrician_card.webp', 'Expert Power Fixes'),
-                 _buildServiceCard(context, 'Harvesting', l10n.harvesting, 'assets/images/harvester_card.webp', 'Premium Crop Yield'),
-                 _buildServiceCard(context, 'Farm Workers', l10n.farmWorkers, 'assets/images/farm_workers_card.webp', 'Skilled Daily Help'),
-                 _buildServiceCard(context, 'Drone Spraying', l10n.droneSpraying, 'assets/images/drone_spraying_card.webp', 'Modern Tech Spray'),
-                 _buildServiceCard(context, 'Vet Care', l10n.vetCare, 'assets/images/vet_care_card.webp', 'Animal Wellness'),
-                 _buildServiceCard(context, 'Mechanics', 'Mechanics', 'assets/images/mechanic_card.webp', 'Vehicle Repair', isComingSoon: true),
-                 _buildServiceCard(context, 'Irrigation', l10n.irrigation, 'assets/images/irrigation_card.webp', 'Water Solutions', isComingSoon: true),
-                 _buildServiceCard(context, 'Soil Testing', l10n.soilTesting, 'assets/images/soil_testing_card.webp', 'Precision Analysis', isComingSoon: true),
+                 _buildServiceCard(context, 'Ploughing', l10n.ploughing, 'assets/images/agri_services_card.webp', AppTranslations.translate(context, 'ploughFieldPrep')),
+                 _buildServiceCard(context, 'Electricians', AppTranslations.translate(context, 'electricians'), 'assets/images/electrician_card.webp', AppTranslations.translate(context, 'expertPowerFixes')),
+                 _buildServiceCard(context, 'Harvesting', l10n.harvesting, 'assets/images/harvester_card.webp', AppTranslations.translate(context, 'premiumCropYield')),
+                 _buildServiceCard(context, 'Farm Workers', l10n.farmWorkers, 'assets/images/farm_workers_card.webp', AppTranslations.translate(context, 'skilledDailyHelp')),
+                 _buildServiceCard(context, 'Drone Spraying', l10n.droneSpraying, 'assets/images/drone_spraying_card.webp', AppTranslations.translate(context, 'modernTechSpray')),
+                 _buildServiceCard(context, 'Vet Care', l10n.vetCare, 'assets/images/vet_care_card.webp', AppTranslations.translate(context, 'animalWellness')),
+                 _buildServiceCard(context, 'Mechanics', AppTranslations.translate(context, 'mechanics'), 'assets/images/mechanic_card.webp', AppTranslations.translate(context, 'vehicleRepair'), isComingSoon: true),
+                 _buildServiceCard(context, 'Irrigation', l10n.irrigation, 'assets/images/irrigation_card.webp', AppTranslations.translate(context, 'waterSolutions'), isComingSoon: true),
+                 _buildServiceCard(context, 'Soil Testing', l10n.soilTesting, 'assets/images/soil_testing_card.webp', AppTranslations.translate(context, 'precisionAnalysis'), isComingSoon: true),
               ],
             ),
           ],

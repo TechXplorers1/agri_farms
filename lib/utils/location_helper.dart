@@ -29,7 +29,7 @@ class LocationHelper {
     }
 
     // 2. Fallback to native geocoding (Android/iOS only)
-    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    if (exactAddress.isEmpty && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       try {
         final placemarks = await geo.placemarkFromCoordinates(lat, lng);
         if (placemarks.isNotEmpty) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/api_service.dart';
+import '../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import '../services/geocoding_service.dart';
@@ -520,7 +520,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
                                           : Image.file(File(_selectedImage!.path), fit: BoxFit.cover))
                                       : (_profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                                        ? Image.network(ApiConfig.getFullImageUrl(_profileImageUrl), fit: BoxFit.cover)
+                                        ? Image.network(
+                                            ApiConfig.getFullImageUrl(_profileImageUrl), 
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error, stackTrace) => const Icon(
+                                              Icons.person_rounded, 
+                                              size: 60, 
+                                              color: Color(0xFFB0BEC5),
+                                            ),
+                                          )
                                         : const Icon(Icons.person_rounded, size: 60, color: Color(0xFFB0BEC5))),
                                   ),
                                 ),

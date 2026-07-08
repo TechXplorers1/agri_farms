@@ -19,6 +19,7 @@ class ServiceOffering {
   final String? imageUrl;
   final String? priceUnit; 
   final double? rating;
+  final String? ownerName;
 
   ServiceOffering({
     this.serviceId,
@@ -41,6 +42,7 @@ class ServiceOffering {
     this.imageUrl,
     this.priceUnit,
     this.rating,
+    this.ownerName,
   });
 
   factory ServiceOffering.fromJson(Map<String, dynamic> json) {
@@ -65,6 +67,7 @@ class ServiceOffering {
       imageUrl: json['imageUrl'],
       priceUnit: json['priceUnit'],
       rating: (json['rating'] as num?)?.toDouble(),
+      ownerName: json['ownerName'],
     );
   }
 
@@ -90,6 +93,7 @@ class ServiceOffering {
       if (imageUrl != null) 'imageUrl': imageUrl,
       if (priceUnit != null) 'priceUnit': priceUnit,
       if (rating != null) 'rating': rating,
+      if (ownerName != null) 'ownerName': ownerName,
     };
   }
 }

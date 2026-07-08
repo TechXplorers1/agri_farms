@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../../config/api_config.dart';
 import '../models/equipment_model.dart';
 import '../models/transport_vehicle_model.dart';
 import '../models/service_offering_model.dart';
 import '../models/booking_model.dart';
 
 class ApiService {
-  // Use 10.0.2.2 for Android Emulator, localhost for iOS/Web/Windows
-  // static const String baseUrl = 'http://10.0.2.2:8083/api'; 
-  static const String baseUrl = 'http://localhost:8083/api'; 
+  static String get baseUrl => '${ApiConfig.baseUrl}/api'; 
 
   Future<List<Equipment>> getEquipment({String? category}) async {
     final uri = Uri.parse('$baseUrl/inventory/equipment').replace(queryParameters: category != null ? {'category': category} : {});

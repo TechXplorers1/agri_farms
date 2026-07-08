@@ -25,6 +25,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
+    _loadNotifications();
   }
 
   @override
@@ -50,23 +51,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         
         final allNotifications = List<Map<String, dynamic>>.from(
           notifications.map((n) => Map<String, dynamic>.from(n))
-        );
+        ).where((n) => (n['read'] ?? n['isRead'] ?? false) == false).toList();
         
         // Apply Translation if not English
         if (targetLang != 'en') {
           for (var n in allNotifications) {
-            if (n['title'] != null) n['title'] = await trans.translate(n['title'], targetLang);
-            if (n['message'] != null) n['message'] = await trans.translate(n['message'], targetLang);
+            try {
+              if (n['title'] != null) n['title'] = await trans.translate(n['title'], targetLang);
+              if (n['message'] != null) n['message'] = await trans.translate(n['message'], targetLang);
+            } catch (transError) {
+              debugPrint('Translation error for notification: $transError');
+            }
           }
         }
 
-        final unreadNotifications = allNotifications
-            .where((n) => (n['read'] ?? n['isRead']) != true)
-            .toList();
-
         if (mounted) {
           setState(() {
-            _notifications = unreadNotifications;
+            _notifications = allNotifications;
             _isLoading = false;
           });
         }
@@ -84,11 +85,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await _apiService.markNotificationAsRead(id);
       if (mounted) {
         setState(() {
-          final index = _notifications.indexWhere((n) => n['id'] == id);
-          if (index != -1) {
-            _notifications[index]['read'] = true;
-            _notifications[index]['isRead'] = true;
-          }
+          _notifications.removeWhere((n) => n['id'] == id);
         });
       }
     } catch (e) {
@@ -99,7 +96,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   void _onNotificationTap(dynamic notification) async {
     final String? notificationId = notification['id'];
     if (notificationId != null) {
-      // Optimistic Update: Remove notification locally immediately so it disappears with 0ms delay!
+      // Optimistic Update: Remove from list locally immediately so it disappears with 0ms delay!
       setState(() {
         _notifications.removeWhere((n) => n['id'] == notificationId);
       });
@@ -108,6 +105,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     final type = notification['type'] ?? '';
+    final prefs = await SharedPreferences.getInstance();
+    final userRole = (prefs.getString('user_role') ?? 'Farmer').toLowerCase();
+
     if (type == 'booking_request') {
       Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
     } else if (type == 'booking_status_update') {
@@ -116,6 +116,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
         showBackButton: true,
       )));
+    } else if (type == 'booking_cancelled') {
+      if (['owner', 'provider'].contains(userRole)) {
+        Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
+      } else {
+        Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+          title: 'Activity Bookings',
+          categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
+          showBackButton: true,
+        )));
+      }
     }
   }
 
@@ -201,11 +211,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            tooltip: 'Trigger Test Notification',
-            onPressed: _triggerTestNotification,
-            icon: const Icon(Icons.bug_report_outlined, color: Color(0xFF1B5E20), size: 24),
-          ),
-          IconButton(
             onPressed: _loadNotifications, 
             icon: const Icon(Icons.refresh_rounded, color: Color(0xFF1B5E20), size: 24)
           ),
@@ -256,18 +261,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             'We\'ll notify you when they arrive.', 
             style: TextStyle(fontSize: 15, color: Colors.grey[500], fontWeight: FontWeight.w600)
           ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1B5E20),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            onPressed: _triggerTestNotification,
-            icon: const Icon(Icons.bug_report_outlined, size: 18),
-            label: const Text('TRIGGER TEST NOTIFICATION', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 0.8)),
-          ),
         ],
       ),
     );
@@ -276,7 +269,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildPremiumCard(dynamic notification, int index) {
     final type = notification['type'] ?? '';
     final isRead = (notification['read'] ?? notification['isRead']) == true;
-    final isNavigable = type == 'booking_request' || type == 'booking_status_update';
+    final isNavigable = type == 'booking_request' || type == 'booking_status_update' || type == 'booking_cancelled';
 
     Color accentColor = const Color(0xFF00AA55);
     IconData icon = Icons.notifications_rounded;
@@ -287,6 +280,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } else if (type == 'booking_status_update') {
        accentColor = const Color(0xFFF9A825);
        icon = Icons.info_rounded;
+    } else if (type == 'booking_cancelled') {
+       accentColor = const Color(0xFFC62828);
+       icon = Icons.cancel_outlined;
     }
 
     return GestureDetector(

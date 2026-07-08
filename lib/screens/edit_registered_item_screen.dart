@@ -40,6 +40,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   bool _boolFlag = false; // operatorAvailable, driverIncluded
   String? _condition; // Equipment
   late TextEditingController _capacityController; // Vehicle
+  late TextEditingController _operatorPriceController;
   bool _isFetchingLocation = false;
 
   XFile? _imageFile;
@@ -60,6 +61,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _ownerBusinessNameController = TextEditingController(text: widget.itemData['ownerBusinessName']?.toString() ?? '');
     _descriptionController = TextEditingController(text: widget.itemData['description']?.toString() ?? '');
     _imageUrl = widget.itemData['imageUrl']?.toString();
+    _operatorPriceController = TextEditingController(text: widget.itemData['operatorPrice']?.toString() ?? '');
 
     if (widget.category == 'Vehicle') {
       _nameController.text = widget.itemData['vehicleNumber']?.toString() ?? '';
@@ -95,6 +97,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _capacityController.dispose();
     _ownerBusinessNameController.dispose();
     _descriptionController.dispose();
+    _operatorPriceController.dispose();
     super.dispose();
   }
 
@@ -182,6 +185,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['vehicleType'] = _secondaryController.text;
         updatedData['loadCapacity'] = _capacityController.text;
         updatedData['driverIncluded'] = _boolFlag;
+        updatedData['operatorPrice'] = _boolFlag ? (double.tryParse(_operatorPriceController.text) ?? 0.0) : 0.0;
         updatedData['location'] = _locationController.text;
         await _apiService.updateVehicle(widget.itemData['vehicleId'], updatedData);
       } else if (widget.category == 'Equipment') {
@@ -201,6 +205,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['pricePerHour'] = double.tryParse(_priceController.text) ?? 0.0;
         updatedData['category'] = _secondaryController.text;
         updatedData['operatorAvailable'] = _boolFlag;
+        updatedData['operatorPrice'] = _boolFlag ? (double.tryParse(_operatorPriceController.text) ?? 0.0) : 0.0;
         updatedData['conditionStatus'] = _condition;
         updatedData['location'] = _locationController.text;
         await _apiService.updateEquipment(widget.itemData['equipmentId'], updatedData);
@@ -209,6 +214,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['priceRate'] = double.tryParse(_priceController.text) ?? 0.0;
         updatedData['serviceType'] = _secondaryController.text;
         updatedData['operatorIncluded'] = _boolFlag;
+        updatedData['operatorPrice'] = _boolFlag ? (double.tryParse(_operatorPriceController.text) ?? 0.0) : 0.0;
         updatedData['location'] = _locationController.text;
         await _apiService.updateService(widget.itemData['serviceId'], updatedData);
       } else if (widget.category == 'WorkerGroup') {
@@ -269,7 +275,31 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                             ? (kIsWeb 
                                 ? Image.network(_imageFile!.path, fit: BoxFit.cover)
                                 : Image.file(File(_imageFile!.path), fit: BoxFit.cover))
-                            : Image.network(ApiConfig.getFullImageUrl(_imageUrl), fit: BoxFit.cover)
+                            : Image.network(
+                                ApiConfig.getFullImageUrl(_imageUrl), 
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Container(
+                                  color: const Color(0xFFF9FBF9),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withOpacity(0.05),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.broken_image_rounded, size: 40, color: Colors.red),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'Failed to load image', 
+                                        style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w700, fontSize: 14)
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
                       else
                         Container(
                           color: const Color(0xFFF9FBF9),
@@ -349,7 +379,14 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                     const SizedBox(height: 20),
                     _buildTextField('Price Per Km/Trip', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
                     const SizedBox(height: 12),
-                    _buildSwitchTile('Driver Included', _boolFlag, (v) => setState(() => _boolFlag = v)),
+                    _buildSwitchTile('Driver Included', _boolFlag, (v) => setState(() {
+                      _boolFlag = v;
+                      if (!v) _operatorPriceController.clear();
+                    })),
+                    if (_boolFlag) ...[
+                      const SizedBox(height: 12),
+                      _buildTextField('Driver Price', _operatorPriceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number, hint: 'Driver charge per day/trip'),
+                    ],
                   ] else if (widget.category == 'Equipment') ...[
                     _buildTextField('Price Per Hour', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
                     const SizedBox(height: 20),
@@ -378,11 +415,25 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _buildSwitchTile('Operator Available', _boolFlag, (v) => setState(() => _boolFlag = v)),
+                    _buildSwitchTile('Operator Available', _boolFlag, (v) => setState(() {
+                      _boolFlag = v;
+                      if (!v) _operatorPriceController.clear();
+                    })),
+                    if (_boolFlag) ...[
+                      const SizedBox(height: 12),
+                      _buildTextField('Operator Price', _operatorPriceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number, hint: 'Operator charge per day/hour'),
+                    ],
                   ] else if (widget.category == 'Service') ...[
                     _buildTextField('Price / Rate', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
                     const SizedBox(height: 12),
-                    _buildSwitchTile('Operator Included', _boolFlag, (v) => setState(() => _boolFlag = v)),
+                    _buildSwitchTile('Operator Included', _boolFlag, (v) => setState(() {
+                      _boolFlag = v;
+                      if (!v) _operatorPriceController.clear();
+                    })),
+                    if (_boolFlag) ...[
+                      const SizedBox(height: 12),
+                      _buildTextField('Operator Price', _operatorPriceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number, hint: 'Operator charge'),
+                    ],
                   ] else if (widget.category == 'WorkerGroup') ...[
                     _buildTextField('Price Per Male', _priceController, Icons.man_rounded, keyboardType: TextInputType.number, hint: 'Rate for male workers'),
                     const SizedBox(height: 20),

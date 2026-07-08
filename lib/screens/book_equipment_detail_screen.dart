@@ -22,6 +22,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
   final String providerId;
   final String assetId;
   final double rate; // Rate per hour or day
+  final double? operatorPrice;
   final String? ownerProfileImage;
 
   const BookEquipmentDetailScreen({
@@ -31,6 +32,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
     required this.providerId,
     required this.assetId,
     required this.rate,
+    this.operatorPrice,
     this.ownerProfileImage,
   });
 
@@ -445,7 +447,8 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     if (_selectedSlots.isEmpty) return 0;
     
     double hours = _selectedSlots.length.toDouble();
-    double operatorCost = _includeOperator ? (200 * hours) : 0; // 200/hr for operator
+    double opPrice = widget.operatorPrice ?? 200.0;
+    double operatorCost = _includeOperator ? (opPrice * hours) : 0;
     return ((widget.rate * hours) + operatorCost) * _equipmentCount;
   }
 
@@ -1175,7 +1178,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                 child: SwitchListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                   title: const Text('Include Operator', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B5E20))),
-                  subtitle: const Text('+ ₹200 / hr extra charge', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+                  subtitle: Text('+ ₹${(widget.operatorPrice ?? 200.0).toStringAsFixed(0)} / hr extra charge', style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
                   value: _includeOperator, 
                   activeColor: const Color(0xFF00AA55),
                   onChanged: (val) => setState(() => _includeOperator = val),

@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import 'verify_otp_screen.dart';
-import '../../services/api_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
+import 'package:agriculture/config/api_config.dart';
+import '../services/api_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -16,13 +17,13 @@ class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   String? _selectedRole;
-  bool _isLogin = true; // Default to Login
+  bool _isLogin = true; 
   bool _isButtonEnabled = false;
   bool _isLoading = false;
+  String? _errorMessage;
 
   List<String> _getRoles(BuildContext context) {
-    var l10n = AppLocalizations.of(context)!;
-    return [l10n.generalUser, l10n.farmer];
+    return ['Farmer', 'Owner'];
   }
 
   @override
@@ -30,6 +31,8 @@ class _AuthScreenState extends State<AuthScreen> {
     super.initState();
     _phoneController.addListener(_validateInput);
     _nameController.addListener(_validateInput);
+    // Initialize MSG91 OTP Widget
+    OTPWidget.initializeWidget(ApiConfig.msg91WidgetId, ApiConfig.msg91AuthToken);
   }
 
   @override
@@ -41,14 +44,13 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _validateInput() {
     setState(() {
+      _errorMessage = null;
       if (_isLogin) {
-        // Login: Only Phone required
         _isButtonEnabled = _phoneController.text.length == 10;
       } else {
-        // Sign Up: All fields required
         _isButtonEnabled = _phoneController.text.length == 10 &&
-          _nameController.text.trim().isNotEmpty &&
-          _selectedRole != null;
+            _nameController.text.trim().isNotEmpty &&
+            _selectedRole != null;
       }
     });
   }
@@ -86,89 +88,67 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_isButtonEnabled) {
       setState(() {
         _isLoading = true;
+        _errorMessage = null;
       });
-
       try {
-        final apiService = ApiService();
-        
-        if (_isLogin) {
-          try {
-            await apiService.getUserByPhone(_phoneController.text);
-          } catch (e) {
-            if (e.toString().contains('404') || e.toString().contains('Not Found')) {
-              if (mounted) {
-                _showErrorDialog('Account Not Found', 'Please sign up or register to get logged in.');
-                setState(() => _isLoading = false);
-              }
-              return;
-            } else {
-              if (mounted) {
-                _showErrorDialog('Error', 'Failed to verify account: $e');
-                setState(() => _isLoading = false);
-              }
-              return;
-            }
-          }
-        } else {
-          try {
-            await apiService.getUserByPhone(_phoneController.text);
-            if (mounted) {
-              _showErrorDialog('Account Exists', 'This mobile number is already registered. Please login instead.');
-              setState(() => _isLoading = false);
-            }
-            return;
-          } catch (e) {
-            if (e.toString().contains('404') || e.toString().contains('Not Found')) {
-              // Expected missing user
-            } else {
-              if (mounted) {
-                _showErrorDialog('Error', 'Failed to check account: $e');
-                setState(() => _isLoading = false);
-              }
-              return;
-            }
+        final phoneNumber = _phoneController.text.trim();
+        bool userExists = false;
+        try {
+          final apiService = ApiService();
+          final user = await apiService.getUserByPhone(phoneNumber);
+          userExists = user != null;
+        } catch (e) {
+          if (e.toString().contains('404')) {
+            userExists = false;
+          } else {
+            rethrow;
           }
         }
 
-        // Trigger real Firebase Phone Verification
-        await FirebaseAuth.instance.verifyPhoneNumber(
-          phoneNumber: '+91${_phoneController.text}',
-          verificationCompleted: (PhoneAuthCredential credential) async {
-            // Auto-retrieval or instant verification on Android
-            try {
-              await FirebaseAuth.instance.signInWithCredential(credential);
-            } catch (e) {
-              debugPrint("Auto verification sign-in failed: $e");
-            }
-          },
-          verificationFailed: (FirebaseAuthException e) {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              _showErrorDialog('Verification Failed', e.message ?? 'An error occurred during verification.');
-            }
-          },
-          codeSent: (String verificationId, int? resendToken) {
-            if (mounted) {
-              setState(() => _isLoading = false);
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => VerifyOtpScreen(
-                    mobileNumber: _phoneController.text,
-                    fullName: _isLogin ? '' : _nameController.text,
-                    role: _isLogin ? '' : _selectedRole!,
-                    isLogin: _isLogin,
-                    verificationId: verificationId, // Real Firebase Verification ID
-                  ),
+        if (_isLogin && !userExists) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'No account found for this number. Please register first to get started!';
+          });
+          return;
+        }
+
+        if (!_isLogin && userExists) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Account already exists. Please login instead.';
+          });
+          return;
+        }
+
+        final response = await OTPWidget.sendOTP({
+          'identifier': '91' + phoneNumber,
+        });
+        
+        if (response != null && response['type'] == 'success') {
+          final String reqId = response['message']?.toString() ?? '';
+          if (mounted) {
+            setState(() => _isLoading = false);
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => VerifyOtpScreen(
+                  mobileNumber: phoneNumber,
+                  fullName: _isLogin ? '' : _nameController.text,
+                  role: _isLogin ? 'Farmer' : (_selectedRole ?? 'Farmer'),
+                  isLogin: _isLogin,
+                  verificationId: reqId,
                 ),
-              );
-            }
-          },
-          codeAutoRetrievalTimeout: (String verificationId) {},
-        );
+              ),
+            );
+          }
+        } else {
+          final errorMsg = response != null ? (response['message'] ?? 'Failed to send OTP') : 'Failed to send OTP';
+          throw Exception(errorMsg);
+        }
       } catch (e) {
         if (mounted) {
           setState(() => _isLoading = false);
-          _showErrorDialog('Error', 'Verification process failed: $e');
+          _showErrorDialog('Error', e.toString().replaceAll('Exception: ', ''));
         }
       }
     }
@@ -177,7 +157,8 @@ class _AuthScreenState extends State<AuthScreen> {
   void _toggleAuthMode() {
     setState(() {
       _isLogin = !_isLogin;
-      _validateInput(); // Re-validate on toggle
+      _errorMessage = null;
+      _validateInput();
     });
   }
 
@@ -217,7 +198,6 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Column(
                       children: [
                         const SizedBox(height: 40),
-                        // Animated Logo Container
                         Container(
                           width: 80,
                           height: 80,
@@ -299,7 +279,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                _isLogin ? 'Login to continue' : 'Join the community',
+                                _isLogin ? 'Login with OTP' : 'Join the community',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey[500],
@@ -324,7 +304,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Sign Up Unique Fields
+                      // Sign Up Fields
                       if (!_isLogin) ...[
                         _buildLabel(l10n.fullName),
                         const SizedBox(height: 8),
@@ -384,10 +364,9 @@ class _AuthScreenState extends State<AuthScreen> {
                             child: const Text(
                               '+91',
                               style: TextStyle(
-                                fontSize: 16,
-                                color: Color(0xFF1B5E20),
-                                fontWeight: FontWeight.w900,
-                              ),
+                                  fontSize: 16,
+                                  color: Color(0xFF1B5E20),
+                                  fontWeight: FontWeight.w900),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -406,6 +385,35 @@ class _AuthScreenState extends State<AuthScreen> {
                         ],
                       ),
                       
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.red[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red[100]!),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.error_outline_rounded, color: Colors.red[700], size: 20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: TextStyle(
+                                    color: Colors.red[700],
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
                       const SizedBox(height: 40),
                       
                       // Action Button (Premium Lush)
@@ -438,7 +446,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           child: _isLoading 
                             ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3)) 
                             : Text(
-                                _isLogin ? 'Sign In'.toUpperCase() : 'Create Account'.toUpperCase(),
+                                _isLogin ? 'Get OTP'.toUpperCase() : 'Register'.toUpperCase(),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w900,
@@ -477,7 +485,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ),
             
-            // Premium Footer
+            // Footer
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Column(

@@ -26,7 +26,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          if (userRole != null && ['Owner', 'Provider'].contains(userRole))
+          if (userRole != null && ['owner', 'provider'].contains(userRole!.toLowerCase()))
             Padding(
               padding: const EdgeInsets.only(right: 16.0),
               child: IconButton(
