@@ -52,6 +52,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   final GlobalKey _addressSectionKey = GlobalKey();
   final GlobalKey _dateSectionKey = GlobalKey();
   final GlobalKey _timeSectionKey = GlobalKey();
+  final GlobalKey _notesSectionKey = GlobalKey();
   DateTime? _selectedDate;
   List<BookingDTO> _existingBookings = [];
   bool _isLoadingBookings = false;
@@ -648,9 +649,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       isQtyValid = _quantityController.text.isNotEmpty;
     }
 
-    bool hasValidPrice = _totalPrice > 0;
+    bool isNotesValid = _notesController.text.trim().isNotEmpty;
 
-    if (_selectedDate != null && isQtyValid && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty && hasValidPrice) {
+    if (_selectedDate != null && isQtyValid && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty && isNotesValid) {
       setState(() {
         _isSubmitting = true;
       });
@@ -733,10 +734,6 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
       }
     } else {
-      if (_selectedDate != null && isQtyValid && _addressController.text.isNotEmpty && _selectedSlots.isNotEmpty && !hasValidPrice) {
-        UiUtils.showCenteredToast(context, 'Total price cannot be zero. Cannot book without cost info.', isError: true);
-        return;
-      }
       setState(() {
         _fieldErrors.clear();
         if (isElectrician) {
@@ -768,6 +765,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         if (_selectedSlots.isEmpty) {
           _fieldErrors['slots'] = 'Please select at least one time slot';
         }
+        if (_notesController.text.trim().isEmpty) {
+          _fieldErrors['notes'] = 'Please enter additional notes / instructions';
+        }
       });
 
       // Scroll to first error
@@ -781,6 +781,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         _scrollToField(_dateSectionKey);
       } else if (_fieldErrors.containsKey('slots')) {
         _scrollToField(_timeSectionKey);
+      } else if (_fieldErrors.containsKey('notes')) {
+        _scrollToField(_notesSectionKey);
       }
 
       UiUtils.showCenteredToast(context, AppLocalizations.of(context)!.fillAllDetails, isError: true);
@@ -1259,6 +1261,14 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                       );
                     }
                   ),
+                  if (_fieldErrors.containsKey('date'))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text(
+                        _fieldErrors['date']!,
+                        style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                    ),
 
                   const SizedBox(height: 30),
                   Row(
@@ -1355,6 +1365,14 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                         );
                       },
                     ),
+                    if (_fieldErrors.containsKey('slots'))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          _fieldErrors['slots']!,
+                          style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      ),
 
                     if (_selectedSlots.isNotEmpty) ...[
                       const SizedBox(height: 30),
@@ -1436,15 +1454,20 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
             // Additional Notes Card
             _buildSectionCard(
+              key: _notesSectionKey,
               title: 'Additional Notes',
               icon: Icons.note_add_rounded,
+              isError: _fieldErrors.containsKey('notes'),
               child: _buildTextField(
                 controller: _notesController,
-                label: 'Any specific instructions?',
+                label: 'Any specific instructions? (Required)',
                 hint: 'Type here...',
                 maxLines: 3,
                 errorKey: 'notes',
                 icon: Icons.speaker_notes_rounded,
+                onChanged: (_) {
+                  if (_fieldErrors.containsKey('notes')) setState(() => _fieldErrors.remove('notes'));
+                },
               ),
             ),
 
@@ -1629,6 +1652,14 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             if (errorKey == 'asset' && _fieldErrors.containsKey('asset_custom')) setState(() => _fieldErrors.remove('asset_custom'));
           },
         ),
+        if (hasError && _fieldErrors[errorKey] != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6.0, left: 4),
+            child: Text(
+              _fieldErrors[errorKey]!,
+              style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ),
       ],
     );
   }
@@ -1668,6 +1699,14 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
           },
           decoration: _inputDecoration(hint, isError: hasError, icon: icon).copyWith(suffixIcon: suffixIcon),
         ),
+        if (hasError && _fieldErrors[errorKey] != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6.0, left: 4),
+            child: Text(
+              _fieldErrors[errorKey]!,
+              style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ),
       ],
     );
   }
