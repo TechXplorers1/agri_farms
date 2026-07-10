@@ -9,7 +9,7 @@ plugins {
 android {
     namespace = "com.agrifarms.app"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -41,6 +41,7 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+    println("DEBUG: app targetSdk is ${defaultConfig.targetSdk}, compileSdk is ${compileSdk}, ndkVersion is ${ndkVersion}")
 }
 
 flutter {
