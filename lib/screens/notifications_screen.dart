@@ -53,23 +53,50 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           notifications.map((n) => Map<String, dynamic>.from(n))
         ).where((n) => (n['read'] ?? n['isRead'] ?? false) == false).toList();
         
-        // Apply Translation if not English
-        if (targetLang != 'en') {
-          for (var n in allNotifications) {
-            try {
-              if (n['title'] != null) n['title'] = await trans.translate(n['title'], targetLang);
-              if (n['message'] != null) n['message'] = await trans.translate(n['message'], targetLang);
-            } catch (transError) {
-              debugPrint('Translation error for notification: $transError');
-            }
-          }
-        }
-
         if (mounted) {
           setState(() {
             _notifications = allNotifications;
             _isLoading = false;
           });
+        }
+
+        // Apply Translation asynchronously if not English, without blocking the initial render
+        if (targetLang != 'en') {
+          for (var n in allNotifications) {
+            final originalTitle = n['title'];
+            final originalMessage = n['message'];
+            
+            bool changed = false;
+            String? translatedTitle;
+            String? translatedMessage;
+
+            try {
+              if (originalTitle != null) {
+                translatedTitle = await trans.translate(originalTitle, targetLang);
+                if (translatedTitle != originalTitle) {
+                  changed = true;
+                }
+              }
+              if (originalMessage != null) {
+                translatedMessage = await trans.translate(originalMessage, targetLang);
+                if (translatedMessage != originalMessage) {
+                  changed = true;
+                }
+              }
+
+              if (changed && mounted) {
+                setState(() {
+                  final idx = _notifications.indexWhere((item) => item['id'] == n['id']);
+                  if (idx != -1) {
+                    if (translatedTitle != null) _notifications[idx]['title'] = translatedTitle;
+                    if (translatedMessage != null) _notifications[idx]['message'] = translatedMessage;
+                  }
+                });
+              }
+            } catch (transError) {
+              debugPrint('Translation error for notification: $transError');
+            }
+          }
         }
       } else {
         if (mounted) setState(() => _isLoading = false);
@@ -210,6 +237,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         elevation: 0,
         centerTitle: true,
         actions: [
+          IconButton(
+            onPressed: _triggerTestNotification,
+            icon: const Icon(Icons.add_alert_rounded, color: Color(0xFF1B5E20), size: 24),
+            tooltip: 'Trigger Test',
+          ),
           IconButton(
             onPressed: _loadNotifications, 
             icon: const Icon(Icons.refresh_rounded, color: Color(0xFF1B5E20), size: 24)

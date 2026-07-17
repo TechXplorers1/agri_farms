@@ -32,7 +32,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   bool _isButtonEnabled = false;
   bool _isLoading = false;
   late String _currentVerificationId;
-  int _secondsRemaining = 30;
+  int _secondsRemaining = 60;
   bool _canResend = false;
   Timer? _timer;
 
@@ -53,7 +53,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
 
   void _startTimer() {
     setState(() {
-      _secondsRemaining = 30;
+      _secondsRemaining = 60;
       _canResend = false;
     });
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -129,6 +129,14 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
   }
 
   Future<void> _verifyOtp() async {
+    if (_secondsRemaining == 0) {
+      _showErrorDialog(
+        'OTP Expired',
+        'The OTP has expired because the 1-minute time limit has passed. Please click "Resend OTP" to get a new code.',
+      );
+      return;
+    }
+
     if (!_isButtonEnabled || _isLoading) return;
 
     final entered = _otpController.text.trim();
@@ -290,15 +298,19 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Resend Timer Row
+                     // Resend Timer Row
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           _canResend 
-                              ? "Didn't receive the code? " 
+                              ? "OTP Expired! Suggest to " 
                               : "Resend code in ",
-                          style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                          style: TextStyle(
+                            color: _canResend ? Colors.red[700] : Colors.grey[500], 
+                            fontSize: 13,
+                            fontWeight: _canResend ? FontWeight.bold : FontWeight.normal,
+                          ),
                         ),
                         _canResend
                             ? GestureDetector(
@@ -309,6 +321,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                                     color: Color(0xFF00AA55),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
+                                    decoration: TextDecoration.underline,
                                   ),
                                 ),
                               )

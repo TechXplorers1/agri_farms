@@ -1,7 +1,120 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 
-class HelpSupportScreen extends StatelessWidget {
+class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
+
+  @override
+  State<HelpSupportScreen> createState() => _HelpSupportScreenState();
+}
+
+class _HelpSupportScreenState extends State<HelpSupportScreen> {
+  final TextEditingController _feedbackController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _feedbackController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _sendEmail() async {
+    final Uri emailUri = Uri(
+      scheme: 'mailto',
+      path: 'support@agrifarms.com',
+      queryParameters: {
+        'subject': 'Agri Farms Help & Support Request',
+      },
+    );
+    try {
+      await launchUrl(emailUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open email client: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _makeCall() async {
+    final Uri phoneUri = Uri(
+      scheme: 'tel',
+      path: '+9118001234567',
+    );
+    try {
+      await launchUrl(phoneUri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open dialer: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _submitFeedback() async {
+    final message = _feedbackController.text.trim();
+    if (message.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your feedback or request message'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id') ?? 'Unknown User ID';
+      final name = prefs.getString('user_name') ?? 'Unknown User';
+      final email = prefs.getString('user_email') ?? 'No email';
+      final phone = prefs.getString('user_phone') ?? 'No phone';
+
+      await ApiService().submitSupportRequest(
+        userId: userId,
+        name: name,
+        email: email,
+        phone: phone,
+        message: message,
+      );
+
+      if (mounted) {
+        _feedbackController.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Support request submitted successfully! Admin has been notified.'),
+            backgroundColor: Color(0xFF00AA55),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error submitting feedback: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit support request: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +166,7 @@ class HelpSupportScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   const Text(
+                  const Text(
                     'Frequently Asked Questions',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.3),
                   ),
@@ -81,7 +194,7 @@ class HelpSupportScreen extends StatelessWidget {
                     'Email Support',
                     'support@agrifarms.com',
                     const Color(0xFF1565C0),
-                    onTap: () {},
+                    onTap: _sendEmail,
                   ),
                   const SizedBox(height: 12),
                   _buildContactOption(
@@ -89,59 +202,67 @@ class HelpSupportScreen extends StatelessWidget {
                     'Call Helpline',
                     '+91 1800 123 4567',
                     const Color(0xFF00AA55),
-                    onTap: () {},
+                    onTap: _makeCall,
                   ),
-                   const SizedBox(height: 32),
+                  const SizedBox(height: 32),
                   const Text(
                     'Send Feedback',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.3),
                   ),
-                   const SizedBox(height: 16),
-                   Container(
-                     padding: const EdgeInsets.all(24),
-                     decoration: BoxDecoration(
-                       color: Colors.white,
-                       borderRadius: BorderRadius.circular(30),
-                       boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8))],
-                     ),
-                     child: Column(
-                       children: [
-                         TextField(
-                           maxLines: 4,
-                           style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
-                           decoration: InputDecoration(
-                             hintText: 'Tell us how we can improve...',
-                             hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
-                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey[100]!)),
-                             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey[100]!)),
-                             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Color(0xFF00AA55))),
-                             filled: true,
-                             fillColor: const Color(0xFFF9FBF9),
-                           ),
-                         ),
-                         const SizedBox(height: 20),
-                         Container(
-                            width: double.infinity,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 8))],
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8))],
+                    ),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _feedbackController,
+                          maxLines: 4,
+                          style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
+                          decoration: InputDecoration(
+                            hintText: 'Tell us how we can improve...',
+                            hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey[100]!)),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey[100]!)),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Color(0xFF00AA55))),
+                            filled: true,
+                            fillColor: const Color(0xFFF9FBF9),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Container(
+                          width: double.infinity,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 15, offset: const Offset(0, 8))],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: _isSubmitting ? null : _submitFeedback,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00AA55),
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: const Color(0xFF00AA55).withOpacity(0.6),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
-                            child: ElevatedButton(
-                              onPressed: (){}, 
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF00AA55),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              ),
-                              child: const Text('SUBMIT FEEDBACK', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1)),
-                            ),
-                         )
-                       ],
-                     ),
-                   ),
-                   const SizedBox(height: 48),
+                            child: _isSubmitting
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                  )
+                                : const Text('SUBMIT FEEDBACK', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 1)),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 48),
                 ],
               ),
             ),

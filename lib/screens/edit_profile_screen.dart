@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
+import '../utils/translated_text.dart';
 import 'package:geolocator/geolocator.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -826,56 +827,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildTextField(TextEditingController controller, String label, String hint, IconData icon, {bool enabled = true, String? errorKey}) {
     final errorText = errorKey != null ? _errors[errorKey] : null;
     final hasError = errorText != null && errorText.isNotEmpty;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13, 
-            fontWeight: FontWeight.w700, 
-            color: hasError ? Colors.red : const Color(0xFF2C3E50),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9FBF9),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(
-              color: hasError ? Colors.red : const Color(0xFFE8F5E9),
-              width: hasError ? 1.5 : 1.0,
+    
+    return TranslationBuilder(
+      texts: [label, hint, if (hasError && errorText != null) errorText else ''],
+      builder: (context, translatedTexts) {
+        final translatedLabel = translatedTexts[0];
+        final translatedHint = translatedTexts[1];
+        final translatedError = translatedTexts.length > 2 && translatedTexts[2].isNotEmpty ? translatedTexts[2] : errorText;
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              translatedLabel,
+              style: TextStyle(
+                fontSize: 13, 
+                fontWeight: FontWeight.w700, 
+                color: hasError ? Colors.red : const Color(0xFF2C3E50),
+              ),
             ),
-          ),
-          child: TextField(
-            controller: controller,
-            enabled: enabled,
-            onChanged: (val) {
-              if (errorKey != null && _errors.containsKey(errorKey)) {
-                setState(() {
-                  _errors.remove(errorKey);
-                });
-              }
-            },
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
-              prefixIcon: Icon(icon, color: hasError ? Colors.red : const Color(0xFF00AA55), size: 20),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FBF9),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: hasError ? Colors.red : const Color(0xFFE8F5E9),
+                  width: hasError ? 1.5 : 1.0,
+                ),
+              ),
+              child: TextField(
+                controller: controller,
+                enabled: enabled,
+                onChanged: (val) {
+                  if (errorKey != null && _errors.containsKey(errorKey)) {
+                    setState(() {
+                      _errors.remove(errorKey);
+                    });
+                  }
+                },
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
+                decoration: InputDecoration(
+                  hintText: translatedHint,
+                  hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
+                  prefixIcon: Icon(icon, color: hasError ? Colors.red : const Color(0xFF00AA55), size: 20),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+              ),
             ),
-          ),
-        ),
-        if (hasError)
-          Padding(
-            padding: const EdgeInsets.only(top: 6.0, left: 4),
-            child: Text(
-              errorText,
-              style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-          ),
-      ],
+            if (hasError && translatedError != null && translatedError.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0, left: 4),
+                child: Text(
+                  translatedError,
+                  style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

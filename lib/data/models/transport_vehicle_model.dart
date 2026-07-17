@@ -5,7 +5,9 @@ class TransportVehicle {
   final String? vehicleNumber;
   final String? loadCapacity;
   final double? pricePerKmOrTrip;
+  final double? pricePerKm;
   final bool? driverIncluded;
+  final double? operatorPrice;
   final String? location;
   String? houseNo;
   String? street;
@@ -29,7 +31,9 @@ class TransportVehicle {
     this.vehicleNumber,
     this.loadCapacity,
     this.pricePerKmOrTrip,
+    this.pricePerKm,
     this.driverIncluded,
+    this.operatorPrice,
     this.location,
     this.houseNo,
     this.street,
@@ -55,7 +59,9 @@ class TransportVehicle {
       vehicleNumber: json['vehicleNumber'],
       loadCapacity: json['loadCapacity'],
       pricePerKmOrTrip: (json['pricePerKmOrTrip'] as num?)?.toDouble(),
+      pricePerKm: (json['pricePerKm'] as num?)?.toDouble(),
       driverIncluded: json['driverIncluded'],
+      operatorPrice: (json['operatorPrice'] as num?)?.toDouble(),
       location: json['location'],
       houseNo: json['houseNo'],
       street: json['street'],
@@ -82,7 +88,9 @@ class TransportVehicle {
       'vehicleNumber': vehicleNumber,
       'loadCapacity': loadCapacity,
       'pricePerKmOrTrip': pricePerKmOrTrip,
+      'pricePerKm': pricePerKm,
       'driverIncluded': driverIncluded,
+      'operatorPrice': operatorPrice,
       'location': location,
       'houseNo': houseNo,
       'street': street,

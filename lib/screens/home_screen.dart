@@ -29,6 +29,7 @@ import '../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/ui_utils.dart';
 import '../utils/location_helper.dart';
+import '../utils/translated_text.dart';
 
 class HomeServiceItem {
   final String title;
@@ -101,16 +102,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _loadUserDataAndCheckLocation() async {
     final prefs = await SharedPreferences.getInstance();
+    final String? savedHNo = prefs.getString('user_hNo');
+    final String? savedStreet = prefs.getString('user_street');
+    final String? savedArea = prefs.getString('user_area');
     final String? savedVillage = prefs.getString('user_village');
     final String? savedDistrict = prefs.getString('user_district');
+    final String? savedState = prefs.getString('user_state');
+    final String? savedPincode = prefs.getString('user_pincode');
     
     if (mounted) {
       setState(() {
         _userName = prefs.getString('user_name') ?? 'User';
-        String village = savedVillage ?? 'Your Village';
-        String district = savedDistrict ?? 'District';
-        _userLocation = '$village, $district';
         _userRole = prefs.getString('user_role') ?? 'User';
+        
+        final List<String> addressParts = [];
+        if (savedHNo != null && savedHNo.isNotEmpty) addressParts.add(savedHNo);
+        if (savedStreet != null && savedStreet.isNotEmpty) addressParts.add(savedStreet);
+        if (savedArea != null && savedArea.isNotEmpty) addressParts.add(savedArea);
+        if (savedVillage != null && savedVillage.isNotEmpty) addressParts.add(savedVillage);
+        if (savedDistrict != null && savedDistrict.isNotEmpty) addressParts.add(savedDistrict);
+        if (savedState != null && savedState.isNotEmpty) addressParts.add(savedState);
+        if (savedPincode != null && savedPincode.isNotEmpty) addressParts.add(savedPincode);
+        
+        if (addressParts.isNotEmpty) {
+          _userLocation = addressParts.join(', ');
+        } else {
+          _userLocation = 'Your Village, District';
+        }
       });
     }
     
@@ -242,10 +260,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _userName = prefs.getString('user_name') ?? 'User';
-      String village = prefs.getString('user_village') ?? 'Your Village';
-      String district = prefs.getString('user_district') ?? 'District';
-      _userLocation = '$village, $district';
       _userRole = prefs.getString('user_role') ?? 'User';
+      
+      final String? savedHNo = prefs.getString('user_hNo');
+      final String? savedStreet = prefs.getString('user_street');
+      final String? savedArea = prefs.getString('user_area');
+      final String? savedVillage = prefs.getString('user_village');
+      final String? savedDistrict = prefs.getString('user_district');
+      final String? savedState = prefs.getString('user_state');
+      final String? savedPincode = prefs.getString('user_pincode');
+      
+      final List<String> addressParts = [];
+      if (savedHNo != null && savedHNo.isNotEmpty) addressParts.add(savedHNo);
+      if (savedStreet != null && savedStreet.isNotEmpty) addressParts.add(savedStreet);
+      if (savedArea != null && savedArea.isNotEmpty) addressParts.add(savedArea);
+      if (savedVillage != null && savedVillage.isNotEmpty) addressParts.add(savedVillage);
+      if (savedDistrict != null && savedDistrict.isNotEmpty) addressParts.add(savedDistrict);
+      if (savedState != null && savedState.isNotEmpty) addressParts.add(savedState);
+      if (savedPincode != null && savedPincode.isNotEmpty) addressParts.add(savedPincode);
+      
+      if (addressParts.isNotEmpty) {
+        _userLocation = addressParts.join(', ');
+      } else {
+        _userLocation = 'Your Village, District';
+      }
     });
     _fetchUnreadCount();
   }
@@ -525,40 +563,147 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     showDialog(
       context: context,
       builder: (context) {
-        String tempVillage = '';
-        String tempDistrict = '';
+        final parts = _userLocation.split(',');
+        String initHNo = '';
+        String initStreet = '';
+        String initArea = '';
+        String initVillage = '';
+        String initDistrict = '';
+        String initStateVal = '';
+        String initPincode = '';
+
+        if (parts.length >= 7) {
+          initHNo = parts[0].trim();
+          initStreet = parts[1].trim();
+          initArea = parts[2].trim();
+          initVillage = parts[3].trim();
+          initDistrict = parts[4].trim();
+          initStateVal = parts[5].trim();
+          initPincode = parts[6].trim();
+        } else if (parts.length == 6) {
+          initHNo = parts[0].trim();
+          initStreet = parts[1].trim();
+          initVillage = parts[2].trim();
+          initDistrict = parts[3].trim();
+          initStateVal = parts[4].trim();
+          initPincode = parts[5].trim();
+        } else if (parts.length == 2) {
+          initVillage = parts[0].trim();
+          initDistrict = parts[1].trim();
+        } else if (parts.isNotEmpty) {
+          initVillage = parts[0].trim();
+        }
+
+        String tempHNo = initHNo;
+        String tempStreet = initStreet;
+        String tempArea = initArea;
+        String tempVillage = initVillage;
+        String tempDistrict = initDistrict;
+        String tempState = initStateVal;
+        String tempPincode = initPincode;
+
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(AppTranslations.translate(context, 'chooseLocation'), style: const TextStyle(fontWeight: FontWeight.bold)),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-              decoration: InputDecoration(
-                labelText: AppTranslations.translate(context, 'village'), 
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
-              ),
-              controller: TextEditingController(text: _userLocation.split(',')[0].trim()),
-              onChanged: (val) => tempVillage = val,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'H.No / Flat No', 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  ),
+                  controller: TextEditingController(text: initHNo),
+                  onChanged: (val) => tempHNo = val,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Street Name', 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  ),
+                  controller: TextEditingController(text: initStreet),
+                  onChanged: (val) => tempStreet = val,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Area Name', 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  ),
+                  controller: TextEditingController(text: initArea),
+                  onChanged: (val) => tempArea = val,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: AppTranslations.translate(context, 'village'), 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  ),
+                  controller: TextEditingController(text: initVillage),
+                  onChanged: (val) => tempVillage = val,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: AppTranslations.translate(context, 'district'), 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  ),
+                  controller: TextEditingController(text: initDistrict),
+                  onChanged: (val) => tempDistrict = val,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'State', 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  ),
+                  controller: TextEditingController(text: initStateVal),
+                  onChanged: (val) => tempState = val,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Pincode', 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  ),
+                  controller: TextEditingController(text: initPincode),
+                  onChanged: (val) => tempPincode = val,
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: AppTranslations.translate(context, 'district'), 
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
-              ),
-              controller: TextEditingController(text: _userLocation.contains(',') ? _userLocation.split(',')[1].trim() : ''),
-              onChanged: (val) => tempDistrict = val,
-            ),
-          ]),
+          ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: Text(AppTranslations.translate(context, 'cancel'))),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: _primaryGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-              onPressed: () {
-                String finalVillage = tempVillage.isNotEmpty ? tempVillage : _userLocation.split(',')[0].trim();
-                String finalDistrict = tempDistrict.isNotEmpty ? tempDistrict : (_userLocation.contains(',') ? _userLocation.split(',')[1].trim() : '');
-                if (finalVillage.isNotEmpty && finalDistrict.isNotEmpty) {
-                  setState(() => _userLocation = '$finalVillage, $finalDistrict');
-                  Navigator.pop(context);
+              onPressed: () async {
+                if (tempVillage.trim().isNotEmpty && tempDistrict.trim().isNotEmpty) {
+                  final List<String> addressParts = [];
+                  if (tempHNo.trim().isNotEmpty) addressParts.add(tempHNo.trim());
+                  if (tempStreet.trim().isNotEmpty) addressParts.add(tempStreet.trim());
+                  if (tempArea.trim().isNotEmpty) addressParts.add(tempArea.trim());
+                  if (tempVillage.trim().isNotEmpty) addressParts.add(tempVillage.trim());
+                  if (tempDistrict.trim().isNotEmpty) addressParts.add(tempDistrict.trim());
+                  if (tempState.trim().isNotEmpty) addressParts.add(tempState.trim());
+                  if (tempPincode.trim().isNotEmpty) addressParts.add(tempPincode.trim());
+
+                  final String combinedAddress = addressParts.join(', ');
+                  setState(() => _userLocation = combinedAddress);
+
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('user_hNo', tempHNo.trim());
+                  await prefs.setString('user_street', tempStreet.trim());
+                  await prefs.setString('user_area', tempArea.trim());
+                  await prefs.setString('user_village', tempVillage.trim());
+                  await prefs.setString('user_district', tempDistrict.trim());
+                  await prefs.setString('user_state', tempState.trim());
+                  await prefs.setString('user_pincode', tempPincode.trim());
+
+                  if (context.mounted) Navigator.pop(context);
+                } else {
+                  UiUtils.showCenteredToast(context, 'Village and District are required');
                 }
               },
               child: Text(AppTranslations.translate(context, 'save'), style: const TextStyle(color: Colors.white)),
@@ -676,18 +821,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   _headerIconBtn(Icons.assignment_outlined, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ProviderRequestsScreen()))),
                 _headerIconBtn(Icons.location_on_outlined, () => _showLocationSelector(context)),
                 Stack(children: [
-                  _headerIconBtn(Icons.notifications_outlined, () async {
-                    if (_unreadNotificationCount > 0) {
-                      setState(() => _unreadNotificationCount = 0);
-                      final prefs = await SharedPreferences.getInstance();
-                      final userId = prefs.getString('user_id');
-                      if (userId != null) {
-                        try { await ApiService().markAllNotificationsAsRead(userId); } catch (_) {}
-                      }
-                    }
-                    if (mounted) {
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())).then((_) => _fetchUnreadCount());
-                    }
+                  _headerIconBtn(Icons.notifications_outlined, () {
+                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen())).then((_) => _fetchUnreadCount());
                   }),
                   if (_unreadNotificationCount > 0)
                     Positioned(right: 6, top: 6, child: Container(
@@ -766,9 +901,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             begin: Alignment.centerRight, end: Alignment.centerLeft,
             colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)]))),
           Positioned(left: 20, bottom: 20, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Season Offer', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 1)),
+            TranslatedText('Season Offer', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 1)),
             const SizedBox(height: 4),
-            const Text('Book Farm\nServices Today!', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.2)),
+            TranslatedText('Book Farm\nServices Today!', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800, height: 1.2)),
             const SizedBox(height: 10),
             GestureDetector(
               onTap: () {
@@ -780,7 +915,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(color: _accentGold, borderRadius: BorderRadius.circular(20)),
-                child: const Text('Explore Now', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                child: TranslatedText('Explore Now', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ),
           ])),
@@ -921,7 +1056,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
               child: Row(children: [
-                Text('View All', style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                TranslatedText('View All', style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w700)),
                 const SizedBox(width: 2),
                 Icon(Icons.chevron_right, color: accentColor, size: 16),
               ]),

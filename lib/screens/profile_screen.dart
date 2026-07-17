@@ -116,6 +116,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             } catch (e) {
               debugPrint('Error counting new orders: $e');
             }
+          } else {
+            try {
+              final response = await apiService.getFarmerBookings(userId);
+              final List<dynamic> farmerBookings = response as List<dynamic>? ?? [];
+              ordersVal = farmerBookings.length;
+            } catch (e) {
+              debugPrint('Error counting farmer bookings: $e');
+            }
           }
 
           if (mounted) {
@@ -416,6 +424,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 icon: const Icon(Icons.logout_rounded),
                 label: Text(l10n.logout, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Center(
+              child: Text(
+                'Version 1.0.0 (2)',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8,
+                ),
               ),
             ),
             const SizedBox(height: 40),

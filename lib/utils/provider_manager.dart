@@ -21,6 +21,7 @@ abstract class ServiceProvider {
   final int jobsCompleted;
   final String? image; // New image field
   final String? ownerProfileImage; // New field for owner's profile image
+  final String? description; // New description field
 
   ServiceProvider({
     required this.id,
@@ -39,6 +40,7 @@ abstract class ServiceProvider {
     this.jobsCompleted = 0,
     this.image,
     this.ownerProfileImage,
+    this.description,
   });
 }
 
@@ -67,6 +69,7 @@ class ServiceListing extends ServiceProvider {
     required this.operatorIncluded,
     super.image,
     super.ownerProfileImage,
+    super.description,
   });
 }
 
@@ -107,6 +110,7 @@ class FarmWorkerListing extends ServiceProvider {
     this.groupName,
     super.image,
     super.ownerProfileImage,
+    super.description,
   });
 }
 
@@ -114,7 +118,9 @@ class TransportListing extends ServiceProvider {
   String vehicleType; // Duplicate of serviceName usually, e.g. 'Mini Truck'
   String loadCapacity; // '1 ton'
   final String price; // '₹1200 / trip'
+  final double? pricePerKm;
   final bool driverIncluded;
+  final double? operatorPrice;
   final String? vehicleNumber; // Optional / Private
   final String? serviceArea;
 
@@ -136,11 +142,14 @@ class TransportListing extends ServiceProvider {
     required this.vehicleType,
     required this.loadCapacity,
     required this.price,
+    this.pricePerKm,
     this.driverIncluded = true, // Default usually yes
+    this.operatorPrice,
     this.vehicleNumber,
     this.serviceArea,
     super.image,
     super.ownerProfileImage,
+    super.description,
   });
 }
 
@@ -151,6 +160,7 @@ class EquipmentListing extends ServiceProvider {
   final double operatorPrice;
   String condition; // 'Good', 'New'
   final String? yearOfManufacture;
+  final String? vehicleNumber;
 
   EquipmentListing({
     required super.id,
@@ -173,8 +183,10 @@ class EquipmentListing extends ServiceProvider {
     this.operatorPrice = 0.0,
     this.condition = 'Good',
     this.yearOfManufacture,
+    this.vehicleNumber,
     super.image,
     super.ownerProfileImage,
+    super.description,
   });
 }
 
@@ -240,11 +252,13 @@ class ProviderManager extends ChangeNotifier {
             vehicleType: v.vehicleType ?? 'Unknown',
             loadCapacity: v.loadCapacity ?? 'Unknown',
             price: '₹${v.pricePerKmOrTrip?.toStringAsFixed(0) ?? 0} / trip',
+            pricePerKm: v.pricePerKm,
             distance: v.location ?? 'Unknown',
             latitude: v.latitude,
             longitude: v.longitude,
             rating: v.rating ?? 0.0,
             driverIncluded: v.driverIncluded ?? true,
+            operatorPrice: v.operatorPrice,
             vehicleNumber: v.vehicleNumber,
             serviceArea: v.location,
             location: v.location ?? '',
@@ -375,12 +389,12 @@ class ProviderManager extends ChangeNotifier {
            jobsCompleted: old.jobsCompleted, roleDistribution: old.roleDistribution, groupName: old.groupName
          );
       } else if (old is TransportListing) {
-         updated = TransportListing(
-           id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
-           approvalStatus: status, location: old.location, vehicleType: old.vehicleType, loadCapacity: old.loadCapacity,
-           price: old.price, driverIncluded: old.driverIncluded, isAvailable: old.isAvailable,
-           jobsCompleted: old.jobsCompleted, vehicleNumber: old.vehicleNumber, serviceArea: old.serviceArea
-         );
+          updated = TransportListing(
+            id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
+            approvalStatus: status, location: old.location, vehicleType: old.vehicleType, loadCapacity: old.loadCapacity,
+            price: old.price, driverIncluded: old.driverIncluded, operatorPrice: old.operatorPrice, isAvailable: old.isAvailable,
+            jobsCompleted: old.jobsCompleted, vehicleNumber: old.vehicleNumber, serviceArea: old.serviceArea
+          );
       } else if (old is EquipmentListing) {
          updated = EquipmentListing(
            id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,

@@ -10,6 +10,7 @@ import 'book_service_detail_screen.dart';
 import '../utils/provider_manager.dart';
 import '../utils/ui_utils.dart';
 import '../utils/app_translations.dart';
+import '../utils/translated_text.dart';
 
 import '../services/api_service.dart';
 import '../services/translation_service.dart';
@@ -80,6 +81,33 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       final currentUserId = prefs.getString('user_id');
       final apiService = ApiService();
 
+      String buildAddress(Map<dynamic, dynamic> item, String defaultVal) {
+        final loc = item['location']?.toString();
+        if (loc != null && loc.trim().isNotEmpty) {
+          return loc;
+        }
+        final parts = <String>[];
+        if (item['houseNo'] != null && item['houseNo'].toString().trim().isNotEmpty) {
+          parts.add(item['houseNo'].toString().trim());
+        }
+        if (item['street'] != null && item['street'].toString().trim().isNotEmpty) {
+          parts.add(item['street'].toString().trim());
+        }
+        if (item['village'] != null && item['village'].toString().trim().isNotEmpty) {
+          parts.add(item['village'].toString().trim());
+        }
+        if (item['district'] != null && item['district'].toString().trim().isNotEmpty) {
+          parts.add(item['district'].toString().trim());
+        }
+        if (item['state'] != null && item['state'].toString().trim().isNotEmpty) {
+          parts.add(item['state'].toString().trim());
+        }
+        if (item['pincode'] != null && item['pincode'].toString().trim().isNotEmpty) {
+          parts.add(item['pincode'].toString().trim());
+        }
+        return parts.isNotEmpty ? parts.join(', ') : defaultVal;
+      }
+
       List<ServiceProvider> providers = [];
 
       if (transportTypes.contains(widget.serviceKey)) {
@@ -98,15 +126,17 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           longitude: (v['longitude'] as num?)?.toDouble(),
           rating: (v['rating'] ?? 5.0).toDouble(),
           approvalStatus: v['approvalStatus'] ?? 'Pending',
-          location: v['location'] ?? 'Nearby',
+          location: buildAddress(v, 'Nearby'),
           vehicleType: v['vehicleType'],
           loadCapacity: v['loadCapacity'] ?? 'Standard',
-          price: '₹${v['pricePerKmOrTrip']} / Trip',
+          price: '₹${v['pricePerKmOrTrip']} / Day',
+          pricePerKm: (v['pricePerKm'] as num?)?.toDouble(),
           driverIncluded: v['driverIncluded'] ?? true,
           vehicleNumber: v['vehicleNumber'],
           serviceArea: v['serviceArea'],
           image: v['imageUrl'],
           ownerProfileImage: v['ownerProfileImageUrl'],
+          description: v['brand'] != null ? '${v['brand']} ${v['model'] ?? ""} (Condition: ${v['vehicleCondition'] ?? "Good"})' : 'Comfortable and reliable agricultural logistics transport.',
         )).toList();
       } else if (equipmentTypes.contains(widget.serviceKey)) {
         final equipmentRawAll = await apiService.getEquipment() as List;
@@ -129,7 +159,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           longitude: (e['longitude'] as num?)?.toDouble(),
           rating: (e['rating'] ?? 5.0).toDouble(),
           approvalStatus: e['approvalStatus'] ?? 'Pending',
-          location: e['location'] ?? 'Nearby',
+          location: buildAddress(e, 'Nearby'),
           brandModel: e['brandModel'] ?? 'Standard',
           condition: e['condition'] ?? 'Good',
           price: '₹${e['pricePerHour']} / hr',
@@ -137,6 +167,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           operatorPrice: (e['operatorPrice'] as num?)?.toDouble() ?? 0.0,
           image: e['imageUrl'],
           ownerProfileImage: e['ownerProfileImageUrl'],
+          description: e['description'] ?? 'High quality agricultural machinery for hire.',
+          vehicleNumber: e['vehicleNumber'],
         )).toList();
       } else if (serviceTypes.contains(widget.serviceKey)) {
          final servicesRaw = await apiService.getServices(type: widget.serviceKey) as List;
@@ -154,12 +186,13 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            longitude: (s['longitude'] as num?)?.toDouble(),
            rating: (s['rating'] ?? 5.0).toDouble(),
            approvalStatus: s['approvalStatus'] ?? 'Pending',
-           location: s['location'] ?? 'Village',
+           location: buildAddress(s, 'Village'),
            equipmentUsed: s['equipmentUsed'] ?? 'Expert Tools',
            price: '₹${s['priceRate']} ${s['priceUnit'] ?? ""}',
            operatorIncluded: s['operatorIncluded'] ?? true,
            image: s['imageUrl'],
            ownerProfileImage: s['ownerProfileImageUrl'],
+           description: s['description'] ?? 'Professional agricultural services by experienced operator.',
          )).toList();
       } else if (widget.serviceKey == 'Farm Workers') {
          final workersRaw = await apiService.getWorkerGroups() as List;
@@ -176,7 +209,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
               longitude: (w['longitude'] as num?)?.toDouble(),
               rating: (w['rating'] ?? 5.0).toDouble(),
               approvalStatus: w['approvalStatus'] ?? 'Pending',
-              location: w['location'] ?? 'Nearby',
+              location: buildAddress(w, 'Nearby'),
               maleCount: (w['maleCount'] as num?)?.toInt() ?? 0,
               femaleCount: (w['femaleCount'] as num?)?.toInt() ?? 0,
               malePrice: (w['pricePerMale'] as num?)?.toInt() ?? 0,
@@ -188,6 +221,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
               groupName: w['groupName'],
               image: w['imageUrl'],
               ownerProfileImage: w['ownerProfileImageUrl'],
+              description: w['skills'] ?? 'Experienced agricultural worker team.',
           )).toList();
       } else {
          providers = ProviderManager().getProvidersByService(widget.serviceKey);
@@ -572,15 +606,58 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     return _buildBasePremiumCard(
       provider: provider, subtitle: '${provider.vehicleType} • ${provider.loadCapacity}',
       onTap: () => _navigateToBooking(context, provider),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Icon(Icons.person_pin_circle_outlined, size: 14, color: Colors.blue[600]),
-            const SizedBox(width: 4),
-            Text(l10n.driverIncluded, style: TextStyle(color: Colors.blue[700], fontSize: 12, fontWeight: FontWeight.w600)),
-          ]),
-          _buildBookMiniButton(provider.price, () => _navigateToBooking(context, provider)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: [
+                Icon(Icons.person_pin_circle_outlined, size: 14, color: Colors.blue[600]),
+                const SizedBox(width: 4),
+                Text(l10n.driverIncluded, style: TextStyle(color: Colors.blue[700], fontSize: 12, fontWeight: FontWeight.w600)),
+              ]),
+              ElevatedButton(
+                onPressed: () => _navigateToBooking(context, provider),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A1A2E),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  minimumSize: const Size(0, 36),
+                ),
+                child: Text(AppTranslations.translate(context, 'book'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Daily: ${provider.price.split('/').first.trim()}',
+                  style: const TextStyle(color: Color(0xFF2E7D32), fontSize: 11, fontWeight: FontWeight.w800),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE3F2FD),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'KM: ₹${(provider.pricePerKm ?? 20.0).toStringAsFixed(0)}/KM',
+                  style: const TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -596,9 +673,9 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         children: [
           Row(children: [
             Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.orange[50], borderRadius: BorderRadius.circular(6)),
-              child: Text(provider.condition, style: const TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold))),
+              child: TranslatedText(provider.condition, style: const TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold))),
             const SizedBox(width: 8),
-            Text(provider.operatorAvailable ? l10n.withOperatorAvailable : l10n.noOperator, style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500)),
+            TranslatedText(provider.operatorAvailable ? l10n.withOperatorAvailable : l10n.noOperator, style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
           _buildBookMiniButton(provider.price, () => _navigateToBooking(context, provider)),
         ],
@@ -627,7 +704,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
+                    TranslatedText(
                       (provider.businessName != null && provider.businessName!.isNotEmpty)
                           ? provider.businessName!
                           : '${provider.ownerName ?? provider.name} Farms',
@@ -635,14 +712,14 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
-                    Text(
+                    TranslatedText(
                       provider.ownerName ?? provider.name,
                       style: TextStyle(fontSize: 13, color: Colors.grey[700], fontWeight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis,
                     ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),
-                      Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                      TranslatedText(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
                     ],
                   ])),
                   if (provider.isAvailable) _buildStatusBadge(),
@@ -680,7 +757,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                     _iconLabel(Icons.location_on_rounded, const Color(0xFF00AA55), provider.distance),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Text(
+                      child: TranslatedText(
                         provider.location, 
                         style: TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w500),
                         overflow: TextOverflow.ellipsis,
@@ -766,7 +843,19 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       
       if (!context.mounted) return;
       if (provider is TransportListing) {
-         Navigator.push(context, MaterialPageRoute(builder: (_) => BookTransportDetailScreen(providerName: displayName, vehicleType: provider.vehicleType, providerId: actualProviderId, assetId: provider.id, rate: rate > 0 ? rate : 1500, ownerProfileImage: provider.ownerProfileImage)));
+         Navigator.push(context, MaterialPageRoute(builder: (_) => BookTransportDetailScreen(
+           providerName: displayName,
+           vehicleType: provider.vehicleType,
+           providerId: actualProviderId,
+           assetId: provider.id,
+           rate: rate > 0 ? rate : 1500,
+           pricePerKm: provider.pricePerKm,
+           driverIncluded: provider.driverIncluded,
+           driverPrice: provider.operatorPrice,
+           ownerProfileImage: provider.ownerProfileImage,
+           description: provider.description,
+           vehicleNumber: provider.vehicleNumber,
+         )));
       } else if (provider is EquipmentListing) {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookEquipmentDetailScreen(
            providerName: displayName,
@@ -776,9 +865,20 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            rate: rate > 0 ? rate : 500,
            operatorPrice: provider.operatorPrice,
            ownerProfileImage: provider.ownerProfileImage,
+           description: provider.description,
+           serialNumber: (provider.vehicleNumber != null && provider.vehicleNumber!.trim().isNotEmpty) ? provider.vehicleNumber! : provider.id.substring(0, 8).toUpperCase(),
          )));
       } else {
-         Navigator.push(context, MaterialPageRoute(builder: (_) => BookServiceDetailScreen(providerName: displayName, serviceName: provider.serviceName, providerId: actualProviderId, assetId: provider.id, priceInfo: priceString, ownerProfileImage: provider.ownerProfileImage)));
+         Navigator.push(context, MaterialPageRoute(builder: (_) => BookServiceDetailScreen(
+           providerName: displayName,
+           serviceName: provider.serviceName,
+           providerId: actualProviderId,
+           assetId: provider.id,
+           priceInfo: priceString,
+           ownerProfileImage: provider.ownerProfileImage,
+           description: provider.description,
+           serialNumber: provider.id.substring(0, 8).toUpperCase(),
+         )));
       }
   }
 
@@ -869,6 +969,8 @@ class _AssetDetailModal extends StatelessWidget {
   Widget _buildEquipmentDetails(BuildContext context, EquipmentListing item) {
     return Column(children: [
       _detailRow(Icons.construction_rounded, 'Brand & Model', item.brandModel),
+      _detailRow(Icons.numbers_rounded, 'Vehicle/Reg Number', (item.vehicleNumber != null && item.vehicleNumber!.trim().isNotEmpty) ? item.vehicleNumber! : item.id.substring(0, 8).toUpperCase()),
+      _detailRow(Icons.description_outlined, 'Description', item.description ?? 'High quality agricultural machinery for hire.'),
       _detailRow(Icons.info_outline_rounded, 'Condition', item.condition),
       _detailRow(Icons.person_outline_rounded, 'Operator', item.operatorAvailable ? AppTranslations.translate(context, 'available') : 'Not Provided'),
       _detailRow(Icons.payments_outlined, 'Price Rate', item.price),
@@ -880,6 +982,8 @@ class _AssetDetailModal extends StatelessWidget {
   Widget _buildTransportDetails(BuildContext context, TransportListing item) {
     return Column(children: [
       _detailRow(Icons.local_shipping_outlined, 'Vehicle', item.vehicleType),
+      _detailRow(Icons.numbers_rounded, 'Vehicle Number', (item.vehicleNumber != null && item.vehicleNumber!.trim().isNotEmpty) ? item.vehicleNumber! : 'Not Provided'),
+      _detailRow(Icons.description_outlined, 'Description', item.description ?? 'Comfortable and reliable logistics transport.'),
       _detailRow(Icons.fitness_center_rounded, 'Capacity', item.loadCapacity),
       _detailRow(Icons.person_pin_circle_outlined, 'Driver', item.driverIncluded ? 'Included' : 'Self-Drive'),
       _detailRow(Icons.payments_outlined, 'Rental Rate', item.price),
@@ -891,6 +995,8 @@ class _AssetDetailModal extends StatelessWidget {
   Widget _buildWorkerDetails(BuildContext context, FarmWorkerListing item) {
     return Column(children: [
       _detailRow(Icons.groups_rounded, 'Total Staff', '${item.maleCount + item.femaleCount} Members'),
+      _detailRow(Icons.numbers_rounded, 'Group Registration Code', item.id.substring(0, 8).toUpperCase()),
+      _detailRow(Icons.description_outlined, 'Description', item.description ?? 'Experienced agricultural worker team.'),
       _detailRow(Icons.psychology_outlined, 'Expertise', item.skills),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
       _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
@@ -900,9 +1006,13 @@ class _AssetDetailModal extends StatelessWidget {
   }
 
   Widget _buildServiceDetails(BuildContext context, ServiceListing item) {
+    final bool isElectrOrVet = item.serviceName == 'Electricians' || item.serviceName == 'Vet Care';
     return Column(children: [
       _detailRow(Icons.handyman_outlined, 'Tools', item.equipmentUsed),
-      _detailRow(Icons.person_outline_rounded, 'Expert', item.operatorIncluded ? 'Provided' : 'Machine Only'),
+      _detailRow(Icons.numbers_rounded, 'Service Reference Number', item.id.substring(0, 8).toUpperCase()),
+      _detailRow(Icons.description_outlined, 'Description', item.description ?? (isElectrOrVet ? 'Professional agricultural services.' : 'Professional agricultural services by experienced operator.')),
+      if (!isElectrOrVet)
+        _detailRow(Icons.person_outline_rounded, 'Expert', item.operatorIncluded ? 'Provided' : 'Machine Only'),
       _detailRow(Icons.payments_outlined, 'Service Cost', item.price),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
       _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
@@ -913,7 +1023,11 @@ class _AssetDetailModal extends StatelessWidget {
     return Padding(padding: const EdgeInsets.only(bottom: 20), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFFF1F8F1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, size: 20, color: const Color(0xFF2E7D32))),
       const SizedBox(width: 14),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w600, letterSpacing: 0.5)), const SizedBox(height: 2), Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)))]))
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        TranslatedText(label, style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w600, letterSpacing: 0.5)), 
+        const SizedBox(height: 2), 
+        TranslatedText(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)))
+      ]))
     ]));
   }
 }

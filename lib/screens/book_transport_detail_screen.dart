@@ -12,6 +12,7 @@ import '../config/api_config.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../utils/location_helper.dart';
+import '../utils/translated_text.dart';
 
 class BookTransportDetailScreen extends StatefulWidget {
   final String providerName;
@@ -19,7 +20,12 @@ class BookTransportDetailScreen extends StatefulWidget {
   final String providerId;
   final String assetId;
   final double rate; // Rate per trip or per km usually, simplifying to 'per trip' for now
+  final double? pricePerKm;
+  final bool? driverIncluded;
+  final double? driverPrice;
   final String? ownerProfileImage;
+  final String? description;
+  final String? vehicleNumber;
 
   const BookTransportDetailScreen({
     super.key,
@@ -28,7 +34,12 @@ class BookTransportDetailScreen extends StatefulWidget {
     required this.providerId,
     required this.assetId,
     required this.rate,
+    this.pricePerKm,
+    this.driverIncluded,
+    this.driverPrice,
     this.ownerProfileImage,
+    this.description,
+    this.vehicleNumber,
   });
 
   @override
@@ -38,6 +49,9 @@ class BookTransportDetailScreen extends StatefulWidget {
 class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
   String? _selectedGoodsType;
+  bool _isKmWise = false;
+  bool _includeDriver = false;
+  final TextEditingController _kmController = TextEditingController(text: '10');
 
   DateTime? _selectedDate;
   final TextEditingController _addressController = TextEditingController();
@@ -194,6 +208,12 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   @override
   void initState() {
     super.initState();
+    // Default to Daily-wise if available, otherwise KM-wise
+    if (widget.rate > 0) {
+      _isKmWise = false;
+    } else if (widget.pricePerKm != null && widget.pricePerKm! > 0) {
+      _isKmWise = true;
+    }
     _loadAddress();
     _fetchAssetBookings();
   }
@@ -318,6 +338,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   @override
   void dispose() {
     _addressController.dispose();
+    _kmController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -341,7 +362,18 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   ];
 
   double get _totalPrice {
-    return widget.rate * _selectedSlots.length;
+    double base = 0.0;
+    if (_isKmWise) {
+      final double kmVal = double.tryParse(_kmController.text) ?? 0.0;
+      final double rateKm = widget.pricePerKm ?? 20.0;
+      base = rateKm * kmVal;
+    } else {
+      base = widget.rate * _selectedSlots.length;
+    }
+    if (_includeDriver) {
+      base += widget.driverPrice ?? 300.0;
+    }
+    return base;
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -377,7 +409,14 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
   void _confirmBooking() async {
     bool hasValidPrice = _totalPrice > 0;
-    if (_selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty && hasValidPrice) {
+    bool requirementsMet = false;
+    if (_isKmWise) {
+      requirementsMet = _selectedGoodsType != null && _selectedDate != null && _addressController.text.isNotEmpty && _kmController.text.isNotEmpty && hasValidPrice;
+    } else {
+      requirementsMet = _selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty && hasValidPrice;
+    }
+
+    if (requirementsMet) {
       setState(() {
         _isSubmitting = true;
       });
@@ -389,10 +428,14 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
       // Format time slots
       String formattedTime;
-      if (_selectedSlots.length == 1) {
-        formattedTime = _formatTimeRange(_selectedSlots.first);
+      if (_isKmWise) {
+        formattedTime = 'KM-wise Booking (${_kmController.text} KM)';
       } else {
-         formattedTime = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}'; // Simplified range display
+        if (_selectedSlots.length == 1) {
+          formattedTime = _formatTimeRange(_selectedSlots.first);
+        } else {
+          formattedTime = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}';
+        }
       }
 
       final Map<String, dynamic> notesMap = {
@@ -402,11 +445,18 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         'Location': _addressController.text,
         'Goods Type': _selectedGoodsType,
         'Time': formattedTime,
-        'slots_list': _selectedSlots,
+        'Booking Mode': _isKmWise ? 'KM-wise' : 'Daily-wise',
+        if (_isKmWise) 'Estimated KM': _kmController.text,
+        if (!_isKmWise) 'slots_list': _selectedSlots,
+        'Driver Required': _includeDriver ? 'Yes' : 'No',
       };
 
-      DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first);
-      DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1);
+      DateTime start = _isKmWise 
+          ? DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 9) 
+          : DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first);
+      DateTime end = _isKmWise 
+          ? DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 18) 
+          : DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1);
 
       BookingDTO dto = BookingDTO(
         farmerId: userId,
@@ -546,24 +596,154 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                          ),
                          const SizedBox(height: 4),
-                         Container(
-                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                           decoration: BoxDecoration(
-                             color: const Color(0xFFE8F5E9),
-                             borderRadius: BorderRadius.circular(8),
-                           ),
-                           child: Text(
-                             '₹${widget.rate.toStringAsFixed(0)} / trip',
-                             style: const TextStyle(color: Color(0xFF00AA55), fontSize: 12, fontWeight: FontWeight.w800),
-                           ),
-                         ),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F5E9),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'Daily: ₹${widget.rate.toStringAsFixed(0)} / slot',
+                                  style: const TextStyle(color: Color(0xFF00AA55), fontSize: 11, fontWeight: FontWeight.w800),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE3F2FD),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  'KM: ₹${(widget.pricePerKm ?? 20.0).toStringAsFixed(0)} / KM',
+                                  style: const TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.w800),
+                                ),
+                              ),
+                            ],
+                          ),
                        ],
                      ),
                    ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
+             ),
+             _buildListingDetailsCard(widget.description, widget.vehicleNumber),
+             const SizedBox(height: 24),             if (widget.rate > 0 && widget.pricePerKm != null && widget.pricePerKm! > 0) ...[
+               // Pricing Mode Toggle Section
+               _buildSectionCard(
+                 title: 'Pricing Mode',
+                 icon: Icons.swap_horiz_rounded,
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     const Text(
+                       'Select how you want to be billed:',
+                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                     ),
+                     const SizedBox(height: 12),
+                     Row(
+                       children: [
+                         Expanded(
+                           child: GestureDetector(
+                             onTap: () {
+                               setState(() {
+                                 _isKmWise = false;
+                                 _selectedSlots.clear();
+                                 _selectedStartHour = null;
+                                 _durationHours = 1;
+                               });
+                             },
+                             child: AnimatedContainer(
+                               duration: const Duration(milliseconds: 200),
+                               padding: const EdgeInsets.symmetric(vertical: 14),
+                               decoration: BoxDecoration(
+                                 color: !_isKmWise ? const Color(0xFF00AA55) : Colors.white,
+                                 borderRadius: BorderRadius.circular(15),
+                                 border: Border.all(
+                                   color: !_isKmWise ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
+                                   width: 2,
+                                 ),
+                                 boxShadow: !_isKmWise
+                                     ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
+                                     : null,
+                               ),
+                               alignment: Alignment.center,
+                               child: Text(
+                                 'Daily-wise\n(₹${widget.rate.toStringAsFixed(0)} / slot)',
+                                 textAlign: TextAlign.center,
+                                 style: TextStyle(
+                                   color: !_isKmWise ? Colors.white : const Color(0xFF2C3E50),
+                                   fontWeight: FontWeight.w900,
+                                   fontSize: 13,
+                                 ),
+                               ),
+                             ),
+                           ),
+                         ),
+                         const SizedBox(width: 12),
+                         Expanded(
+                           child: GestureDetector(
+                             onTap: () {
+                               setState(() {
+                                 _isKmWise = true;
+                               });
+                             },
+                             child: AnimatedContainer(
+                               duration: const Duration(milliseconds: 200),
+                               padding: const EdgeInsets.symmetric(vertical: 14),
+                               decoration: BoxDecoration(
+                                 color: _isKmWise ? const Color(0xFF00AA55) : Colors.white,
+                                 borderRadius: BorderRadius.circular(15),
+                                 border: Border.all(
+                                   color: _isKmWise ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
+                                   width: 2,
+                                 ),
+                                 boxShadow: _isKmWise
+                                     ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
+                                     : null,
+                               ),
+                               alignment: Alignment.center,
+                               child: Text(
+                                 'KM-wise\n(₹${(widget.pricePerKm ?? 20.0).toStringAsFixed(0)} / KM)',
+                                 textAlign: TextAlign.center,
+                                 style: TextStyle(
+                                   color: _isKmWise ? Colors.white : const Color(0xFF2C3E50),
+                                   fontWeight: FontWeight.w900,
+                                   fontSize: 13,
+                                 ),
+                               ),
+                             ),
+                           ),
+                         ),
+                       ],
+                     ),
+                   ],
+                 ),
+               ),
+               const SizedBox(height: 24),
+             ],
+
+             // Driver Option
+             if (widget.driverIncluded == true) ...[
+               _buildSectionCard(
+                 title: 'Driver Options',
+                 icon: Icons.person_pin_circle_outlined,
+                 child: SwitchListTile(
+                   title: TranslatedText('Include Driver', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B5E20))),
+                   subtitle: TranslatedText(
+                     '+ ₹${(widget.driverPrice ?? 300.0).toStringAsFixed(0)} / booking extra charge',
+                     style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
+                   ),
+                   value: _includeDriver,
+                   onChanged: (val) => setState(() => _includeDriver = val),
+                   activeColor: const Color(0xFF00AA55),
+                   contentPadding: EdgeInsets.zero,
+                 ),
+               ),
+               const SizedBox(height: 24),
+             ],
 
             // Goods Selection
             _buildSectionCard(
@@ -691,164 +871,205 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Select Preferred Time',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
-                      ),
-                      if (_selectedSlots.isNotEmpty)
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedSlots.clear();
-                              _selectedStartHour = null;
-                              _durationHours = 1;
-                            });
-                          },
-                          style: TextButton.styleFrom(
-                            minimumSize: Size.zero,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          child: const Text(
-                            'Clear All',
-                            style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
+                  if (!_isKmWise) ...[
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Select Preferred Time',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
                         ),
-                    ],
-                  ),
-                  if (_selectedDate == null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text('Select a date first to view availability', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
-                    )
-                  else ...[
-                    const SizedBox(height: 16),
-                    if (_isLoadingBookings)
-                      const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Color(0xFF00AA55))))
-                    else
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3, 
-                          childAspectRatio: 2.2, 
-                          crossAxisSpacing: 10, 
-                          mainAxisSpacing: 10,
-                        ),
-                        itemCount: _endHour - _startHour,
-                        itemBuilder: (context, index) {
-                          int hour = _startHour + index;
-                          bool isBlocked = _isSlotBlocked(hour);
-                          bool isSelected = _selectedSlots.contains(hour);
-
-                          return InkWell(
-                            onTap: () {
-                              _onSlotTap(hour);
-                              if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) setState(() => _fieldErrors.remove('slots'));
+                        if (_selectedSlots.isNotEmpty)
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedSlots.clear();
+                                _selectedStartHour = null;
+                                _durationHours = 1;
+                              });
                             },
-                            borderRadius: BorderRadius.circular(12),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              decoration: BoxDecoration(
-                                color: isBlocked ? Colors.grey[100] : (isSelected ? const Color(0xFF00AA55) : Colors.white),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9)),
-                                  width: 1.5,
+                            style: TextButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              'Clear All',
+                              style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (_selectedDate == null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text('Select a date first to view availability', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
+                      )
+                    else ...[
+                      const SizedBox(height: 16),
+                      if (_isLoadingBookings)
+                        const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Color(0xFF00AA55))))
+                      else
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3, 
+                            childAspectRatio: 2.2, 
+                            crossAxisSpacing: 10, 
+                            mainAxisSpacing: 10,
+                          ),
+                          itemCount: _endHour - _startHour,
+                          itemBuilder: (context, index) {
+                            int hour = _startHour + index;
+                            bool isBlocked = _isSlotBlocked(hour);
+                            bool isSelected = _selectedSlots.contains(hour);
+
+                            return InkWell(
+                              onTap: () {
+                                _onSlotTap(hour);
+                                if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) setState(() => _fieldErrors.remove('slots'));
+                              },
+                              borderRadius: BorderRadius.circular(12),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                decoration: BoxDecoration(
+                                  color: isBlocked ? Colors.grey[100] : (isSelected ? const Color(0xFF00AA55) : Colors.white),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9)),
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8)] : null,
                                 ),
-                                boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8)] : null,
-                              ),
-                              alignment: Alignment.center,
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                                  child: Text(
-                                    _formatTimeRange(hour),
-                                    style: TextStyle(
-                                      color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
-                                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-                                      fontSize: 11,
-                                      decoration: isBlocked ? TextDecoration.lineThrough : null,
+                                alignment: Alignment.center,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                    child: Text(
+                                      _formatTimeRange(hour),
+                                      style: TextStyle(
+                                        color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
+                                        fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                        fontSize: 11,
+                                        decoration: isBlocked ? TextDecoration.lineThrough : null,
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
+                            );
+                          },
+                        ),
+                    ],
+
+                    if (_selectedSlots.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      const Text('Selected Slots Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9FBF9),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE8F5E9)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    _buildDurationControl(
+                                      icon: Icons.remove_rounded,
+                                      onPressed: _selectedSlots.length > 1 ? _removeHour : null,
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      child: Text(
+                                        '${_selectedSlots.length} ${_selectedSlots.length == 1 ? 'Hour' : 'Hours'}',
+                                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                                      ),
+                                    ),
+                                    _buildDurationControl(
+                                      icon: Icons.add_rounded,
+                                      onPressed: _canAddMoreHours() ? _addHour : null,
+                                    ),
+                                  ],
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF00AA55).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    '₹${_totalPrice.toStringAsFixed(0)} Est.',
+                                    style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w800, fontSize: 13),
+                                  ),
+                                ),
+                              ],
                             ),
-                          );
-                        },
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _selectedSlots.map((hour) => Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFC8E6C9)),
+                                ),
+                                child: Text(
+                                  _formatTimeRange(hour),
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+                                ),
+                              )).toList(),
+                            ),
+                          ],
+                        ),
                       ),
+                    ],
                   ],
 
-                  if (_selectedSlots.isNotEmpty) ...[
+                  if (_isKmWise) ...[
                     const SizedBox(height: 24),
-                    const Text('Selected Slots Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    const Text(
+                      'Enter Expected Distance',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                    ),
                     const SizedBox(height: 12),
+                    _buildTextField(
+                      controller: _kmController,
+                      label: 'Expected Distance (KM)',
+                      hint: 'Enter estimated kilometers...',
+                      errorKey: 'km',
+                      icon: Icons.speed_rounded,
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF9FBF9),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE8F5E9)),
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: const Color(0xFFC8E6C9)),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  _buildDurationControl(
-                                    icon: Icons.remove_rounded,
-                                    onPressed: _selectedSlots.length > 1 ? _removeHour : null,
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: Text(
-                                      '${_selectedSlots.length} ${_selectedSlots.length == 1 ? 'Hour' : 'Hours'}',
-                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
-                                    ),
-                                  ),
-                                  _buildDurationControl(
-                                    icon: Icons.add_rounded,
-                                    onPressed: _canAddMoreHours() ? _addHour : null,
-                                  ),
-                                ],
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF00AA55).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '₹${_totalPrice.toStringAsFixed(0)} Est.',
-                                  style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w800, fontSize: 13),
-                                ),
-                              ),
-                            ],
+                          const Text(
+                            'Estimated Price:',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20)),
                           ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _selectedSlots.map((hour) => Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFC8E6C9)),
-                              ),
-                              child: Text(
-                                _formatTimeRange(hour),
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
-                              ),
-                            )).toList(),
+                          Text(
+                            '₹${_totalPrice.toStringAsFixed(0)}',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF00AA55)),
                           ),
                         ],
                       ),
@@ -938,7 +1159,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
               children: [
                 Icon(icon, size: 20, color: const Color(0xFF00AA55)),
                 const SizedBox(width: 12),
-                Text(
+                TranslatedText(
                   title.toUpperCase(),
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: 1.2),
                 ),
@@ -962,12 +1183,17 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     required IconData icon,
     int maxLines = 1,
     Widget? suffixIcon,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     final bool hasError = _fieldErrors.containsKey(errorKey);
     return TextField(
       controller: controller,
       maxLines: maxLines,
-      onChanged: (_) { if (hasError) setState(() => _fieldErrors.remove(errorKey)); },
+      keyboardType: keyboardType,
+      onChanged: (_) {
+        setState(() {});
+        if (hasError) _fieldErrors.remove(errorKey);
+      },
       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
       decoration: InputDecoration(
         hintText: hint,
@@ -1041,6 +1267,66 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildListingDetailsCard(String? description, String? number) {
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F8F1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.info_outline_rounded, size: 20, color: Color(0xFF2E7D32)),
+              ),
+              const SizedBox(width: 14),
+              const Text(
+                'LISTING DETAILS',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (number != null && number.trim().isNotEmpty) ...[
+            Text(
+              'VEHICLE NUMBER',
+              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              number,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+            ),
+            const SizedBox(height: 16),
+            Divider(color: Colors.grey[100], height: 1),
+            const SizedBox(height: 16),
+          ],
+          Text(
+            'DESCRIPTION',
+            style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            description ?? 'Comfortable and reliable transport logistics description.',
+            style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w600, height: 1.5),
+          ),
+        ],
       ),
     );
   }

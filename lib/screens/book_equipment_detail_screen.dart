@@ -14,6 +14,7 @@ import '../config/api_config.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../utils/location_helper.dart';
+import '../utils/translated_text.dart';
 import '../services/geocoding_service.dart';
 
 class BookEquipmentDetailScreen extends StatefulWidget {
@@ -24,6 +25,8 @@ class BookEquipmentDetailScreen extends StatefulWidget {
   final double rate; // Rate per hour or day
   final double? operatorPrice;
   final String? ownerProfileImage;
+  final String? description;
+  final String? serialNumber;
 
   const BookEquipmentDetailScreen({
     super.key,
@@ -34,6 +37,8 @@ class BookEquipmentDetailScreen extends StatefulWidget {
     required this.rate,
     this.operatorPrice,
     this.ownerProfileImage,
+    this.description,
+    this.serialNumber,
   });
 
   @override
@@ -769,6 +774,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                 ],
               ),
             ),
+            _buildListingDetailsCard(widget.description, widget.serialNumber),
             const SizedBox(height: 24),
              // Location Section
             _buildSectionCard(
@@ -937,7 +943,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                         : ElevatedButton.icon(
                             onPressed: _geocodeManualAddress,
                             icon: const Icon(Icons.pin_drop_rounded, size: 16),
-                            label: const Text('Get Coordinates', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            label: TranslatedText('Get Coordinates', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF00AA55),
                               foregroundColor: Colors.white,
@@ -961,7 +967,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Select Rental Date', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                  TranslatedText('Select Rental Date', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                   const SizedBox(height: 12),
                   GestureDetector(
                     onTap: () async {
@@ -1020,9 +1026,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: const Text(
+                          child: TranslatedText(
                             'Clear All',
-                            style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
                           ),
                         ),
                     ],
@@ -1030,7 +1036,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                   if (_selectedDate == null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
-                      child: Text('Select a date first to view availability', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
+                      child: TranslatedText('Select a date first to view availability', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
                     )
                   else ...[
                     const SizedBox(height: 16),
@@ -1093,7 +1099,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
                   if (_selectedSlots.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    const Text('Selected Slots Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    TranslatedText('Selected Slots Details', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -1116,7 +1122,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                                   ),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    child: Text(
+                                    child: TranslatedText(
                                       '${_selectedSlots.length} ${_selectedSlots.length == 1 ? 'Hour' : 'Hours'}',
                                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
                                     ),
@@ -1177,8 +1183,8 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                 ),
                 child: SwitchListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  title: const Text('Include Operator', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B5E20))),
-                  subtitle: Text('+ ₹${(widget.operatorPrice ?? 200.0).toStringAsFixed(0)} / hr extra charge', style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
+                  title: TranslatedText('Include Operator', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B5E20))),
+                  subtitle: TranslatedText('+ ₹${(widget.operatorPrice ?? 200.0).toStringAsFixed(0)} / hr extra charge', style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
                   value: _includeOperator, 
                   activeColor: const Color(0xFF00AA55),
                   onChanged: (val) => setState(() => _includeOperator = val),
@@ -1279,7 +1285,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
               children: [
                 Icon(icon, size: 20, color: const Color(0xFF00AA55)),
                 const SizedBox(width: 12),
-                Text(
+                TranslatedText(
                   title.toUpperCase(),
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: 1.2),
                 ),
@@ -1305,29 +1311,35 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     Widget? suffixIcon,
   }) {
     final bool hasError = _fieldErrors.containsKey(errorKey);
-    return TextField(
-      controller: controller,
-      maxLines: maxLines,
-      onChanged: (_) { if (hasError) setState(() => _fieldErrors.remove(errorKey)); },
-      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
-        prefixIcon: Icon(icon, color: hasError ? Colors.red : const Color(0xFF00AA55), size: 20),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: const Color(0xFFF9FBF9),
-        contentPadding: const EdgeInsets.all(16),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: hasError ? Colors.red.withOpacity(0.5) : Colors.transparent),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
-        ),
-      ),
+    return TranslationBuilder(
+      texts: [label, hint],
+      builder: (context, translatedTexts) {
+        final translatedHint = translatedTexts[1];
+        return TextField(
+          controller: controller,
+          maxLines: maxLines,
+          onChanged: (_) { if (hasError) setState(() => _fieldErrors.remove(errorKey)); },
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
+          decoration: InputDecoration(
+            hintText: translatedHint,
+            hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
+            prefixIcon: Icon(icon, color: hasError ? Colors.red : const Color(0xFF00AA55), size: 20),
+            suffixIcon: suffixIcon,
+            filled: true,
+            fillColor: const Color(0xFFF9FBF9),
+            contentPadding: const EdgeInsets.all(16),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide(color: hasError ? Colors.red.withOpacity(0.5) : Colors.transparent),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+            ),
+          ),
+        );
+      }
     );
   }
 
@@ -1430,6 +1442,66 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildListingDetailsCard(String? description, String? number) {
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F8F1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.info_outline_rounded, size: 20, color: Color(0xFF2E7D32)),
+              ),
+              const SizedBox(width: 14),
+              const Text(
+                'LISTING DETAILS',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (number != null && number.trim().isNotEmpty) ...[
+            Text(
+              'SERIAL/REGISTRATION NUMBER',
+              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              number,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+            ),
+            const SizedBox(height: 16),
+            Divider(color: Colors.grey[100], height: 1),
+            const SizedBox(height: 16),
+          ],
+          Text(
+            'DESCRIPTION',
+            style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            description ?? 'High-quality agricultural listing details.',
+            style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w600, height: 1.5),
+          ),
+        ],
       ),
     );
   }

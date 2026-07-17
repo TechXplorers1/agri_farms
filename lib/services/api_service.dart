@@ -138,7 +138,7 @@ class ApiService {
         body: json.encode(data),
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return json.decode(response.body);
+        return response.body.isNotEmpty ? json.decode(response.body) : {};
       } else {
         throw Exception('Failed to post data: ${response.statusCode}');
       }
@@ -504,6 +504,22 @@ class ApiService {
       'message': message,
       'type': type,
       'relatedId': relatedId,
+    });
+  }
+
+  Future<dynamic> submitSupportRequest({
+    required String userId,
+    required String name,
+    required String email,
+    required String phone,
+    required String message,
+  }) async {
+    return await post('${ApiConfig.notifications}/support', {
+      'userId': userId,
+      'name': name,
+      'email': email,
+      'phone': phone,
+      'message': message,
     });
   }
 

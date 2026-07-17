@@ -1075,7 +1075,7 @@ abstract class AppLocalizations {
   /// No description provided for @listingUploaded.
   ///
   /// In en, this message translates to:
-  /// **'Listing uploaded successfully! Pending Approval.'**
+  /// **'Listing uploaded successfully!'**
   String get listingUploaded;
 
   /// No description provided for @fillRequiredFields.

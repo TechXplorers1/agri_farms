@@ -13,6 +13,7 @@ import '../config/api_config.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import '../utils/location_helper.dart';
+import '../utils/translated_text.dart';
 import '../services/geocoding_service.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'dart:async';
@@ -25,6 +26,8 @@ class BookServiceDetailScreen extends StatefulWidget {
   final String assetId;
   final String priceInfo;
   final String? ownerProfileImage;
+  final String? description;
+  final String? serialNumber;
 
   const BookServiceDetailScreen({
     super.key,
@@ -34,6 +37,8 @@ class BookServiceDetailScreen extends StatefulWidget {
     required this.assetId,
     required this.priceInfo,
     this.ownerProfileImage,
+    this.description,
+    this.serialNumber,
   });
 
   @override
@@ -873,7 +878,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+             _buildListingDetailsCard(widget.description, widget.serialNumber),
+             const SizedBox(height: 24),
 
             // Requirement Details Card
             _buildSectionCard(
@@ -1590,7 +1596,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                 child: Icon(icon, size: 18, color: const Color(0xFF00AA55)),
               ),
               const SizedBox(width: 12),
-              Text(
+              TranslatedText(
                 title,
                 style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
               ),
@@ -1664,38 +1670,49 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     Function(String)? onChanged,
   }) {
     bool hasError = _fieldErrors.containsKey(errorKey);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13, 
-            fontWeight: FontWeight.w700, 
-            color: hasError ? Colors.red : const Color(0xFF2C3E50),
-          ),
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: controller,
-          maxLines: maxLines,
-          keyboardType: keyboardType,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
-          onChanged: (val) {
-            if (onChanged != null) onChanged(val);
-            if (_fieldErrors.containsKey(errorKey)) setState(() => _fieldErrors.remove(errorKey));
-          },
-          decoration: _inputDecoration(hint, isError: hasError, icon: icon).copyWith(suffixIcon: suffixIcon),
-        ),
-        if (hasError && _fieldErrors[errorKey] != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 6.0, left: 4),
-            child: Text(
-              _fieldErrors[errorKey]!,
-              style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+    final errorText = hasError ? _fieldErrors[errorKey] : null;
+
+    return TranslationBuilder(
+      texts: [label, hint, if (hasError && errorText != null) errorText else ''],
+      builder: (context, translatedTexts) {
+        final translatedLabel = translatedTexts[0];
+        final translatedHint = translatedTexts[1];
+        final translatedError = translatedTexts.length > 2 && translatedTexts[2].isNotEmpty ? translatedTexts[2] : errorText;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              translatedLabel,
+              style: TextStyle(
+                fontSize: 13, 
+                fontWeight: FontWeight.w700, 
+                color: hasError ? Colors.red : const Color(0xFF2C3E50),
+              ),
             ),
-          ),
-      ],
+            const SizedBox(height: 6),
+            TextField(
+              controller: controller,
+              maxLines: maxLines,
+              keyboardType: keyboardType,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
+              onChanged: (val) {
+                if (onChanged != null) onChanged(val);
+                if (_fieldErrors.containsKey(errorKey)) setState(() => _fieldErrors.remove(errorKey));
+              },
+              decoration: _inputDecoration(translatedHint, isError: hasError, icon: icon).copyWith(suffixIcon: suffixIcon),
+            ),
+            if (hasError && translatedError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0, left: 4),
+                child: Text(
+                  translatedError,
+                  style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -1720,6 +1737,66 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       filled: true,
       fillColor: const Color(0xFFF9FBF9),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    );
+  }
+
+  Widget _buildListingDetailsCard(String? description, String? number) {
+    return Container(
+      margin: const EdgeInsets.only(top: 20),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F8F1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.info_outline_rounded, size: 20, color: Color(0xFF2E7D32)),
+              ),
+              const SizedBox(width: 14),
+              const Text(
+                'LISTING DETAILS',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (number != null && number.trim().isNotEmpty) ...[
+            Text(
+              'SERIAL/REGISTRATION NUMBER',
+              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              number,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+            ),
+            const SizedBox(height: 16),
+            Divider(color: Colors.grey[100], height: 1),
+            const SizedBox(height: 16),
+          ],
+          Text(
+            'DESCRIPTION',
+            style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            description ?? 'High-quality agricultural service listing details.',
+            style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w600, height: 1.5),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -500,8 +500,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get operatorAvailableSubtitle => 'Can you provide a driver/operator?';
 
   @override
-  String get listingUploaded =>
-      'Listing uploaded successfully! Pending Approval.';
+  String get listingUploaded => 'Listing uploaded successfully!';
 
   @override
   String get fillRequiredFields => 'Please fill required fields';

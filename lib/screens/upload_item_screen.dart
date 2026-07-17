@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:agriculture/l10n/app_localizations.dart';
+import '../utils/translated_text.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart' as geo;
 import '../services/geocoding_service.dart';
@@ -262,6 +263,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   // Common Controllers
   final TextEditingController _nameController = TextEditingController(); // Name / Title
   final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _pricePerKmController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
 
@@ -315,7 +317,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   // Mock Lists
   final List<String> _transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
   final List<String> _equipmentCategories = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB']; 
-  final List<String> _serviceCategories = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Soil Testing', 'Vet Care', 'Electricians', 'Mechanics', 'Farm Workers']; // Added Farm Workers
+  final List<String> _serviceCategories = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Vet Care', 'Electricians', 'Farm Workers']; // Added Farm Workers
   
   final List<String> _conditions = ['New', 'Good', 'Average', 'Poor'];
 
@@ -330,6 +332,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    _pricePerKmController.dispose();
     _locationController.dispose();
     _descriptionController.dispose();
     _capacityController.dispose();
@@ -635,6 +638,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'rating': 5.0,
         'approvalStatus': 'Pending',
         'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Equipment',
+        'vehicleNumber': _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
       };
 
       await ApiService().addEquipment(equipmentData);
@@ -652,6 +656,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         operatorAvailable: _operatorAvailable,
         condition: _condition,
         yearOfManufacture: _yearController.text.isNotEmpty ? _yearController.text : null,
+        vehicleNumber: _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
         image: 'https://placehold.co/600x400?text=Equipment',
       );
 
@@ -1029,16 +1034,25 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           icon: Icons.sell_rounded,
           child: Column(
             children: [
-              _buildTextField(l10n.priceLabel, _priceController, 'e.g. ₹20/km or ₹1000/trip', keyboardType: TextInputType.text, errorKey: 'price', icon: Icons.payments_rounded),
+              _buildTextField('Daily Rate / Flat Price', _priceController, 'e.g. 1500', keyboardType: TextInputType.number, errorKey: 'price', icon: Icons.payments_rounded),
+              const SizedBox(height: 12),
+              _buildTextField('KM-wise Rate (per KM)', _pricePerKmController, 'e.g. 20', keyboardType: TextInputType.number, errorKey: 'price_km', icon: Icons.speed_rounded),
               const SizedBox(height: 12),
               CheckboxListTile(
                 title: Text(l10n.driverIncluded, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                 value: _driverIncluded,
-                onChanged: (v) => setState(() => _driverIncluded = v!),
+                onChanged: (v) => setState(() {
+                  _driverIncluded = v!;
+                  if (!v) _operatorPriceController.clear();
+                }),
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
                 activeColor: const Color(0xFF00AA55),
               ),
+              if (_driverIncluded) ...[
+                const SizedBox(height: 12),
+                _buildTextField('Driver Price', _operatorPriceController, 'e.g. 300', keyboardType: TextInputType.number, errorKey: 'driver_price', icon: Icons.currency_rupee_rounded),
+              ],
             ],
           ),
         ),
@@ -1058,8 +1072,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       _fieldErrors['name'] = 'Enter vehicle name';
       hasError = true;
     }
-    if (_priceController.text.isEmpty) {
-      _fieldErrors['price'] = 'Enter price';
+    final bool hasPrice = _priceController.text.trim().isNotEmpty;
+    final bool hasPriceKm = _pricePerKmController.text.trim().isNotEmpty;
+
+    if (!hasPrice && !hasPriceKm) {
+      _fieldErrors['price'] = 'Enter daily price or KM-wise rate';
+      _fieldErrors['price_km'] = 'Enter daily price or KM-wise rate';
       hasError = true;
     }
 
@@ -1083,13 +1101,25 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         return;
       }
 
-      // Parse price to double e.g., '1500 per trip' -> 1500.0
+      // Parse price to double
       double parsedPrice = 0.0;
-      try {
-        parsedPrice = double.parse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), ''));
-      } catch (e) {
-         _showError('Please enter a valid numeric price');
-         return;
+      if (hasPrice) {
+        try {
+          parsedPrice = double.parse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), ''));
+        } catch (e) {
+           _showError('Please enter a valid numeric daily price');
+           return;
+        }
+      }
+
+      double parsedPriceKm = 0.0;
+      if (hasPriceKm) {
+        try {
+          parsedPriceKm = double.parse(_pricePerKmController.text.replaceAll(RegExp(r'[^0-9.]'), ''));
+        } catch (e) {
+           _showError('Please enter a valid numeric KM-wise price');
+           return;
+        }
       }
 
       final apiService = ApiService();
@@ -1099,7 +1129,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'vehicleNumber': _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
         'loadCapacity': _capacityController.text.isNotEmpty ? _capacityController.text : 'Unknown',
         'pricePerKmOrTrip': parsedPrice,
+        'pricePerKm': parsedPriceKm,
         'driverIncluded': _driverIncluded,
+        'operatorPrice': _driverIncluded ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
         'serviceArea': _serviceAreaController.text.isNotEmpty ? _serviceAreaController.text : null,
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Unknown',
         'latitude': _selectedLatitude,
@@ -1139,15 +1171,18 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
       double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
 
+      final String sType = _selectedServiceType ?? widget.category;
+      final bool hasOperator = (sType != 'Electricians' && sType != 'Vet Care') && _operatorIncludedService;
+
       final Map<String, dynamic> serviceData = {
         'ownerId': ownerId,
-        'serviceType': _selectedServiceType ?? widget.category,
+        'serviceType': sType,
         'businessName': _nameController.text,
         'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : 'No description provided',
         'equipmentUsed': _equipmentUsedController.text.isNotEmpty ? _equipmentUsedController.text : 'Standard Equipment',
         'priceRate': parsedPrice,
-        'operatorIncluded': _operatorIncludedService,
-        'operatorPrice': _operatorIncludedService ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
+        'operatorIncluded': hasOperator,
+        'operatorPrice': hasOperator ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
         'latitude': _selectedLatitude,
         'longitude': _selectedLongitude,
@@ -1162,14 +1197,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final newProvider = ServiceListing(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text, // Provider Name
-        serviceName: _selectedServiceType ?? widget.category, // e.g. 'Ploughing' passed from home screen or selected
+        serviceName: sType, // e.g. 'Ploughing' passed from home screen or selected
         distance: '1 km',
         rating: 5.0,
         approvalStatus: 'Pending',
         location: _locationController.text,
         equipmentUsed: _equipmentUsedController.text.isNotEmpty ? _equipmentUsedController.text : 'Standard Equipment',
         price: _priceController.text,
-        operatorIncluded: _operatorIncludedService,
+        operatorIncluded: hasOperator,
         jobsCompleted: 0,
         isAvailable: true,
         image: 'https://placehold.co/600x400?text=Service', 
@@ -1288,20 +1323,22 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   icon: Icons.payments_rounded,
                 ),
                 
-                const SizedBox(height: 12),
-                SwitchListTile(
-                  title: const Text('Operator Included?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                  value: _operatorIncludedService,
-                  onChanged: (v) => setState(() {
-                    _operatorIncludedService = v;
-                    if (!v) _operatorPriceController.clear();
-                  }),
-                  activeColor: const Color(0xFF00AA55),
-                  contentPadding: EdgeInsets.zero,
-                ),
-                if (_operatorIncludedService) ...[
+                if (_selectedServiceType != 'Electricians' && _selectedServiceType != 'Vet Care') ...[
                   const SizedBox(height: 12),
-                  _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, icon: Icons.person_add_rounded),
+                  SwitchListTile(
+                    title: const Text('Operator Included?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    value: _operatorIncludedService,
+                    onChanged: (v) => setState(() {
+                      _operatorIncludedService = v;
+                      if (!v) _operatorPriceController.clear();
+                    }),
+                    activeColor: const Color(0xFF00AA55),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  if (_operatorIncludedService) ...[
+                    const SizedBox(height: 12),
+                    _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, icon: Icons.person_add_rounded),
+                  ],
                 ],
               ],
             ),
@@ -1395,6 +1432,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                  const SizedBox(height: 20),
 
               _buildTextField(l10n.yearManufacture, _yearController, 'e.g. 2021', keyboardType: TextInputType.number, icon: Icons.calendar_today_rounded),
+              const SizedBox(height: 20),
+              _buildTextField(l10n.vehicleNumber, _vehicleNumberController, 'e.g. TN 37 BY 1234 (Optional)', icon: Icons.numbers_rounded),
             ],
           ),
         ),
@@ -1469,7 +1508,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                     child: Icon(icon, size: 18, color: const Color(0xFF00AA55)),
                   ),
                   const SizedBox(width: 12),
-                  Text(
+                  TranslatedText(
                     title,
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
                   ),
@@ -1487,35 +1526,46 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey, Widget? suffixIcon, IconData? icon}) {
     bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13, 
-            fontWeight: FontWeight.w700, 
-            color: hasError ? Colors.red : const Color(0xFF2C3E50),
-            letterSpacing: 0.2,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: controller,
-          maxLines: maxLines,
-          keyboardType: keyboardType,
-          onChanged: (_) {
-            if (hasError) setState(() => _fieldErrors.remove(errorKey));
-          },
-          decoration: _inputDecoration(hint, isError: hasError, icon: icon).copyWith(suffixIcon: suffixIcon),
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-        ),
-        if (hasError && _fieldErrors[errorKey] != null)
-           Padding(
-             padding: const EdgeInsets.only(top: 6.0, left: 4),
-             child: Text(_fieldErrors[errorKey]!, style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500)),
-           ),
-      ],
+    final errorText = hasError ? _fieldErrors[errorKey] : null;
+
+    return TranslationBuilder(
+      texts: [label, hint, if (hasError && errorText != null) errorText else ''],
+      builder: (context, translatedTexts) {
+        final translatedLabel = translatedTexts[0];
+        final translatedHint = translatedTexts[1];
+        final translatedError = translatedTexts.length > 2 && translatedTexts[2].isNotEmpty ? translatedTexts[2] : errorText;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              translatedLabel,
+              style: TextStyle(
+                fontSize: 13, 
+                fontWeight: FontWeight.w700, 
+                color: hasError ? Colors.red : const Color(0xFF2C3E50),
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              maxLines: maxLines,
+              keyboardType: keyboardType,
+              onChanged: (_) {
+                if (hasError) setState(() => _fieldErrors.remove(errorKey));
+              },
+              decoration: _inputDecoration(translatedHint, isError: hasError, icon: icon).copyWith(suffixIcon: suffixIcon),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+            ),
+            if (hasError && translatedError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6.0, left: 4),
+                child: Text(translatedError, style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500)),
+              ),
+          ],
+        );
+      },
     );
   }
 

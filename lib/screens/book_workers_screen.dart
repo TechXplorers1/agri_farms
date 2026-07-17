@@ -11,6 +11,7 @@ import '../services/api_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../utils/location_helper.dart';
+import '../utils/translated_text.dart';
 
 class BookWorkersScreen extends StatefulWidget {
   final String providerName;
@@ -1401,7 +1402,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               children: [
                 Icon(icon, size: 20, color: const Color(0xFF00AA55)),
                 const SizedBox(width: 12),
-                Text(
+                TranslatedText(
                   title.toUpperCase(),
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: 1.2),
                 ),

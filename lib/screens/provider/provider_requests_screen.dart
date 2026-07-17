@@ -15,6 +15,34 @@ String _formatProviderDate(String raw) {
   }
 }
 
+String _formatProviderDateTime(BookingDetails booking) {
+  final dt = booking.rawScheduledStartTime;
+  if (dt != null) {
+    try {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      final hour = dt.hour;
+      final minute = dt.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+      return '${dt.day} ${months[dt.month - 1]} ${dt.year} at $displayHour:$minute $period';
+    } catch (_) {}
+  }
+  return _formatProviderDate(booking.date);
+}
+
+String _formatProviderDateOnlyOrTime(DateTime dt) {
+  try {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final hour = dt.hour;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year} at $displayHour:$minute $period';
+  } catch (_) {
+    return dt.toString();
+  }
+}
+
 class ProviderRequestsScreen extends StatefulWidget {
   const ProviderRequestsScreen({super.key});
 
@@ -25,6 +53,7 @@ class ProviderRequestsScreen extends StatefulWidget {
 class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
   String? _currentProviderId; 
   final BookingManager _bookingManager = BookingManager();
+  final Set<String> _expandedBookingIds = {};
   bool _isLoading = true;
   DateTime? _filterDate;
 
@@ -375,6 +404,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
     }
 
     final accentColor = statusColor(booking.status);
+    final isExpanded = _expandedBookingIds.contains(booking.id);
 
     return Container(
       margin: const EdgeInsets.only(top: 16),
@@ -389,108 +419,153 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              color: accentColor.withValues(alpha: 0.05),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(booking.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF2C3E50))),
-                    Text('ID: #${booking.id.length > 8 ? booking.id.substring(booking.id.length-8).toUpperCase() : booking.id.toUpperCase()}', style: TextStyle(fontSize: 10, color: Colors.grey[500], letterSpacing: 0.5, fontWeight: FontWeight.w600)),
-                  ])),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(color: accentColor, borderRadius: BorderRadius.circular(10)),
-                    child: Text(booking.status.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.5)),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                setState(() {
+                  if (isExpanded) {
+                    _expandedBookingIds.remove(booking.id);
+                  } else {
+                    _expandedBookingIds.add(booking.id);
+                  }
+                });
+              },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today_rounded, size: 14, color: Colors.grey[400]),
-                      const SizedBox(width: 8),
-                      Text('Scheduled : ', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
-                      Text(_formatProviderDate(booking.date), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
-                      const Spacer(),
-                      Text(booking.price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF2E7D32))),
-                    ],
-                  ),
-                  if (booking.location != null && booking.location!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    InkWell(
-                      onTap: () => _openMap(booking.location!),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    color: accentColor.withValues(alpha: 0.05),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(booking.title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF2C3E50))),
+                          Text('ID: #${booking.id.length > 8 ? booking.id.substring(booking.id.length-8).toUpperCase() : booking.id.toUpperCase()}', style: TextStyle(fontSize: 10, color: Colors.grey[500], letterSpacing: 0.5, fontWeight: FontWeight.w600)),
+                        ])),
+                        Row(
                           children: [
-                            const Icon(Icons.near_me_rounded, size: 14, color: Color(0xFF00AA55)),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(color: accentColor, borderRadius: BorderRadius.circular(10)),
+                              child: Text(booking.status.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 10, letterSpacing: 0.5)),
+                            ),
                             const SizedBox(width: 8),
-                            Text('Location: ', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
-                            Expanded(
-                              child: Text(
-                                '${booking.location!} ➔',
-                                style: const TextStyle(
-                                  fontSize: 12, 
-                                  fontWeight: FontWeight.w700, 
-                                  color: Color(0xFF00AA55),
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
+                            Icon(
+                              isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                              color: const Color(0xFF2C3E50),
+                              size: 20,
                             ),
                           ],
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                  if (booking.details.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    const Divider(height: 1),
-                    const SizedBox(height: 12),
-                    Text('REQUEST DETAILS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5)),
-                    const SizedBox(height: 8),
-                    ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Provider', 'Count', 'Vehicle Count'].contains(e.key)).map((e) =>
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, 16, 16, isExpanded ? 0 : 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Container(margin: const EdgeInsets.only(top: 6), width: 4, height: 4, decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.5), shape: BoxShape.circle)),
-                            const SizedBox(width: 10),
-                            Expanded(child: Text.rich(TextSpan(children: [
-                              TextSpan(text: '${_formatKey(e.key)}: ', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2C3E50))),
-                              TextSpan(text: '${e.value}', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
-                            ]))),
+                            Icon(Icons.history_rounded, size: 14, color: Colors.grey[400]),
+                            const SizedBox(width: 8),
+                            Text('Booked At: ', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                            Text(_formatProviderDateOnlyOrTime(booking.rawBookingDate), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                           ],
                         ),
-                      )
-                    ),
-                  ],
-                  if (tabType == 'new') ...[
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(child: _buildActionButton('Reject', Colors.red, () => _updateStatus(booking.id, 'Rejected'))),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildActionButton('Accept', const Color(0xFF00AA55), () => _updateStatus(booking.id, 'Confirmed'), isPrimary: true)),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today_rounded, size: 14, color: Colors.grey[400]),
+                            const SizedBox(width: 8),
+                            Text('Booked For: ', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                            Text(_formatProviderDateTime(booking), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                            const Spacer(),
+                            Text(booking.price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF2E7D32))),
+                          ],
+                        ),
                       ],
-                    )
-                  ],
-                  if (tabType == 'active') ...[
-                    const SizedBox(height: 20),
-                    SizedBox(width: double.infinity, child: _buildActionButton('Mark as Finished', const Color(0xFF1565C0), () => _handleCompletedTap(booking), isPrimary: true)),
-                  ],
+                    ),
+                  ),
                 ],
               ),
             ),
+            if (isExpanded)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (booking.location != null && booking.location!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _openMap(booking.location!),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.near_me_rounded, size: 14, color: Color(0xFF00AA55)),
+                              const SizedBox(width: 8),
+                              Text('Location: ', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                              Expanded(
+                                child: Text(
+                                  '${booking.location!} ➔',
+                                  style: const TextStyle(
+                                    fontSize: 12, 
+                                    fontWeight: FontWeight.w700, 
+                                    color: Color(0xFF00AA55),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (booking.details.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      const Divider(height: 1),
+                      const SizedBox(height: 12),
+                      Text('REQUEST DETAILS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5)),
+                      const SizedBox(height: 8),
+                      ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Provider', 'Count', 'Vehicle Count', 'Location', 'location'].contains(e.key)).map((e) =>
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(margin: const EdgeInsets.only(top: 6), width: 4, height: 4, decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.5), shape: BoxShape.circle)),
+                              const SizedBox(width: 10),
+                              Expanded(child: Text.rich(TextSpan(children: [
+                                TextSpan(text: '${_formatKey(e.key)}: ', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF2C3E50))),
+                                TextSpan(text: '${e.value}', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+                              ]))),
+                            ],
+                          ),
+                        )
+                      ),
+                    ],
+                    if (tabType == 'new') ...[
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(child: _buildActionButton('Reject', Colors.red, () => _updateStatus(booking.id, 'Rejected'))),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildActionButton('Accept', const Color(0xFF00AA55), () => _updateStatus(booking.id, 'Confirmed'), isPrimary: true)),
+                        ],
+                      )
+                    ],
+                    if (tabType == 'active') ...[
+                      const SizedBox(height: 20),
+                      SizedBox(width: double.infinity, child: _buildActionButton('Mark as Finished', const Color(0xFF1565C0), () => _handleCompletedTap(booking), isPrimary: true)),
+                    ],
+                  ],
+                ),
+              ),
           ],
         ),
       ),

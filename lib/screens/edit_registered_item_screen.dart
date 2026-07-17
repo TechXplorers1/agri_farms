@@ -9,6 +9,7 @@ import 'dart:io' show File;
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
+import '../utils/translated_text.dart';
 
 class EditRegisteredItemScreen extends StatefulWidget {
   final String category; // 'Vehicle', 'Equipment', 'Service', 'WorkerGroup'
@@ -31,6 +32,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   // Controllers
   late TextEditingController _nameController;
   late TextEditingController _priceController;
+  late TextEditingController _pricePerKmController;
   late TextEditingController _locationController;
   late TextEditingController _ownerBusinessNameController;
   late TextEditingController _descriptionController;
@@ -55,6 +57,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   void _initData() {
     _nameController = TextEditingController();
     _priceController = TextEditingController();
+    _pricePerKmController = TextEditingController();
     _locationController = TextEditingController(text: widget.itemData['location']?.toString() ?? '');
     _secondaryController = TextEditingController();
     _capacityController = TextEditingController();
@@ -66,6 +69,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     if (widget.category == 'Vehicle') {
       _nameController.text = widget.itemData['vehicleNumber']?.toString() ?? '';
       _priceController.text = widget.itemData['pricePerKmOrTrip']?.toString() ?? '';
+      _pricePerKmController.text = widget.itemData['pricePerKm']?.toString() ?? '';
       _secondaryController.text = widget.itemData['vehicleType']?.toString() ?? '';
       _capacityController.text = widget.itemData['loadCapacity']?.toString() ?? '';
       _boolFlag = widget.itemData['driverIncluded'] ?? false;
@@ -92,6 +96,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   void dispose() {
     _nameController.dispose();
     _priceController.dispose();
+    _pricePerKmController.dispose();
     _locationController.dispose();
     _secondaryController.dispose();
     _capacityController.dispose();
@@ -182,6 +187,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
       if (widget.category == 'Vehicle') {
         updatedData['vehicleNumber'] = _nameController.text;
         updatedData['pricePerKmOrTrip'] = double.tryParse(_priceController.text) ?? 0.0;
+        updatedData['pricePerKm'] = double.tryParse(_pricePerKmController.text) ?? 0.0;
         updatedData['vehicleType'] = _secondaryController.text;
         updatedData['loadCapacity'] = _capacityController.text;
         updatedData['driverIncluded'] = _boolFlag;
@@ -213,8 +219,9 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['businessName'] = _nameController.text;
         updatedData['priceRate'] = double.tryParse(_priceController.text) ?? 0.0;
         updatedData['serviceType'] = _secondaryController.text;
-        updatedData['operatorIncluded'] = _boolFlag;
-        updatedData['operatorPrice'] = _boolFlag ? (double.tryParse(_operatorPriceController.text) ?? 0.0) : 0.0;
+        final bool isElectrOrVet = _secondaryController.text == 'Electricians' || _secondaryController.text == 'Vet Care';
+        updatedData['operatorIncluded'] = isElectrOrVet ? false : _boolFlag;
+        updatedData['operatorPrice'] = (isElectrOrVet || !_boolFlag) ? 0.0 : (double.tryParse(_operatorPriceController.text) ?? 0.0);
         updatedData['location'] = _locationController.text;
         await _apiService.updateService(widget.itemData['serviceId'], updatedData);
       } else if (widget.category == 'WorkerGroup') {
@@ -377,7 +384,9 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                   if (widget.category == 'Vehicle') ...[
                     _buildTextField('Load Capacity', _capacityController, Icons.line_weight_rounded, hint: 'e.g., 5 Tons'),
                     const SizedBox(height: 20),
-                    _buildTextField('Price Per Km/Trip', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
+                    _buildTextField('Daily Rate / Flat Price', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
+                    const SizedBox(height: 20),
+                    _buildTextField('KM-wise Rate', _pricePerKmController, Icons.speed_rounded, keyboardType: TextInputType.number),
                     const SizedBox(height: 12),
                     _buildSwitchTile('Driver Included', _boolFlag, (v) => setState(() {
                       _boolFlag = v;
@@ -425,14 +434,16 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                     ],
                   ] else if (widget.category == 'Service') ...[
                     _buildTextField('Price / Rate', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
-                    const SizedBox(height: 12),
-                    _buildSwitchTile('Operator Included', _boolFlag, (v) => setState(() {
-                      _boolFlag = v;
-                      if (!v) _operatorPriceController.clear();
-                    })),
-                    if (_boolFlag) ...[
+                    if (_secondaryController.text != 'Electricians' && _secondaryController.text != 'Vet Care') ...[
                       const SizedBox(height: 12),
-                      _buildTextField('Operator Price', _operatorPriceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number, hint: 'Operator charge'),
+                      _buildSwitchTile('Operator Included', _boolFlag, (v) => setState(() {
+                        _boolFlag = v;
+                        if (!v) _operatorPriceController.clear();
+                      })),
+                      if (_boolFlag) ...[
+                        const SizedBox(height: 12),
+                        _buildTextField('Operator Price', _operatorPriceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number, hint: 'Operator charge'),
+                      ],
                     ],
                   ] else if (widget.category == 'WorkerGroup') ...[
                     _buildTextField('Price Per Male', _priceController, Icons.man_rounded, keyboardType: TextInputType.number, hint: 'Rate for male workers'),
@@ -513,7 +524,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                   children: [
                     Icon(icon, size: 20, color: const Color(0xFF00AA55)),
                     const SizedBox(width: 12),
-                    Text(
+                    TranslatedText(
                       title.toUpperCase(),
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: const Color(0xFF1B5E20).withOpacity(0.6), letterSpacing: 1.2),
                     ),
@@ -533,33 +544,42 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   }
 
   Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType keyboardType = TextInputType.text, Widget? suffixIcon, String? hint, int maxLines = 1}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFFF9FBF9),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: const Color(0xFFE8F5E9)),
-          ),
-          child: TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            maxLines: maxLines,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
-              prefixIcon: Icon(icon, color: const Color(0xFF00AA55), size: 20),
-              suffixIcon: suffixIcon,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    final displayHint = hint ?? '';
+    return TranslationBuilder(
+      texts: [label, displayHint],
+      builder: (context, translatedTexts) {
+        final translatedLabel = translatedTexts[0];
+        final translatedHint = translatedTexts[1];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(translatedLabel, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FBF9),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: const Color(0xFFE8F5E9)),
+              ),
+              child: TextField(
+                controller: controller,
+                keyboardType: keyboardType,
+                maxLines: maxLines,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
+                decoration: InputDecoration(
+                  hintText: hint != null ? translatedHint : null,
+                  hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
+                  prefixIcon: Icon(icon, color: const Color(0xFF00AA55), size: 20),
+                  suffixIcon: suffixIcon,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 

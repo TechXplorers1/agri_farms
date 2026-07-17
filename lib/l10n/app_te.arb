@@ -189,7 +189,7 @@
   "rentalPrice": "Rental Price",
   "operatorAvailable": "Operator Available?",
   "operatorAvailableSubtitle": "Can you provide a driver/operator?",
-  "listingUploaded": "Listing uploaded successfully! Pending Approval.",
+  "listingUploaded": "Listing uploaded successfully!",
   "fillRequiredFields": "Please fill required fields",
   "selectSkillError": "Please select at least one skill",
   "filter": "Filter",
