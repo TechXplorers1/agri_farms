@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 
   class ApiConfig {
     // Switches environment based on compile-time ENV variable (defaults to dev)
-    static const Environment env = Environment.dev;
+    static const Environment env = Environment.prod;
  
     // Development base API endpoint (Using local IP on port 8083)
     // Note: Change to 8081 if you run the backend using Maven (mvn spring-boot:run) directly on host
