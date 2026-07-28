@@ -31,8 +31,8 @@ class _AuthScreenState extends State<AuthScreen> {
     super.initState();
     _phoneController.addListener(_validateInput);
     _nameController.addListener(_validateInput);
-    // Initialize MSG91 OTP Widget
-    OTPWidget.initializeWidget(ApiConfig.msg91WidgetId, ApiConfig.msg91AuthToken);
+    // Removed OTPWidget initialization as we are using backend flow
+    // OTPWidget.initializeWidget(ApiConfig.msg91WidgetId, ApiConfig.msg91AuthToken);
   }
 
   @override
@@ -121,12 +121,9 @@ class _AuthScreenState extends State<AuthScreen> {
           return;
         }
 
-        final response = await OTPWidget.sendOTP({
-          'identifier': '91' + phoneNumber,
-        });
-        
-        if (response != null && response['type'] == 'success') {
-          final String reqId = response['message']?.toString() ?? '';
+        try {
+          await ApiService().sendMsg91Otp(phoneNumber: phoneNumber);
+          
           if (mounted) {
             setState(() => _isLoading = false);
             Navigator.of(context).push(
@@ -136,14 +133,18 @@ class _AuthScreenState extends State<AuthScreen> {
                   fullName: _isLogin ? '' : _nameController.text,
                   role: _isLogin ? 'Farmer' : (_selectedRole ?? 'Farmer'),
                   isLogin: _isLogin,
-                  verificationId: reqId,
+                  verificationId: '', // Not used in backend flow
                 ),
               ),
             );
           }
-        } else {
-          final errorMsg = response != null ? (response['message'] ?? 'Failed to send OTP') : 'Failed to send OTP';
-          throw Exception(errorMsg);
+        } catch (e) {
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+              _errorMessage = e.toString().replaceAll('Exception: ', '');
+            });
+          }
         }
       } catch (e) {
         if (mounted) {

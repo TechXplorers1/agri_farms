@@ -1,8 +1,6 @@
-import 'package:flutter/foundation.dart';
+enum Environment { dev, prod }
 
-  enum Environment { dev, prod }
-
-  class ApiConfig {
+class ApiConfig {
     // Switches environment based on compile-time ENV variable (defaults to dev)
     static const Environment env = Environment.prod;
  
@@ -30,14 +28,19 @@ import 'package:flutter/foundation.dart';
     static const String notifications = '/api/notifications';
 
     // MSG91 Widget configuration for OTP
-    static const String msg91WidgetId = '3666446a7746353733323534';
+    static const String msg91WidgetId = '6a6470ebe285710a1e0ead72';
     // Replace this with your actual MSG91 Auth Token from the 'Tokens' section of the MSG91 dashboard
-    static const String msg91AuthToken = '514970Tegopp45hc76a43b61cP1'; // using the one from application.yml
+    static const String msg91AuthToken = '551740AvEkrLHO5I6a63711bP1'; // using the one from application.yml
     
     static String getFullImageUrl(String? path) {
-    
       if (path == null || path.isEmpty) return '';
+      // If path is a direct S3 URL that might be private/403, proxy it through backend endpoint
+      if (path.contains('.s3.') || path.contains('s3.amazonaws.com')) {
+        final filename = path.substring(path.lastIndexOf('/') + 1);
+        return '$baseUrl/api/media/download/$filename';
+      }
       if (path.startsWith('http')) return path;
-      return '$baseUrl$path';
+      if (path.startsWith('/')) return '$baseUrl$path';
+      return '$baseUrl/$path';
     } 
   }

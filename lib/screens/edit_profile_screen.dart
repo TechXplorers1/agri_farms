@@ -388,14 +388,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (_userId != null) {
         String? finalImageUrl = _profileImageUrl;
         
-        // Upload image if a new one was selected
-        if (_selectedImage != null) {
+        // Upload image if a new one was selected and not uploaded yet
+        if (_selectedImage != null && (finalImageUrl == null || finalImageUrl.isEmpty)) {
           setState(() => _isUploading = true);
           try {
             final uploadResponse = await apiService.uploadImage(_selectedImage!);
             finalImageUrl = uploadResponse['url'];
           } catch (e) {
-            debugPrint("Error uploading image: $e");
+            debugPrint("Error uploading image fallback: $e");
           } finally {
             setState(() => _isUploading = false);
           }
@@ -509,10 +509,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       maxHeight: 1024,
       imageQuality: 85,
     );
-    if (image != null) {
-      setState(() {
-        _selectedImage = image;
-      });
+    if (image == null) return;
+
+    setState(() {
+      _selectedImage = image;
+      _isUploading = true;
+    });
+
+    try {
+      final apiService = ApiService();
+      final uploadResponse = await apiService.uploadImage(image);
+      final String? uploadedUrl = uploadResponse['url'];
+
+      if (uploadedUrl != null) {
+        final prefs = await SharedPreferences.getInstance();
+        _userId ??= prefs.getString('user_id');
+
+        if (_userId != null) {
+          await apiService.updateUser(_userId!, {'profileImageUrl': uploadedUrl});
+          await prefs.setString('user_profile_image', uploadedUrl);
+        }
+
+        setState(() {
+          _profileImageUrl = uploadedUrl;
+        });
+
+        if (mounted) {
+          UiUtils.showCenteredToast(context, 'Profile photo updated!');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error uploading profile photo: $e');
+      if (mounted) {
+        UiUtils.showCustomAlert(context, 'Failed to upload photo: $e', isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
     }
   }
 
@@ -829,7 +863,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final hasError = errorText != null && errorText.isNotEmpty;
     
     return TranslationBuilder(
-      texts: [label, hint, if (hasError && errorText != null) errorText else ''],
+      texts: [label, hint, if (hasError) errorText else ''],
       builder: (context, translatedTexts) {
         final translatedLabel = translatedTexts[0];
         final translatedHint = translatedTexts[1];

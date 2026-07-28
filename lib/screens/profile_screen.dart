@@ -10,7 +10,6 @@ import 'generic_history_screen.dart';
 import '../utils/booking_manager.dart';
 import '../services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import '../config/api_config.dart';
 
 import 'provider/provider_requests_screen.dart';
@@ -19,8 +18,6 @@ import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/ui_utils.dart';
 import '../services/notification_service.dart';
 import '../utils/app_translations.dart';
-import '../utils/language_provider.dart';
-import 'package:provider/provider.dart';
 
 
 class ProfileScreen extends StatefulWidget {
@@ -240,15 +237,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                                  child: CircleAvatar(
-                                    radius: 44,
-                                    backgroundColor: const Color(0xFFF1F8E9),
-                                    backgroundImage: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
-                                        ? NetworkImage(ApiConfig.getFullImageUrl(_profileImageUrl))
-                                        : null,
-                                    child: _profileImageUrl == null || _profileImageUrl!.isEmpty
-                                        ? (_isUploading ? const CircularProgressIndicator(color: Color(0xFF00AA55)) : const Icon(Icons.person, size: 48, color: Color(0xFF2E7D32)))
-                                        : null,
+                                  child: SizedBox(
+                                    width: 88,
+                                    height: 88,
+                                    child: ClipOval(
+                                      child: Container(
+                                        color: const Color(0xFFF1F8E9),
+                                        child: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                                            ? Image.network(
+                                                ApiConfig.getFullImageUrl(_profileImageUrl),
+                                                fit: BoxFit.cover,
+                                                errorBuilder: (context, error, stackTrace) => const Icon(
+                                                  Icons.person,
+                                                  size: 48,
+                                                  color: Color(0xFF2E7D32),
+                                                ),
+                                              )
+                                            : (_isUploading
+                                                ? const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)))
+                                                : const Icon(Icons.person, size: 48, color: Color(0xFF2E7D32))),
+                                      ),
+                                    ),
                                   ),
                                 ),
                                 Positioned(bottom: 2, right: 2, child: Container(

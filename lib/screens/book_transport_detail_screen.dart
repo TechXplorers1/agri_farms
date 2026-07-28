@@ -142,10 +142,16 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         }
         
         bool isOccupiedInThisSlot = false;
-        if (bookedHours.isNotEmpty) {
-          isOccupiedInThisSlot = bookedHours.contains(hour);
-        } else {
-          isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+        bool isSameDay = bStart.year == slotStart.year &&
+                         bStart.month == slotStart.month &&
+                         bStart.day == slotStart.day;
+                         
+        if (isSameDay) {
+          if (bookedHours.isNotEmpty) {
+            isOccupiedInThisSlot = bookedHours.contains(hour);
+          } else {
+            isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+          }
         }
 
         if (isOccupiedInThisSlot) {

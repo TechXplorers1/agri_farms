@@ -148,44 +148,27 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Verify OTP via MSG91 Widget SDK
-      final response = await OTPWidget.verifyOTP({
-        'reqId': _currentVerificationId,
-        'otp': entered,
-      });
+      final apiService = ApiService();
+      final role = widget.role.isNotEmpty ? widget.role : 'Farmer';
+      final name = widget.fullName.isNotEmpty ? widget.fullName : 'User';
 
-      if (response != null && response['type'] == 'success') {
-        // 2. On success, login/register user in the backend
-        final apiService = ApiService();
-        final role = widget.role.isNotEmpty ? widget.role : 'Farmer';
-        final name = widget.fullName.isNotEmpty ? widget.fullName : 'User';
+      final backendResponse = await apiService.verifyMsg91Otp(
+        phoneNumber: widget.mobileNumber,
+        otp: entered,
+        role: role,
+        fullName: name,
+        isLogin: widget.isLogin,
+      );
 
-        final backendResponse = await apiService.staticLogin(
-          mobileNumber: widget.mobileNumber,
-          role: role,
-          fullName: name,
-          isLogin: widget.isLogin,
+      if (mounted) {
+        setState(() => _isLoading = false);
+        final finalRole = backendResponse['role'] ?? role;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => HomeScreen(userRole: finalRole),
+          ),
+          (route) => false,
         );
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_phone', backendResponse['phoneNumber']?.toString() ?? widget.mobileNumber);
-        await prefs.setString('user_role', backendResponse['role'] ?? role);
-        await prefs.setString('user_name', backendResponse['fullName'] ?? name);
-        await prefs.setString('user_id', backendResponse['userId']?.toString() ?? '');
-
-        if (mounted) {
-          setState(() => _isLoading = false);
-          final finalRole = backendResponse['role'] ?? role;
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => HomeScreen(userRole: finalRole),
-            ),
-            (route) => false,
-          );
-        }
-      } else {
-        final errorMsg = response != null ? (response['message'] ?? 'OTP verification failed') : 'OTP verification failed';
-        throw Exception(errorMsg);
       }
     } catch (e) {
       if (mounted) {
