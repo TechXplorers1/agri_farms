@@ -74,10 +74,8 @@ class BookTransportScreen extends StatelessWidget {
               children: [
                 _buildVehicleCard(context, 'Mini Truck', l10n.miniTruck, 'assets/images/transport_truck_card.webp', AppTranslations.translate(context, '1_2_tons_capacity')),
                 _buildVehicleCard(context, 'Tractor Trolley', l10n.tractorTrolley, 'assets/images/tractor_trolley_card.webp', AppTranslations.translate(context, '2_3_tons_capacity')),
-                _buildVehicleCard(context, 'Full Truck', l10n.fullTruck, 'assets/images/full_truck_card.webp', AppTranslations.translate(context, '5_10_tons_capacity')),
-                _buildVehicleCard(context, 'Tempo', l10n.tempo, 'assets/images/tractor_trolley_card.webp', AppTranslations.translate(context, '500kg_1_ton_capacity')),
-                _buildVehicleCard(context, 'Pickup Van', l10n.pickupVan, 'assets/images/pickup_van_card.webp', AppTranslations.translate(context, '300_500_kg_capacity')), 
-                _buildVehicleCard(context, 'Container', l10n.container, 'assets/images/full_truck_card.webp', AppTranslations.translate(context, '10_plus_tons_capacity')),
+                _buildVehicleCard(context, 'Truck', l10n.truck, 'assets/images/full_truck_card.webp', AppTranslations.translate(context, '5_10_tons_capacity')),
+                _buildVehicleCard(context, 'Container', l10n.container, 'assets/images/full_truck_card.webp', AppTranslations.translate(context, '10_plus_tons_capacity'), isComingSoon: true),
               ],
             ),
           ),
@@ -87,9 +85,9 @@ class BookTransportScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildVehicleCard(BuildContext context, String serviceKey, String title, String imagePath, String subtitle) {
+  Widget _buildVehicleCard(BuildContext context, String serviceKey, String title, String imagePath, String subtitle, {bool isComingSoon = false}) {
     return GestureDetector(
-      onTap: () => _showBookingDialog(context, serviceKey, title),
+      onTap: isComingSoon ? null : () => _showBookingDialog(context, serviceKey, title),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -103,10 +101,13 @@ class BookTransportScreen extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(color: const Color(0xFFF1F8F1), child: const Icon(Icons.local_shipping_rounded, color: Color(0xFF00AA55), size: 40)),
+              Opacity(
+                opacity: isComingSoon ? 0.6 : 1.0,
+                child: Image.asset(
+                  imagePath,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(color: const Color(0xFFF1F8F1), child: const Icon(Icons.local_shipping_rounded, color: Color(0xFF00AA55), size: 40)),
+                ),
               ),
               DecoratedBox(
                 decoration: BoxDecoration(
@@ -133,12 +134,25 @@ class BookTransportScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      subtitle,
-                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, fontWeight: FontWeight.w600),
+                      isComingSoon ? 'COMING SOON' : subtitle,
+                      style: TextStyle(
+                        color: isComingSoon ? Colors.orangeAccent : Colors.white.withOpacity(0.7),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: isComingSoon ? 0.5 : 0,
+                      ),
                     ),
                   ],
                 ),
               ),
+              if (isComingSoon)
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+                    child: const Icon(Icons.lock_clock_rounded, color: Colors.white, size: 28),
+                  ),
+                ),
             ],
           ),
         ),

@@ -117,7 +117,7 @@ class AppLocalizationsTe extends AppLocalizations {
   String get tractorTrolley => 'ట్రాక్టర్ ట్రాలీ';
 
   @override
-  String get fullTruck => 'ఫుల్ ట్రక్';
+  String get truck => 'ట్రక్';
 
   @override
   String get tempo => 'టెంపో';
