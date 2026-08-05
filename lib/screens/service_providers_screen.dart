@@ -68,7 +68,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   }
 
   Future<List<ServiceProvider>> _fetchProviders() async {
-    final List<String> transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
+    final List<String> transportTypes = ['Mini Truck', 'Tractor Trolley', 'Truck', 'Container'];
     final List<String> equipmentTypes = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB', 'Rotavators', 'Cultivators', 'Seed Drills', 'Power Tillers'];
     final List<String> serviceTypes = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Irrigation', 'Vet Care', 'Crop Advisory', 'Electricians', 'Mechanics', 'Soil Testing'];
 
@@ -342,9 +342,9 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       'Soil Testing': 'soilTesting',
       'Mini Truck': 'miniTruck',
       'Tractor Trolley': 'tractorTrolley',
-      'Full Truck': 'fullTruck',
-      'Tempo': 'tempo',
-      'Pickup Van': 'pickupVan',
+      'Truck': 'truck',
+
+
       'Container': 'container',
     };
     final locKey = serviceKeyToLocKey[widget.serviceKey];
@@ -358,7 +358,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       else if (locKey == 'soilTesting') pageTitle = l10n.soilTesting;
       else if (locKey == 'miniTruck') pageTitle = l10n.miniTruck;
       else if (locKey == 'tractorTrolley') pageTitle = l10n.tractorTrolley;
-      else if (locKey == 'fullTruck') pageTitle = l10n.fullTruck;
+      else if (locKey == 'truck') pageTitle = l10n.truck;
       else if (locKey == 'tempo') pageTitle = l10n.tempo;
       else if (locKey == 'pickupVan') pageTitle = l10n.pickupVan;
       else if (locKey == 'container') pageTitle = l10n.container;
@@ -397,11 +397,17 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             }
           final allProviders = snapshot.data ?? [];
 
-          String dataCategory = widget.serviceKey;
-          if (widget.serviceKey == 'Ploughing') dataCategory = 'Tractors';
-          if (widget.serviceKey == 'Harvesting') dataCategory = 'Harvesters';
-          if (widget.serviceKey == 'Tractor Trolley') dataCategory = 'Trolleys';
-          final availableMakes = VehicleData.getMakes(dataCategory);
+          List<String> availableMakes = [];
+          if (widget.serviceKey == 'Mini Truck') {
+            availableMakes = ['Up to 500 kg', '500 kg - 1 Ton', '1 Ton - 2 Ton', 'Above 2 Ton'];
+          } else if (widget.serviceKey == 'Truck') {
+            availableMakes = ['Up to 5 Ton', '5 Ton - 10 Ton', '10 Ton - 20 Ton', 'Above 20 Ton'];
+          } else {
+            String dataCategory = widget.serviceKey;
+            if (widget.serviceKey == 'Ploughing') dataCategory = 'Tractors';
+            if (widget.serviceKey == 'Harvesting') dataCategory = 'Harvesters';
+            availableMakes = VehicleData.getMakes(dataCategory);
+          }
 
           final filteredProviders = allProviders.where((provider) {
             bool matchesMake = true;
@@ -409,9 +415,41 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             bool matchesDistance = true;
 
             if (_selectedMake != null && _selectedMake != 'All') {
-               if (provider is EquipmentListing) matchesMake = provider.brandModel.contains(_selectedMake!); 
-               else if (provider is TransportListing) matchesMake = provider.vehicleType.contains(_selectedMake!) || provider.name.contains(_selectedMake!);
-               else if (provider is ServiceListing) matchesMake = provider.equipmentUsed.contains(_selectedMake!);
+               if ((widget.serviceKey == 'Mini Truck' || widget.serviceKey == 'Truck') && provider is TransportListing) {
+                 double capacityKg = 0;
+                 String capStr = provider.loadCapacity.toLowerCase().replaceAll(' ', '');
+                 if (capStr.contains('ton')) {
+                   double? val = double.tryParse(capStr.replaceAll('tons', '').replaceAll('ton', ''));
+                   if (val != null) capacityKg = val * 1000;
+                 } else if (capStr.contains('kg')) {
+                   double? val = double.tryParse(capStr.replaceAll('kgs', '').replaceAll('kg', ''));
+                   if (val != null) capacityKg = val;
+                 }
+                 
+                 if (_selectedMake == 'Up to 500 kg') {
+                   matchesMake = capacityKg > 0 && capacityKg <= 500;
+                 } else if (_selectedMake == '500 kg - 1 Ton') {
+                   matchesMake = capacityKg > 500 && capacityKg <= 1000;
+                 } else if (_selectedMake == '1 Ton - 2 Ton') {
+                   matchesMake = capacityKg > 1000 && capacityKg <= 2000;
+                 } else if (_selectedMake == 'Above 2 Ton') {
+                   matchesMake = capacityKg > 2000;
+                 } else if (_selectedMake == 'Up to 5 Ton') {
+                   matchesMake = capacityKg > 0 && capacityKg <= 5000;
+                 } else if (_selectedMake == '5 Ton - 10 Ton') {
+                   matchesMake = capacityKg > 5000 && capacityKg <= 10000;
+                 } else if (_selectedMake == '10 Ton - 20 Ton') {
+                   matchesMake = capacityKg > 10000 && capacityKg <= 20000;
+                 } else if (_selectedMake == 'Above 20 Ton') {
+                   matchesMake = capacityKg > 20000;
+                 }
+               } else if (provider is EquipmentListing) {
+                 matchesMake = provider.brandModel.contains(_selectedMake!); 
+               } else if (provider is TransportListing) {
+                 matchesMake = provider.vehicleType.contains(_selectedMake!) || provider.name.contains(_selectedMake!);
+               } else if (provider is ServiceListing) {
+                 matchesMake = provider.equipmentUsed.contains(_selectedMake!);
+               }
             }
 
             if (_selectedLocation != null && _selectedLocation != 'All') {
@@ -478,7 +516,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           if (makes.isNotEmpty && makes.length > 1) ...[
             Expanded(
               child: _buildFilterDropdown(
-                hint: AppTranslations.translate(context, 'chooseMake'), value: _selectedMake, items: ['All', ...makes],
+                hint: (widget.serviceKey == 'Mini Truck' || widget.serviceKey == 'Truck') ? 'Load Capacity' : AppTranslations.translate(context, 'chooseMake'), value: _selectedMake, items: ['All', ...makes],
                 onChanged: (v) => setState(() => _selectedMake = v == 'All' ? null : v),
               ),
             ),
@@ -888,7 +926,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     String label = l10n.addListing;
     String category = 'Service'; 
     if (widget.serviceKey == 'Farm Workers') { label = l10n.addGroup; category = 'Farm Workers'; }
-    else if (['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'].contains(widget.serviceKey)) { label = l10n.addVehicle; category = 'Transport'; }
+    else if (['Mini Truck', 'Tractor Trolley', 'Truck', 'Container'].contains(widget.serviceKey)) { label = l10n.addVehicle; category = 'Transport'; }
     else if (['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB', 'Rotavators', 'Cultivators', 'Seed Drills', 'Power Tillers'].contains(widget.serviceKey)) { label = l10n.addEquipment; category = 'Equipment'; }
     else { label = l10n.addService; category = widget.serviceKey; }
 
@@ -981,17 +1019,120 @@ class _AssetDetailModal extends StatelessWidget {
   }
 
   Widget _buildTransportDetails(BuildContext context, TransportListing item) {
+    // Build pricing display based on vehicle type
+    final double? kmPrice = item.pricePerKm;
+    final String mainPrice = item.price.replaceAll(RegExp(r'[^0-9.]'), '');
+
+    Widget pricingWidget;
+    if (item.vehicleType == 'Tractor Trolley') {
+      // Full Day / Half Day
+      final String fullDay = '₹$mainPrice / Full Day';
+      final String halfDay = kmPrice != null && kmPrice > 0
+          ? '₹${kmPrice.toStringAsFixed(0)} / Half Day'
+          : 'Not specified';
+      pricingWidget = Padding(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: const Color(0xFFF1F8F1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.payments_outlined, size: 20, color: Color(0xFF2E7D32)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Rental Rate', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(10)),
+                child: Text(fullDay, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF2E7D32))),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(10)),
+                child: Text(halfDay, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.blue)),
+              ),
+            ]),
+          ])),
+        ]),
+      );
+    } else if (item.vehicleType == 'Mini Truck' || item.vehicleType == 'Truck') {
+      // KM-wise only
+      final String kmDisplay = kmPrice != null && kmPrice > 0
+          ? '₹${kmPrice.toStringAsFixed(0)} / KM'
+          : '₹$mainPrice / KM';
+      pricingWidget = Padding(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: const Color(0xFFF1F8F1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.payments_outlined, size: 20, color: Color(0xFF2E7D32)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Rental Rate', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 8, runSpacing: 6, children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(10)),
+                child: Text(kmDisplay, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.blue)),
+              ),
+            ]),
+          ])),
+        ]),
+      );
+    } else {
+      // Other vehicles: show Daily + KM-wise if both are available
+      final List<Widget> chips = [];
+      if (mainPrice.isNotEmpty && mainPrice != '0') {
+        chips.add(Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(10)),
+          child: Text('₹$mainPrice / Day', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF2E7D32))),
+        ));
+      }
+      if (kmPrice != null && kmPrice > 0) {
+        chips.add(Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(10)),
+          child: Text('₹${kmPrice.toStringAsFixed(0)} / KM', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.blue)),
+        ));
+      }
+      pricingWidget = Padding(
+        padding: const EdgeInsets.only(bottom: 20),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: const Color(0xFFF1F8F1), borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.payments_outlined, size: 20, color: Color(0xFF2E7D32)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Rental Rate', style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+            const SizedBox(height: 6),
+            Wrap(spacing: 8, runSpacing: 6, children: chips.isNotEmpty ? chips : [
+              Text(item.price, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+            ]),
+          ])),
+        ]),
+      );
+    }
+
     return Column(children: [
       _detailRow(Icons.local_shipping_outlined, 'Vehicle', item.vehicleType),
       _detailRow(Icons.numbers_rounded, 'Vehicle Number', (item.vehicleNumber != null && item.vehicleNumber!.trim().isNotEmpty) ? item.vehicleNumber! : 'Not Provided'),
       _detailRow(Icons.description_outlined, 'Description', item.description ?? 'Comfortable and reliable logistics transport.'),
-      _detailRow(Icons.fitness_center_rounded, 'Capacity', item.loadCapacity),
+      _detailRow(Icons.fitness_center_rounded, 'Load Capacity', item.loadCapacity),
       _detailRow(Icons.person_pin_circle_outlined, 'Driver', item.driverIncluded ? 'Included' : 'Self-Drive'),
-      _detailRow(Icons.payments_outlined, 'Rental Rate', item.price),
+      pricingWidget,
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
       _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
     ]);
   }
+
 
   Widget _buildWorkerDetails(BuildContext context, FarmWorkerListing item) {
     return Column(children: [

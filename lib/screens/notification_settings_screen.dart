@@ -19,8 +19,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   // State variables for toggles
   bool _orderUpdates = true;
   bool _bookingUpdates = true;
-  bool _communityActivity = false; 
-  bool _promotionalOffers = false;
 
   @override
   void initState() {
@@ -39,8 +37,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             _userMap = userData;
             _orderUpdates = userData['notificationOrderUpdates'] ?? true;
             _bookingUpdates = userData['notificationBookingUpdates'] ?? true;
-            _communityActivity = userData['notificationCommunityActivity'] ?? false;
-            _promotionalOffers = userData['notificationPromotionalOffers'] ?? false;
             _isLoading = false;
           });
         }
@@ -69,8 +65,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       // Instantly update local switch state
       if (key == 'notificationOrderUpdates') _orderUpdates = val;
       if (key == 'notificationBookingUpdates') _bookingUpdates = val;
-      if (key == 'notificationCommunityActivity') _communityActivity = val;
-      if (key == 'notificationPromotionalOffers') _promotionalOffers = val;
     });
 
     try {
@@ -99,8 +93,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       setState(() {
         if (key == 'notificationOrderUpdates') _orderUpdates = !val;
         if (key == 'notificationBookingUpdates') _bookingUpdates = !val;
-        if (key == 'notificationCommunityActivity') _communityActivity = !val;
-        if (key == 'notificationPromotionalOffers') _promotionalOffers = !val;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -176,20 +168,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                   subtitle: 'Rental and service bookings',
                   value: _bookingUpdates,
                   onChanged: (val) => _updateSetting('notificationBookingUpdates', val),
-                ),
-                const SizedBox(height: 24),
-                _buildSwitchTile(
-                  title: 'Community Activity',
-                  subtitle: 'Replies and mentions',
-                  value: _communityActivity,
-                  onChanged: (val) => _updateSetting('notificationCommunityActivity', val),
-                ),
-                const SizedBox(height: 24),
-                _buildSwitchTile(
-                  title: 'Promotional Offers',
-                  subtitle: 'Deals and discounts',
-                  value: _promotionalOffers,
-                  onChanged: (val) => _updateSetting('notificationPromotionalOffers', val),
                 ),
               ],
             ),

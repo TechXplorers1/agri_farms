@@ -195,18 +195,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       HomeServiceItem(l10n.tractorTrolley, Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport',
           ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: l10n.tractorTrolley, userRole: _userRole),
           imagePath: 'assets/images/tractor_trolley_card.webp', subtitle: AppTranslations.translate(context, 'bulkCarry')),
-      HomeServiceItem(l10n.fullTruck, Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Full Truck', title: l10n.fullTruck, userRole: _userRole),
+      HomeServiceItem(l10n.truck, Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport',
+          ServiceProvidersScreen(serviceKey: 'Truck', title: l10n.truck, userRole: _userRole),
           imagePath: 'assets/images/full_truck_card.webp', subtitle: AppTranslations.translate(context, 'longDistance')),
-      HomeServiceItem(l10n.tempo, Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Tempo', title: l10n.tempo, userRole: _userRole),
-          imagePath: 'assets/images/tractor_trolley_card.webp', subtitle: AppTranslations.translate(context, 'cityVillage')),
-      HomeServiceItem(l10n.pickupVan, Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Pickup Van', title: l10n.pickupVan, userRole: _userRole),
-          imagePath: 'assets/images/pickup_van_card.webp', subtitle: AppTranslations.translate(context, 'quickPickup')),
       HomeServiceItem(l10n.container, Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport',
           ServiceProvidersScreen(serviceKey: 'Container', title: l10n.container, userRole: _userRole),
-          imagePath: 'assets/images/full_truck_card.webp', subtitle: AppTranslations.translate(context, 'largeCargo')),
+          imagePath: 'assets/images/full_truck_card.webp', subtitle: AppTranslations.translate(context, 'largeCargo'),
+          isComingSoon: true),
     ];
   }
 
@@ -1151,7 +1146,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildTransportCard(HomeServiceItem item) {
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.navigationTarget)),
+      onTap: item.isComingSoon ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.navigationTarget)),
       child: Container(
         width: 140,
         decoration: BoxDecoration(
@@ -1162,7 +1157,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           borderRadius: BorderRadius.circular(18),
           child: Stack(fit: StackFit.expand, children: [
             if (item.imagePath != null)
-              Image.asset(item.imagePath!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: item.bgColor))
+              Opacity(
+                opacity: item.isComingSoon ? 0.6 : 1.0,
+                child: Image.asset(item.imagePath!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: item.bgColor)),
+              )
             else
               Container(color: item.bgColor, child: Center(child: Icon(item.icon, color: item.iconColor, size: 42))),
             DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
@@ -1172,8 +1170,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ))),
             Positioned(left: 12, right: 8, bottom: 10, child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text(item.title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, height: 1.1), maxLines: 2),
-              if (item.subtitle != null) Text(item.subtitle!, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+              if (item.subtitle != null)
+                Text(
+                  item.isComingSoon ? 'COMING SOON' : item.subtitle!,
+                  style: TextStyle(
+                    color: item.isComingSoon ? Colors.orangeAccent : Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
             ])),
+            if (item.isComingSoon)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+                  child: const Icon(Icons.lock_clock_rounded, color: Colors.white, size: 24),
+                ),
+              ),
           ]),
         ),
       ),

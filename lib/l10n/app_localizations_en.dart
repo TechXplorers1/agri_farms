@@ -117,7 +117,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tractorTrolley => 'Tractor Trolley';
 
   @override
-  String get fullTruck => 'Full Truck';
+  String get truck => 'Truck';
 
   @override
   String get tempo => 'Tempo';

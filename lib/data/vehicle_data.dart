@@ -140,12 +140,16 @@ class VehicleData {
         'Other': []
     },
     'Tractor Trolley': {
-      'Mahindra': ['Trolley', 'Other'],
-      'Swaraj': ['Trolley', 'Other'],
-      'Local': ['2 Wheel', '4 Wheel', 'Other'],
+      'Mahindra': ['2-Wheel Hydraulic Tipping', '4-Wheel Hydraulic Tipping', 'Flatbed 2-Wheel', 'Flatbed 4-Wheel', 'Other'],
+      'Swaraj': ['2-Wheel Tipping', '4-Wheel Tipping', 'Flatbed', 'Other'],
+      'John Deere': ['2-Wheel Hydraulic', '4-Wheel Hydraulic', 'Other'],
+      'Sonalika': ['2-Wheel Tipping', '4-Wheel Tipping', 'Other'],
+      'Escorts Powertrac': ['2-Wheel', '4-Wheel', 'Other'],
+      'New Holland': ['2-Wheel Hydraulic', '4-Wheel Hydraulic', 'Other'],
+      'Local / Custom': ['2-Wheel Non-Tipping', '4-Wheel Non-Tipping', '2-Wheel Hydraulic Tipping', '4-Wheel Hydraulic Tipping', 'Other'],
       'Other': []
     },
-    'Full Truck': {
+    'Truck': {
       'Tata Motors': ['LPT 1918', 'Signa 2823.K', 'Prima 2825.K', 'LPT 4225', 'Other'],
       'Ashok Leyland': ['Ecomet 1615', 'Boss 1920', 'Captain 2823', 'U-Truck 2518', 'Other'],
       'Eicher': ['Pro 3019', 'Pro 6028', 'Pro 2049', 'Other'],
