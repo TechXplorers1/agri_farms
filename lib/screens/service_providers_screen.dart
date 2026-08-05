@@ -39,7 +39,7 @@ class ServiceProvidersScreen extends StatefulWidget {
 
 class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   String? _selectedMake;
-  String? _selectedLocation;
+  String? _selectedLocation = '50 km';
   double? _selectedDistance;
   late Future<List<ServiceProvider>> _providersFuture;
   Locale? _lastLocale;
@@ -859,7 +859,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       } else if (provider is EquipmentListing) {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookEquipmentDetailScreen(
            providerName: displayName,
-           equipmentType: provider.serviceName,
+           equipmentType: (provider.brandModel.isNotEmpty) ? '${provider.serviceName} - ${provider.brandModel}' : provider.serviceName,
            providerId: actualProviderId,
            assetId: provider.id,
            rate: rate > 0 ? rate : 500,
@@ -878,6 +878,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            ownerProfileImage: provider.ownerProfileImage,
            description: provider.description,
            serialNumber: provider.id.substring(0, 8).toUpperCase(),
+           equipmentName: provider is ServiceListing ? provider.equipmentUsed : null,
          )));
       }
   }

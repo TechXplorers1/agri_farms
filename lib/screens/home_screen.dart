@@ -105,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final String? savedHNo = prefs.getString('user_hNo');
     final String? savedStreet = prefs.getString('user_street');
     final String? savedArea = prefs.getString('user_area');
+    final String? savedMandal = prefs.getString('user_mandal');
     final String? savedVillage = prefs.getString('user_village');
     final String? savedDistrict = prefs.getString('user_district');
     final String? savedState = prefs.getString('user_state');
@@ -119,6 +120,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (savedHNo != null && savedHNo.isNotEmpty) addressParts.add(savedHNo);
         if (savedStreet != null && savedStreet.isNotEmpty) addressParts.add(savedStreet);
         if (savedArea != null && savedArea.isNotEmpty) addressParts.add(savedArea);
+        if (savedMandal != null && savedMandal.isNotEmpty) addressParts.add(savedMandal);
         if (savedVillage != null && savedVillage.isNotEmpty) addressParts.add(savedVillage);
         if (savedDistrict != null && savedDistrict.isNotEmpty) addressParts.add(savedDistrict);
         if (savedState != null && savedState.isNotEmpty) addressParts.add(savedState);
@@ -559,49 +561,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _showManualLocationDialog() {
+  Future<void> _showManualLocationDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    String tempHNo = prefs.getString('user_hNo') ?? '';
+    String tempStreet = prefs.getString('user_street') ?? '';
+    String tempArea = prefs.getString('user_area') ?? '';
+    String tempMandal = prefs.getString('user_mandal') ?? '';
+    String tempVillage = prefs.getString('user_village') ?? '';
+    String tempDistrict = prefs.getString('user_district') ?? '';
+    String tempState = prefs.getString('user_state') ?? '';
+    String tempPincode = prefs.getString('user_pincode') ?? '';
+
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) {
-        final parts = _userLocation.split(',');
-        String initHNo = '';
-        String initStreet = '';
-        String initArea = '';
-        String initVillage = '';
-        String initDistrict = '';
-        String initStateVal = '';
-        String initPincode = '';
-
-        if (parts.length >= 7) {
-          initHNo = parts[0].trim();
-          initStreet = parts[1].trim();
-          initArea = parts[2].trim();
-          initVillage = parts[3].trim();
-          initDistrict = parts[4].trim();
-          initStateVal = parts[5].trim();
-          initPincode = parts[6].trim();
-        } else if (parts.length == 6) {
-          initHNo = parts[0].trim();
-          initStreet = parts[1].trim();
-          initVillage = parts[2].trim();
-          initDistrict = parts[3].trim();
-          initStateVal = parts[4].trim();
-          initPincode = parts[5].trim();
-        } else if (parts.length == 2) {
-          initVillage = parts[0].trim();
-          initDistrict = parts[1].trim();
-        } else if (parts.isNotEmpty) {
-          initVillage = parts[0].trim();
-        }
-
-        String tempHNo = initHNo;
-        String tempStreet = initStreet;
-        String tempArea = initArea;
-        String tempVillage = initVillage;
-        String tempDistrict = initDistrict;
-        String tempState = initStateVal;
-        String tempPincode = initPincode;
-
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(AppTranslations.translate(context, 'chooseLocation'), style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -614,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: 'H.No / Flat No', 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initHNo),
+                  controller: TextEditingController(text: tempHNo),
                   onChanged: (val) => tempHNo = val,
                 ),
                 const SizedBox(height: 12),
@@ -623,7 +597,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: 'Street Name', 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initStreet),
+                  controller: TextEditingController(text: tempStreet),
                   onChanged: (val) => tempStreet = val,
                 ),
                 const SizedBox(height: 12),
@@ -632,7 +606,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: 'Area Name', 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initArea),
+                  controller: TextEditingController(text: tempArea),
                   onChanged: (val) => tempArea = val,
                 ),
                 const SizedBox(height: 12),
@@ -641,8 +615,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: AppTranslations.translate(context, 'village'), 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initVillage),
+                  controller: TextEditingController(text: tempVillage),
                   onChanged: (val) => tempVillage = val,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Mandal', 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  ),
+                  controller: TextEditingController(text: tempMandal),
+                  onChanged: (val) => tempMandal = val,
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -650,7 +633,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: AppTranslations.translate(context, 'district'), 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initDistrict),
+                  controller: TextEditingController(text: tempDistrict),
                   onChanged: (val) => tempDistrict = val,
                 ),
                 const SizedBox(height: 12),
@@ -659,7 +642,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: 'State', 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initStateVal),
+                  controller: TextEditingController(text: tempState),
                   onChanged: (val) => tempState = val,
                 ),
                 const SizedBox(height: 12),
@@ -668,7 +651,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: 'Pincode', 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initPincode),
+                  controller: TextEditingController(text: tempPincode),
                   onChanged: (val) => tempPincode = val,
                 ),
               ],
@@ -684,6 +667,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   if (tempHNo.trim().isNotEmpty) addressParts.add(tempHNo.trim());
                   if (tempStreet.trim().isNotEmpty) addressParts.add(tempStreet.trim());
                   if (tempArea.trim().isNotEmpty) addressParts.add(tempArea.trim());
+                  if (tempMandal.trim().isNotEmpty) addressParts.add(tempMandal.trim());
                   if (tempVillage.trim().isNotEmpty) addressParts.add(tempVillage.trim());
                   if (tempDistrict.trim().isNotEmpty) addressParts.add(tempDistrict.trim());
                   if (tempState.trim().isNotEmpty) addressParts.add(tempState.trim());
@@ -696,10 +680,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   await prefs.setString('user_hNo', tempHNo.trim());
                   await prefs.setString('user_street', tempStreet.trim());
                   await prefs.setString('user_area', tempArea.trim());
+                  await prefs.setString('user_mandal', tempMandal.trim());
                   await prefs.setString('user_village', tempVillage.trim());
                   await prefs.setString('user_district', tempDistrict.trim());
                   await prefs.setString('user_state', tempState.trim());
                   await prefs.setString('user_pincode', tempPincode.trim());
+
+                  final userId = prefs.getString('user_id');
+                  if (userId != null && userId.isNotEmpty) {
+                    try {
+                      await ApiService().updateUser(userId, {
+                        'houseNo': tempHNo.trim(),
+                        'street': tempStreet.trim(),
+                        'mandal': tempMandal.trim(),
+                        'village': tempVillage.trim(),
+                        'district': tempDistrict.trim(),
+                        'state': tempState.trim(),
+                        'pincode': tempPincode.trim(),
+                      });
+                    } catch (e) {
+                      debugPrint('Error updating user location: $e');
+                    }
+                  }
 
                   if (context.mounted) Navigator.pop(context);
                 } else {
