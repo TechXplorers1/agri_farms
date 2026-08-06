@@ -20,6 +20,7 @@ class ServiceOffering {
   final String? priceUnit; 
   final double? rating;
   final String? ownerName;
+  final int? jobsCompleted;
 
   ServiceOffering({
     this.serviceId,
@@ -43,6 +44,7 @@ class ServiceOffering {
     this.priceUnit,
     this.rating,
     this.ownerName,
+    this.jobsCompleted,
   });
 
   factory ServiceOffering.fromJson(Map<String, dynamic> json) {
@@ -68,6 +70,7 @@ class ServiceOffering {
       priceUnit: json['priceUnit'],
       rating: (json['rating'] as num?)?.toDouble(),
       ownerName: json['ownerName'],
+      jobsCompleted: (json['jobsCompleted'] as num?)?.toInt(),
     );
   }
 
