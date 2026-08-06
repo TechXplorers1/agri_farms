@@ -315,7 +315,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   String? _selectedServiceType; // New for generic Services category
 
   // Mock Lists
-  final List<String> _transportTypes = ['Mini Truck', 'Tractor Trolley', 'Full Truck', 'Tempo', 'Pickup Van', 'Container'];
+  final List<String> _transportTypes = ['Mini Truck', 'Tractor Trolley', 'Truck', 'Container'];
   final List<String> _equipmentCategories = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB']; 
   final List<String> _serviceCategories = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Vet Care', 'Electricians', 'Farm Workers']; // Added Farm Workers
   
@@ -1034,9 +1034,17 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           icon: Icons.sell_rounded,
           child: Column(
             children: [
-              _buildTextField('Daily Rate / Flat Price', _priceController, 'e.g. 1500', keyboardType: TextInputType.number, errorKey: 'price', icon: Icons.payments_rounded),
-              const SizedBox(height: 12),
-              _buildTextField('KM-wise Rate (per KM)', _pricePerKmController, 'e.g. 20', keyboardType: TextInputType.number, errorKey: 'price_km', icon: Icons.speed_rounded),
+              if (_selectedTransportType == 'Tractor Trolley') ...[
+                _buildTextField('Full Day Price', _priceController, 'e.g. 1500', keyboardType: TextInputType.number, errorKey: 'price', icon: Icons.wb_sunny_rounded),
+                const SizedBox(height: 12),
+                _buildTextField('Half Day Price', _pricePerKmController, 'e.g. 800', keyboardType: TextInputType.number, errorKey: 'price_km', icon: Icons.wb_twilight_rounded),
+              ] else if (_selectedTransportType == 'Mini Truck' || _selectedTransportType == 'Truck') ...[
+                _buildTextField('KM-wise Rate (per KM)', _pricePerKmController, 'e.g. 20', keyboardType: TextInputType.number, errorKey: 'price_km', icon: Icons.speed_rounded),
+              ] else ...[
+                _buildTextField('Daily Rate / Flat Price', _priceController, 'e.g. 1500', keyboardType: TextInputType.number, errorKey: 'price', icon: Icons.payments_rounded),
+                const SizedBox(height: 12),
+                _buildTextField('KM-wise Rate (per KM)', _pricePerKmController, 'e.g. 20', keyboardType: TextInputType.number, errorKey: 'price_km', icon: Icons.speed_rounded),
+              ],
               const SizedBox(height: 12),
               CheckboxListTile(
                 title: Text(l10n.driverIncluded, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
@@ -1075,10 +1083,22 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     final bool hasPrice = _priceController.text.trim().isNotEmpty;
     final bool hasPriceKm = _pricePerKmController.text.trim().isNotEmpty;
 
-    if (!hasPrice && !hasPriceKm) {
-      _fieldErrors['price'] = 'Enter daily price or KM-wise rate';
-      _fieldErrors['price_km'] = 'Enter daily price or KM-wise rate';
-      hasError = true;
+    if (_selectedTransportType == 'Tractor Trolley') {
+      if (!hasPrice) {
+        _fieldErrors['price'] = 'Enter Full Day price';
+        hasError = true;
+      }
+    } else if (_selectedTransportType == 'Mini Truck' || _selectedTransportType == 'Truck') {
+      if (!hasPriceKm) {
+        _fieldErrors['price_km'] = 'Enter KM-wise rate';
+        hasError = true;
+      }
+    } else {
+      if (!hasPrice && !hasPriceKm) {
+        _fieldErrors['price'] = 'Enter daily price or KM-wise rate';
+        _fieldErrors['price_km'] = 'Enter daily price or KM-wise rate';
+        hasError = true;
+      }
     }
 
     if (hasError) {
@@ -1103,7 +1123,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
       // Parse price to double
       double parsedPrice = 0.0;
-      if (hasPrice) {
+      if (hasPrice && _selectedTransportType != 'Mini Truck' && _selectedTransportType != 'Truck') {
         try {
           parsedPrice = double.parse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), ''));
         } catch (e) {

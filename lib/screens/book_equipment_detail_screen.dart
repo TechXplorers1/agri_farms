@@ -780,7 +780,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                 ],
               ),
             ),
-            _buildListingDetailsCard(widget.description, widget.serialNumber),
+            _buildListingDetailsCard(widget.description, widget.serialNumber, widget.equipmentType),
             const SizedBox(height: 24),
              // Location Section
             _buildSectionCard(
@@ -1452,7 +1452,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     );
   }
 
-  Widget _buildListingDetailsCard(String? description, String? number) {
+  Widget _buildListingDetailsCard(String? description, String? number, String? equipmentName) {
     return Container(
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.all(24),
@@ -1484,6 +1484,20 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             ],
           ),
           const SizedBox(height: 20),
+          if (equipmentName != null && equipmentName.isNotEmpty) ...[
+            Text(
+              'EQUIPMENT NAME',
+              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              equipmentName,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+            ),
+            const SizedBox(height: 16),
+            Divider(color: Colors.grey[100], height: 1),
+            const SizedBox(height: 16),
+          ],
           if (number != null && number.trim().isNotEmpty) ...[
             Text(
               'SERIAL/REGISTRATION NUMBER',

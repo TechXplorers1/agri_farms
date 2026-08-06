@@ -117,7 +117,7 @@ class AppLocalizationsKn extends AppLocalizations {
   String get tractorTrolley => 'ಟ್ರ್ಯಾಕ್ಟರ್ ಟ್ರಾಲಿ';
 
   @override
-  String get fullTruck => 'ಫುಲ್ ಟ್ರಕ್';
+  String get truck => 'ಟ್ರಕ್';
 
   @override
   String get tempo => 'ಟೆಂಪೋ';

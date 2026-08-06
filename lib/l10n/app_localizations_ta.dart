@@ -117,7 +117,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get tractorTrolley => 'டிராக்டர் டிராலி';
 
   @override
-  String get fullTruck => 'முழு லாரி';
+  String get truck => 'லாரி';
 
   @override
   String get tempo => 'டெம்போ';
