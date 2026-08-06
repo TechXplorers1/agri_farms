@@ -295,6 +295,19 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _operatorPriceController = TextEditingController();
   String _condition = 'Good';
 
+  // Attached Equipments
+  final List<String> _selectedAttachedEquipments = [];
+  final TextEditingController _otherAttachedEquipmentController = TextEditingController();
+  bool _isOtherAttachedEquipmentSelected = false;
+  final List<String> _availableAttachedEquipments = [
+    'Mouldboard Plow',
+    'Disc Plow',
+    'Chisel Plow',
+    'Rotavator (Rotary Tiller)',
+    'Disc Harrow',
+    'Other'
+  ];
+
   // Farm Worker Specific
   final TextEditingController _maleCountController = TextEditingController();
   final TextEditingController _femaleCountController = TextEditingController();
@@ -639,6 +652,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'approvalStatus': 'Pending',
         'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Equipment',
         'vehicleNumber': _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
+        'attachedEquipments': _getFinalAttachedEquipments(),
       };
 
       await ApiService().addEquipment(equipmentData);
@@ -658,6 +672,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         yearOfManufacture: _yearController.text.isNotEmpty ? _yearController.text : null,
         vehicleNumber: _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
         image: 'https://placehold.co/600x400?text=Equipment',
+        attachedEquipments: _getFinalAttachedEquipmentsList(),
       );
 
       ProviderManager().addProvider(newProvider);
@@ -665,6 +680,22 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     } catch (e) {
       _showError('Failed to save equipment to server: $e');
     }
+  }
+
+  String? _getFinalAttachedEquipments() {
+    final list = _getFinalAttachedEquipmentsList();
+    if (list.isEmpty) return '';
+    return list.join(', ');
+  }
+
+  List<String> _getFinalAttachedEquipmentsList() {
+    if (_selectedEquipmentType != 'Tractors') return [];
+    List<String> finalEquipments = List.from(_selectedAttachedEquipments);
+    finalEquipments.remove('Other');
+    if (_isOtherAttachedEquipmentSelected && _otherAttachedEquipmentController.text.trim().isNotEmpty) {
+      finalEquipments.add(_otherAttachedEquipmentController.text.trim());
+    }
+    return finalEquipments;
   }
 
   void _completeSubmission() {
@@ -1457,6 +1488,116 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             ],
           ),
         ),
+
+        if (_selectedEquipmentType == 'Tractors')
+          _buildSectionCard(
+            title: 'Attached Equipments',
+            icon: Icons.agriculture_rounded,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select any attached equipments available with the tractor:',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF2C3E50), fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: _availableAttachedEquipments.map((equipment) {
+                    final isSelected = _selectedAttachedEquipments.contains(equipment);
+                    return InputChip(
+                      label: Text(equipment),
+                      selected: isSelected,
+                      selectedColor: const Color(0xFFE8F5E9),
+                      showCheckmark: false,
+                      deleteIconColor: const Color(0xFF00AA55),
+                      labelStyle: TextStyle(
+                        color: isSelected ? const Color(0xFF1B5E20) : const Color(0xFF2C3E50),
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!,
+                        ),
+                      ),
+                      backgroundColor: Colors.white,
+                      onSelected: (bool selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedAttachedEquipments.add(equipment);
+                            if (equipment == 'Other') _isOtherAttachedEquipmentSelected = true;
+                          } else {
+                            _selectedAttachedEquipments.remove(equipment);
+                            if (equipment == 'Other') {
+                              _isOtherAttachedEquipmentSelected = false;
+                              _otherAttachedEquipmentController.clear();
+                            }
+                          }
+                        });
+                      },
+                      onDeleted: isSelected ? () {
+                        setState(() {
+                          _selectedAttachedEquipments.remove(equipment);
+                          if (equipment == 'Other') {
+                            _isOtherAttachedEquipmentSelected = false;
+                            _otherAttachedEquipmentController.clear();
+                          }
+                        });
+                      } : null,
+                    );
+                  }).toList(),
+                ),
+                if (_isOtherAttachedEquipmentSelected) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          'Other Equipment Name',
+                          _otherAttachedEquipmentController,
+                          'e.g. Cultivator',
+                          icon: Icons.edit_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2.0),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final text = _otherAttachedEquipmentController.text.trim();
+                            if (text.isNotEmpty) {
+                              setState(() {
+                                if (!_availableAttachedEquipments.contains(text)) {
+                                  _availableAttachedEquipments.insert(_availableAttachedEquipments.length - 1, text);
+                                }
+                                if (!_selectedAttachedEquipments.contains(text)) {
+                                  _selectedAttachedEquipments.add(text);
+                                }
+                                _otherAttachedEquipmentController.clear();
+                                _selectedAttachedEquipments.remove('Other');
+                                _isOtherAttachedEquipmentSelected = false;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AA55),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            minimumSize: const Size(0, 54),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          ),
+                          child: const Text('Add', style: TextStyle(fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
 
         _buildSectionCard(
           title: 'Rental Terms & Condition',

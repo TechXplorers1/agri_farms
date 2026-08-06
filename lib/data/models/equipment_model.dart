@@ -21,6 +21,11 @@ class Equipment {
   final double? operatorPrice;
   final String? ownerBusinessName;
   final String? ownerName;
+  final String? attachedEquipments;
+  final String? description;
+  final String? brand;
+  final String? model;
+  final String? vehicleNumber;
 
   Equipment({
     this.equipmentId,
@@ -45,6 +50,11 @@ class Equipment {
     this.operatorPrice,
     this.ownerBusinessName,
     this.ownerName,
+    this.attachedEquipments,
+    this.description,
+    this.brand,
+    this.model,
+    this.vehicleNumber,
   });
 
   factory Equipment.fromJson(Map<String, dynamic> json) {
@@ -71,6 +81,11 @@ class Equipment {
       operatorPrice: (json['operatorPrice'] as num?)?.toDouble(),
       ownerBusinessName: json['ownerBusinessName'],
       ownerName: json['ownerName'],
+      attachedEquipments: json['attachedEquipments'],
+      description: json['description'],
+      brand: json['brand'],
+      model: json['model'],
+      vehicleNumber: json['vehicleNumber'],
     );
   }
 
@@ -98,6 +113,11 @@ class Equipment {
       'operatorPrice': operatorPrice,
       'ownerBusinessName': ownerBusinessName,
       'ownerName': ownerName,
+      'attachedEquipments': attachedEquipments,
+      'description': description,
+      'brand': brand,
+      'model': model,
+      'vehicleNumber': vehicleNumber,
     };
   }
 }

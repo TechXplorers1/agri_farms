@@ -160,7 +160,7 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
                 child: TabBarView(
                   children: [
                     _buildList(_vehicles, 'Vehicle', 'vehicleId', (item) => '${item["vehicleType"]}', (item) => 'Num: ${item["vehicleNumber"] ?? "N/A"} • ₹${item["pricePerKmOrTrip"]}'),
-                    _buildList(_equipment, 'Equipment', 'equipmentId', (item) => '${item["brandModel"]}', (item) => '${item["category"]} • ₹${item["pricePerHour"]}/hr'),
+                    _buildList(_equipment, 'Equipment', 'equipmentId', (item) => '${item["brandModel"]}', (item) => '${item["ownerBusinessName"] ?? item["ownerName"] ?? "Provider"} • ${item["category"]} • ₹${item["pricePerHour"]}/hr'),
                     _buildList(_services, 'Service', 'serviceId', (item) => '${item["businessName"]}', (item) => '${item["serviceType"]} • ₹${item["priceRate"]}'),
                     _buildList(_workerGroups, 'WorkerGroup', 'groupId', (item) => '${item["groupName"]}', (item) => '${item["maleCount"]} Men, ${item["femaleCount"]} Women'),
                   ],

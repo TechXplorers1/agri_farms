@@ -112,7 +112,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
 
       if (transportTypes.contains(widget.serviceKey)) {
         final vehiclesRaw = await apiService.getVehicles(type: widget.serviceKey) as List;
-        final vehicles = vehiclesRaw.where((v) => v['ownerId']?.toString() != currentUserId).toList();
+        final vehicles = vehiclesRaw;
         
         providers = vehicles.map<ServiceProvider>((v) => TransportListing(
           id: v['vehicleId'].toString(),
@@ -141,11 +141,11 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       } else if (equipmentTypes.contains(widget.serviceKey)) {
         final equipmentRawAll = await apiService.getEquipment() as List;
         final equipmentRaw = equipmentRawAll.where((e) {
-           final cat = e['category']?.toString().toLowerCase() ?? '';
-           final key = widget.serviceKey.toLowerCase();
-           return cat == key || cat + 's' == key || cat == key + 's';
+           final cat = e['category']?.toString().toLowerCase().trim() ?? '';
+           final key = widget.serviceKey.toLowerCase().trim();
+           return cat.contains(key) || key.contains(cat) || cat == key || cat + 's' == key || cat == key + 's';
         }).toList();
-        final equipment = equipmentRaw.where((e) => e['ownerId']?.toString() != currentUserId).toList();
+        final equipment = equipmentRaw;
 
         providers = equipment.map<ServiceProvider>((e) => EquipmentListing(
           id: e['equipmentId'].toString(),
@@ -169,10 +169,13 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           ownerProfileImage: e['ownerProfileImageUrl'],
           description: e['description'] ?? 'High quality agricultural machinery for hire.',
           vehicleNumber: e['vehicleNumber'],
+          attachedEquipments: e['attachedEquipments'] != null && e['attachedEquipments'].toString().isNotEmpty 
+              ? e['attachedEquipments'].toString().split(',').map((e) => e.trim()).toList()
+              : [],
         )).toList();
       } else if (serviceTypes.contains(widget.serviceKey)) {
          final servicesRaw = await apiService.getServices(type: widget.serviceKey) as List;
-         final services = servicesRaw.where((s) => s['ownerId']?.toString() != currentUserId).toList();
+         final services = servicesRaw;
 
          providers = services.map<ServiceProvider>((s) => ServiceListing(
            id: s['serviceId'].toString(),
@@ -195,8 +198,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            description: s['description'] ?? 'Professional agricultural services by experienced operator.',
          )).toList();
       } else if (widget.serviceKey == 'Farm Workers') {
-         final workersRaw = await apiService.getWorkerGroups() as List;
-         final workers = workersRaw.where((w) => w['ownerId']?.toString() != currentUserId).toList();
+         final workers = await apiService.getWorkerGroups() as List;
+         
           providers = workers.map<ServiceProvider>((w) => FarmWorkerListing(
               id: w['groupId'].toString(),
               providerId: w['ownerId']?.toString(),
@@ -590,15 +593,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider,
-      onTap: () async {
-        final prefs = await SharedPreferences.getInstance();
-        final currentUserId = prefs.getString('user_id');
-        Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
-          providerName: provider.name, providerId: provider.providerId ?? currentUserId ?? '1', assetId: provider.id,
-          maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
-          priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
-        )));
-      },
+      onTap: () => _showAssetDetails(context, provider),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -606,15 +601,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           const SizedBox(height: 6),
           _buildWorkerStats(provider, l10n),
           const SizedBox(height: 12),
-          _buildBookFullWidthButton(l10n.bookWorkers, () async {
-             final prefs = await SharedPreferences.getInstance();
-             final currentUserId = prefs.getString('user_id');
-             Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
-               providerName: provider.name, providerId: provider.providerId ?? currentUserId ?? '1', assetId: provider.id,
-               maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
-               priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
-             )));
-          }),
+          _buildBookFullWidthButton(l10n.bookWorkers, () => _showAssetDetails(context, provider)),
         ],
       ),
     );
@@ -624,7 +611,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider, subtitle: provider.equipmentUsed,
-      onTap: () => _navigateToBooking(context, provider),
+      onTap: () => _showAssetDetails(context, provider),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -633,7 +620,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             const SizedBox(width: 4),
             Text('${provider.jobsCompleted} ${AppTranslations.translate(context, 'jobsCompleted')}', style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
-          _buildBookMiniButton(provider.price, () => _navigateToBooking(context, provider)),
+          _buildBookMiniButton(provider.price, () => _showAssetDetails(context, provider)),
         ],
       ),
     );
@@ -643,7 +630,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider, subtitle: '${provider.vehicleType} • ${provider.loadCapacity}',
-      onTap: () => _navigateToBooking(context, provider),
+      onTap: () => _showAssetDetails(context, provider),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -656,7 +643,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                 Text(l10n.driverIncluded, style: TextStyle(color: Colors.blue[700], fontSize: 12, fontWeight: FontWeight.w600)),
               ]),
               ElevatedButton(
-                onPressed: () => _navigateToBooking(context, provider),
+                onPressed: () => _showAssetDetails(context, provider),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A1A2E),
                   foregroundColor: Colors.white,
@@ -705,7 +692,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider, subtitle: provider.brandModel,
-      onTap: () => _navigateToBooking(context, provider),
+      onTap: () => _showAssetDetails(context, provider),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -715,7 +702,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             const SizedBox(width: 8),
             TranslatedText(provider.operatorAvailable ? l10n.withOperatorAvailable : l10n.noOperator, style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
-          _buildBookMiniButton(provider.price, () => _navigateToBooking(context, provider)),
+          _buildBookMiniButton(provider.price, () => _showAssetDetails(context, provider)),
         ],
       ),
     );
@@ -894,6 +881,12 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            description: provider.description,
            vehicleNumber: provider.vehicleNumber,
          )));
+      } else if (provider is FarmWorkerListing) {
+         Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
+           providerName: displayName, providerId: actualProviderId, assetId: provider.id,
+           maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
+           priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
+         )));
       } else if (provider is EquipmentListing) {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookEquipmentDetailScreen(
            providerName: displayName,
@@ -904,7 +897,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            operatorPrice: provider.operatorPrice,
            ownerProfileImage: provider.ownerProfileImage,
            description: provider.description,
-           serialNumber: (provider.vehicleNumber != null && provider.vehicleNumber!.trim().isNotEmpty) ? provider.vehicleNumber! : provider.id.substring(0, 8).toUpperCase(),
+           serialNumber: (provider.vehicleNumber != null && provider.vehicleNumber!.trim().isNotEmpty) ? provider.vehicleNumber! : null,
+           attachedEquipments: provider.attachedEquipments,
          )));
       } else {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookServiceDetailScreen(
@@ -915,7 +909,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            priceInfo: priceString,
            ownerProfileImage: provider.ownerProfileImage,
            description: provider.description,
-           serialNumber: provider.id.substring(0, 8).toUpperCase(),
+           serialNumber: null,
            equipmentName: provider is ServiceListing ? provider.equipmentUsed : null,
          )));
       }
@@ -1008,8 +1002,12 @@ class _AssetDetailModal extends StatelessWidget {
   Widget _buildEquipmentDetails(BuildContext context, EquipmentListing item) {
     return Column(children: [
       _detailRow(Icons.construction_rounded, 'Brand & Model', item.brandModel),
-      _detailRow(Icons.numbers_rounded, 'Vehicle/Reg Number', (item.vehicleNumber != null && item.vehicleNumber!.trim().isNotEmpty) ? item.vehicleNumber! : item.id.substring(0, 8).toUpperCase()),
-      _detailRow(Icons.description_outlined, 'Description', item.description ?? 'High quality agricultural machinery for hire.'),
+      if (item.vehicleNumber != null && item.vehicleNumber!.trim().isNotEmpty)
+        _detailRow(Icons.numbers_rounded, 'Vehicle/Reg Number', item.vehicleNumber!),
+      if (item.attachedEquipments.isNotEmpty)
+        _detailRow(Icons.agriculture_rounded, 'Attached Equipments', item.attachedEquipments.join(', ')),
+      if (item.description != null && item.description!.trim().isNotEmpty)
+        _detailRow(Icons.description_outlined, 'Description', item.description!),
       _detailRow(Icons.info_outline_rounded, 'Condition', item.condition),
       _detailRow(Icons.person_outline_rounded, 'Operator', item.operatorAvailable ? AppTranslations.translate(context, 'available') : 'Not Provided'),
       _detailRow(Icons.payments_outlined, 'Price Rate', item.price),
@@ -1137,7 +1135,6 @@ class _AssetDetailModal extends StatelessWidget {
   Widget _buildWorkerDetails(BuildContext context, FarmWorkerListing item) {
     return Column(children: [
       _detailRow(Icons.groups_rounded, 'Total Staff', '${item.maleCount + item.femaleCount} Members'),
-      _detailRow(Icons.numbers_rounded, 'Group Registration Code', item.id.substring(0, 8).toUpperCase()),
       _detailRow(Icons.description_outlined, 'Description', item.description ?? 'Experienced agricultural worker team.'),
       _detailRow(Icons.psychology_outlined, 'Expertise', item.skills),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
@@ -1151,7 +1148,6 @@ class _AssetDetailModal extends StatelessWidget {
     final bool isElectrOrVet = item.serviceName == 'Electricians' || item.serviceName == 'Vet Care';
     return Column(children: [
       _detailRow(Icons.handyman_outlined, 'Tools', item.equipmentUsed),
-      _detailRow(Icons.numbers_rounded, 'Service Reference Number', item.id.substring(0, 8).toUpperCase()),
       _detailRow(Icons.description_outlined, 'Description', item.description ?? (isElectrOrVet ? 'Professional agricultural services.' : 'Professional agricultural services by experienced operator.')),
       if (!isElectrOrVet)
         _detailRow(Icons.person_outline_rounded, 'Expert', item.operatorIncluded ? 'Provided' : 'Machine Only'),

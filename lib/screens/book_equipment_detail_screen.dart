@@ -27,6 +27,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
   final String? ownerProfileImage;
   final String? description;
   final String? serialNumber;
+  final List<String>? attachedEquipments;
 
   const BookEquipmentDetailScreen({
     super.key,
@@ -39,6 +40,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
     this.ownerProfileImage,
     this.description,
     this.serialNumber,
+    this.attachedEquipments,
   });
 
   @override
@@ -74,6 +76,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   final GlobalKey _addressSectionKey = GlobalKey();
   final GlobalKey _dateSectionKey = GlobalKey();
   final GlobalKey _timeSectionKey = GlobalKey();
+
+  List<String> _selectedEquipments = [];
+
   List<BookingDTO> _existingBookings = [];
   bool _isLoadingBookings = false;
   bool _isSubmitting = false;
@@ -123,6 +128,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.attachedEquipments != null) {
+      _selectedEquipments = List.from(widget.attachedEquipments!);
+    }
     _loadAddress();
     _fetchAssetBookings();
   }
@@ -621,6 +629,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         'Location': fullAddress,
         'Duration': durationText,
         'Operator Required': _includeOperator ? 'Yes' : 'No',
+        'Attached Equipments': _selectedEquipments.isNotEmpty ? _selectedEquipments.join(', ') : 'None',
         'slots_list': _selectedSlots,
         'Notes': _notesController.text,
       };
@@ -781,6 +790,57 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
               ),
             ),
             _buildListingDetailsCard(widget.description, widget.serialNumber, widget.equipmentType),
+            if (widget.equipmentType.contains('Tractor')) ...[
+              const SizedBox(height: 24),
+              _buildSectionCard(
+              title: 'Attached Equipments',
+              icon: Icons.agriculture_rounded,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.attachedEquipments != null && widget.attachedEquipments!.isNotEmpty) ...[
+                    const Text('Select the included equipments you need:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 12,
+                      children: widget.attachedEquipments!.map((eq) {
+                        final isSelected = _selectedEquipments.contains(eq);
+                        return FilterChip(
+                          label: Text(eq),
+                          selected: isSelected,
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedEquipments.add(eq);
+                              } else {
+                                _selectedEquipments.remove(eq);
+                              }
+                            });
+                          },
+                          selectedColor: const Color(0xFFE8F5E9),
+                          checkmarkColor: const Color(0xFF00AA55),
+                          labelStyle: TextStyle(
+                            color: isSelected ? const Color(0xFF1B5E20) : Colors.grey[700],
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!,
+                            ),
+                          ),
+                          backgroundColor: Colors.white,
+                        );
+                      }).toList(),
+                    ),
+                  ] else ...[
+                    const Text('No attached equipments offered by this provider.', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey)),
+                  ]
+                ],
+              ),
+            ),
+            ],
             const SizedBox(height: 24),
              // Location Section
             _buildSectionCard(
