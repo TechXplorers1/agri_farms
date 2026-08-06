@@ -131,28 +131,42 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       _markAsRead(notificationId);
     }
 
-    final type = notification['type'] ?? '';
+    final type = (notification['type'] ?? '').toString().toLowerCase();
+    final title = (notification['title'] ?? '').toString().toLowerCase();
+    final message = (notification['message'] ?? '').toString().toLowerCase();
     final prefs = await SharedPreferences.getInstance();
-    final userRole = (prefs.getString('user_role') ?? 'Farmer').toLowerCase();
+    final userRole = (prefs.getString('user_role') ?? '').toLowerCase();
 
-    if (type == 'booking_request') {
-      Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
-    } else if (type == 'booking_status_update') {
+    final bool isOwnerRole = ['owner', 'provider', 'vendor'].contains(userRole) || userRole.contains('owner') || userRole.contains('vendor') || userRole.contains('provider');
+    final bool isCancelledNotif = type == 'booking_cancelled' || title.contains('cancelled') || message.contains('cancelled their booking');
+    final bool isRejectedNotif = title.contains('rejected') || message.contains('rejected your request');
+    final bool isBookingRequest = type == 'booking_request' || title.contains('booking request') || message.contains('requested to book');
+
+    if (isCancelledNotif) {
+      // Cancellation notification sent to Owner / Vendor -> navigate to ProviderRequestsScreen History tab (index 2)
+      Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen(initialTabIndex: 2)));
+    } else if (isBookingRequest) {
+      // Booking request notification sent to Owner / Vendor -> navigate to ProviderRequestsScreen New Requests tab (index 0)
+      Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen(initialTabIndex: 0)));
+    } else if (isRejectedNotif) {
+      // Rejection notification sent to Farmer -> navigate to GenericHistoryScreen History tab (index 1)
       Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
         title: 'Activity Bookings',
         categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
         showBackButton: true,
+        initialTabIndex: 1,
       )));
-    } else if (type == 'booking_cancelled') {
-      if (['owner', 'provider'].contains(userRole)) {
-        Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
-      } else {
-        Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-          title: 'Activity Bookings',
-          categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
-          showBackButton: true,
-        )));
-      }
+    } else if (isOwnerRole) {
+      // Other owner notifications
+      Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen(initialTabIndex: 1)));
+    } else {
+      // Other farmer notifications (e.g. Booking Confirmed)
+      Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+        title: 'Activity Bookings',
+        categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
+        showBackButton: true,
+        initialTabIndex: 0,
+      )));
     }
   }
 
@@ -215,7 +229,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   String _formatTime(String? dateString) {
     if (dateString == null) return '';
     try {
-      final dateTime = DateTime.parse(dateString);
+      String str = dateString;
+      if (!str.endsWith('Z') && !str.contains('+') && !RegExp(r'-\d{2}:\d{2}$').hasMatch(str)) {
+        str += 'Z';
+      }
+      final dateTime = DateTime.parse(str).toLocal();
       return DateFormat('MMM dd, hh:mm a').format(dateTime);
     } catch (e) {
       return '';
