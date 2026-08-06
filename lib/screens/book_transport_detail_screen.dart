@@ -48,9 +48,11 @@ class BookTransportDetailScreen extends StatefulWidget {
 
 class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
-  String? _selectedGoodsType;
+  final TextEditingController _goodsTypeController = TextEditingController();
+  String? get _selectedGoodsType => _goodsTypeController.text.trim().isEmpty ? null : _goodsTypeController.text.trim();
   bool _isKmWise = false;
-  bool _includeDriver = false;
+  bool _isTrolleyHalfDay = false; // For Tractor Trolley: false = Full Day, true = Half Day
+  bool _includeDriver = true;
   final TextEditingController _kmController = TextEditingController(text: '10');
 
   DateTime? _selectedDate;
@@ -142,10 +144,16 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         }
         
         bool isOccupiedInThisSlot = false;
-        if (bookedHours.isNotEmpty) {
-          isOccupiedInThisSlot = bookedHours.contains(hour);
-        } else {
-          isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+        bool isSameDay = bStart.year == slotStart.year &&
+                         bStart.month == slotStart.month &&
+                         bStart.day == slotStart.day;
+                         
+        if (isSameDay) {
+          if (bookedHours.isNotEmpty) {
+            isOccupiedInThisSlot = bookedHours.contains(hour);
+          } else {
+            isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+          }
         }
 
         if (isOccupiedInThisSlot) {
@@ -171,14 +179,14 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
     setState(() {
       if (_selectedSlots.contains(hour)) {
-        _selectedSlots.remove(hour);
+        _selectedSlots.clear();
       } else {
+        _selectedSlots.clear();
         _selectedSlots.add(hour);
-        _selectedSlots.sort();
       }
       if (_selectedSlots.isNotEmpty) {
         _selectedStartHour = _selectedSlots.first;
-        _durationHours = _selectedSlots.length;
+        _durationHours = 1;
       } else {
         _selectedStartHour = null;
         _durationHours = 1;
@@ -209,10 +217,13 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   void initState() {
     super.initState();
     // Default to Daily-wise if available, otherwise KM-wise
-    if (widget.rate > 0) {
-      _isKmWise = false;
-    } else if (widget.pricePerKm != null && widget.pricePerKm! > 0) {
+    if (widget.vehicleType == 'Mini Truck' || widget.vehicleType == 'Truck' || widget.rate <= 0) {
       _isKmWise = true;
+    } else if (widget.vehicleType == 'Tractor Trolley') {
+      _isKmWise = false; // Tractor Trolley uses Full/Half Day, not KM
+      _isTrolleyHalfDay = false;
+    } else if (widget.rate > 0) {
+      _isKmWise = false;
     }
     _loadAddress();
     _fetchAssetBookings();
@@ -363,7 +374,10 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
   double get _totalPrice {
     double base = 0.0;
-    if (_isKmWise) {
+    if (widget.vehicleType == 'Tractor Trolley') {
+      // Half day uses pricePerKm field, Full day uses rate
+      base = _isTrolleyHalfDay ? (widget.pricePerKm ?? widget.rate / 2) : widget.rate;
+    } else if (_isKmWise) {
       final double kmVal = double.tryParse(_kmController.text) ?? 0.0;
       final double rateKm = widget.pricePerKm ?? 20.0;
       base = rateKm * kmVal;
@@ -598,29 +612,57 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                          const SizedBox(height: 4),
                           Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE8F5E9),
-                                  borderRadius: BorderRadius.circular(8),
+                              if (widget.vehicleType == 'Tractor Trolley') ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE8F5E9),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Full Day: ₹${widget.rate.toStringAsFixed(0)}',
+                                    style: const TextStyle(color: Color(0xFF00AA55), fontSize: 11, fontWeight: FontWeight.w800),
+                                  ),
                                 ),
-                                child: Text(
-                                  'Daily: ₹${widget.rate.toStringAsFixed(0)} / slot',
-                                  style: const TextStyle(color: Color(0xFF00AA55), fontSize: 11, fontWeight: FontWeight.w800),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE3F2FD),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Half Day: ₹${(widget.pricePerKm ?? widget.rate / 2).toStringAsFixed(0)}',
+                                    style: const TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.w800),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE3F2FD),
-                                  borderRadius: BorderRadius.circular(8),
+                              ] else ...[
+                                if (widget.vehicleType != 'Mini Truck' && widget.vehicleType != 'Truck') ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE8F5E9),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Daily: ₹${widget.rate.toStringAsFixed(0)} / slot',
+                                      style: const TextStyle(color: Color(0xFF00AA55), fontSize: 11, fontWeight: FontWeight.w800),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE3F2FD),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'KM: ₹${(widget.pricePerKm ?? 20.0).toStringAsFixed(0)} / KM',
+                                    style: const TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.w800),
+                                  ),
                                 ),
-                                child: Text(
-                                  'KM: ₹${(widget.pricePerKm ?? 20.0).toStringAsFixed(0)} / KM',
-                                  style: const TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.w800),
-                                ),
-                              ),
+                              ],
                             ],
                           ),
                        ],
@@ -630,8 +672,93 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
               ),
              ),
              _buildListingDetailsCard(widget.description, widget.vehicleNumber),
-             const SizedBox(height: 24),             if (widget.rate > 0 && widget.pricePerKm != null && widget.pricePerKm! > 0) ...[
-               // Pricing Mode Toggle Section
+             const SizedBox(height: 24),
+             // Pricing Mode for Tractor Trolley: Full Day / Half Day
+             if (widget.vehicleType == 'Tractor Trolley') ...[
+               _buildSectionCard(
+                 title: 'Pricing Mode',
+                 icon: Icons.swap_horiz_rounded,
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     const Text(
+                       'Select how you want to be billed:',
+                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                     ),
+                     const SizedBox(height: 12),
+                     Row(
+                       children: [
+                         Expanded(
+                           child: GestureDetector(
+                             onTap: () => setState(() => _isTrolleyHalfDay = false),
+                             child: AnimatedContainer(
+                               duration: const Duration(milliseconds: 200),
+                               padding: const EdgeInsets.symmetric(vertical: 14),
+                               decoration: BoxDecoration(
+                                 color: !_isTrolleyHalfDay ? const Color(0xFF00AA55) : Colors.white,
+                                 borderRadius: BorderRadius.circular(15),
+                                 border: Border.all(
+                                   color: !_isTrolleyHalfDay ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
+                                   width: 2,
+                                 ),
+                                 boxShadow: !_isTrolleyHalfDay
+                                     ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
+                                     : null,
+                               ),
+                               alignment: Alignment.center,
+                               child: Text(
+                                 'Full Day\n(₹${widget.rate.toStringAsFixed(0)})',
+                                 textAlign: TextAlign.center,
+                                 style: TextStyle(
+                                   color: !_isTrolleyHalfDay ? Colors.white : const Color(0xFF2C3E50),
+                                   fontWeight: FontWeight.w900,
+                                   fontSize: 13,
+                                 ),
+                               ),
+                             ),
+                           ),
+                         ),
+                         const SizedBox(width: 12),
+                         Expanded(
+                           child: GestureDetector(
+                             onTap: () => setState(() => _isTrolleyHalfDay = true),
+                             child: AnimatedContainer(
+                               duration: const Duration(milliseconds: 200),
+                               padding: const EdgeInsets.symmetric(vertical: 14),
+                               decoration: BoxDecoration(
+                                 color: _isTrolleyHalfDay ? const Color(0xFF00AA55) : Colors.white,
+                                 borderRadius: BorderRadius.circular(15),
+                                 border: Border.all(
+                                   color: _isTrolleyHalfDay ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
+                                   width: 2,
+                                 ),
+                                 boxShadow: _isTrolleyHalfDay
+                                     ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
+                                     : null,
+                               ),
+                               alignment: Alignment.center,
+                               child: Text(
+                                 'Half Day\n(₹${(widget.pricePerKm ?? widget.rate / 2).toStringAsFixed(0)})',
+                                 textAlign: TextAlign.center,
+                                 style: TextStyle(
+                                   color: _isTrolleyHalfDay ? Colors.white : const Color(0xFF2C3E50),
+                                   fontWeight: FontWeight.w900,
+                                   fontSize: 13,
+                                 ),
+                               ),
+                             ),
+                           ),
+                         ),
+                       ],
+                     ),
+                   ],
+                 ),
+               ),
+               const SizedBox(height: 24),
+             ],
+
+             // Pricing Mode Toggle (Daily / KM) for non-Tractor Trolley, non-Mini Truck/Truck
+             if (widget.vehicleType != 'Mini Truck' && widget.vehicleType != 'Truck' && widget.vehicleType != 'Tractor Trolley' && widget.rate > 0 && widget.pricePerKm != null && widget.pricePerKm! > 0) ...[
                _buildSectionCard(
                  title: 'Pricing Mode',
                  icon: Icons.swap_horiz_rounded,
@@ -756,34 +883,12 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                 children: [
                   const Text('What are you transporting?', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9FBF9),
-                      borderRadius: BorderRadius.circular(15),
-                      border: Border.all(color: _fieldErrors.containsKey('goods') ? Colors.red : const Color(0xFFE8F5E9)),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        hint: Text(l10n.selectGoodsType, style: TextStyle(color: Colors.grey[500], fontSize: 15, fontWeight: FontWeight.w500)),
-                        value: _selectedGoodsType,
-                        icon: const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
-                        items: _goodsTypes.map((String type) {
-                          return DropdownMenuItem<String>(
-                            value: type,
-                            child: Text(type),
-                          );
-                        }).toList(),
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            _selectedGoodsType = newValue;
-                            if (newValue != null && _fieldErrors.containsKey('goods')) _fieldErrors.remove('goods');
-                          });
-                        },
-                      ),
-                    ),
+                  _buildTextField(
+                    controller: _goodsTypeController,
+                    label: 'Goods Type',
+                    hint: 'e.g. Cotton, Paddy, Fertilizers...',
+                    errorKey: 'goods',
+                    icon: Icons.inventory_2_rounded,
                   ),
                 ],
               ),
@@ -871,15 +976,14 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                     ),
                   ),
 
-                  if (!_isKmWise) ...[
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Select Preferred Time',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
-                        ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Arrival Time',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                      ),
                         if (_selectedSlots.isNotEmpty)
                           TextButton(
                             onPressed: () {
@@ -965,7 +1069,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                         ),
                     ],
 
-                    if (_selectedSlots.isNotEmpty) ...[
+                    if (_selectedSlots.isNotEmpty && !_isKmWise) ...[
                       const SizedBox(height: 24),
                       const Text('Selected Slots Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                       const SizedBox(height: 12),
@@ -982,24 +1086,9 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    _buildDurationControl(
-                                      icon: Icons.remove_rounded,
-                                      onPressed: _selectedSlots.length > 1 ? _removeHour : null,
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                                      child: Text(
-                                        '${_selectedSlots.length} ${_selectedSlots.length == 1 ? 'Hour' : 'Hours'}',
-                                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
-                                      ),
-                                    ),
-                                    _buildDurationControl(
-                                      icon: Icons.add_rounded,
-                                      onPressed: _canAddMoreHours() ? _addHour : null,
-                                    ),
-                                  ],
+                                const Text(
+                                  '1 Slot',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1035,7 +1124,6 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                         ),
                       ),
                     ],
-                  ],
 
                   if (_isKmWise) ...[
                     const SizedBox(height: 24),

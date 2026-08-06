@@ -322,11 +322,11 @@ abstract class AppLocalizations {
   /// **'Tractor Trolley'**
   String get tractorTrolley;
 
-  /// No description provided for @fullTruck.
+  /// No description provided for @truck.
   ///
   /// In en, this message translates to:
-  /// **'Full Truck'**
-  String get fullTruck;
+  /// **'Truck'**
+  String get truck;
 
   /// No description provided for @tempo.
   ///

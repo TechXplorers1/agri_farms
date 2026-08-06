@@ -7,7 +7,11 @@ import 'package:agriculture/l10n/app_localizations.dart';
 
 String _formatProviderDate(String raw) {
   try {
-    final dt = DateTime.parse(raw);
+    String str = raw;
+    if (!str.endsWith('Z') && !str.contains('+') && !RegExp(r'-\d{2}:\d{2}$').hasMatch(str)) {
+      str += 'Z';
+    }
+    final dt = DateTime.parse(str).toLocal();
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   } catch (_) {
@@ -16,7 +20,7 @@ String _formatProviderDate(String raw) {
 }
 
 String _formatProviderDateTime(BookingDetails booking) {
-  final dt = booking.rawScheduledStartTime;
+  final dt = booking.rawScheduledStartTime?.toLocal();
   if (dt != null) {
     try {
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -32,19 +36,22 @@ String _formatProviderDateTime(BookingDetails booking) {
 
 String _formatProviderDateOnlyOrTime(DateTime dt) {
   try {
+    final localDt = dt.toLocal();
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    final hour = dt.hour;
-    final minute = dt.minute.toString().padLeft(2, '0');
+    final hour = localDt.hour;
+    final minute = localDt.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour % 12 == 0 ? 12 : hour % 12;
-    return '${dt.day} ${months[dt.month - 1]} ${dt.year} at $displayHour:$minute $period';
+    return '${localDt.day} ${months[localDt.month - 1]} ${localDt.year} at $displayHour:$minute $period';
   } catch (_) {
     return dt.toString();
   }
 }
 
 class ProviderRequestsScreen extends StatefulWidget {
-  const ProviderRequestsScreen({super.key});
+  final int initialTabIndex;
+
+  const ProviderRequestsScreen({super.key, this.initialTabIndex = 0});
 
   @override
   State<ProviderRequestsScreen> createState() => _ProviderRequestsScreenState();
@@ -189,7 +196,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                 final pendingBookings = allMyBookings.where((b) {
                   if (b.status.toLowerCase() != 'pending') return false;
                   if (_filterDate != null) {
-                    final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
+                    final targetDate = (b.rawScheduledStartTime ?? b.rawBookingDate).toLocal();
                     final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
                     final filterDay = DateTime(_filterDate!.year, _filterDate!.month, _filterDate!.day);
                     if (bookingDay != filterDay) return false;
@@ -200,7 +207,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                   
                 final activeBookings = allMyBookings.where((b) {
                   if (b.status.toLowerCase() != 'confirmed') return false;
-                  final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
+                  final targetDate = (b.rawScheduledStartTime ?? b.rawBookingDate).toLocal();
                   final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
                   
                   if (_filterDate != null) {
@@ -218,7 +225,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                   
                 final historyBookings = allMyBookings.where((b) {
                   final s = b.status.toLowerCase();
-                  final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
+                  final targetDate = (b.rawScheduledStartTime ?? b.rawBookingDate).toLocal();
                   final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
                   
                   if (_filterDate != null) {
@@ -236,6 +243,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
 
                 return DefaultTabController(
                   length: 3,
+                  initialIndex: widget.initialTabIndex,
                   child: Column(
                     children: [
                       Container(
@@ -549,11 +557,60 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                         )
                       ),
                     ],
+                    if (['cancelled', 'rejected'].contains(booking.status.toLowerCase()) ||
+                        (booking.cancellationReason != null && booking.cancellationReason!.isNotEmpty)) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.red.withOpacity(0.2), width: 1),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.cancel_outlined, size: 16, color: Colors.red[700]),
+                                const SizedBox(width: 6),
+                                Text(
+                                  booking.status.toLowerCase() == 'rejected' ? 'REJECTION REASON' : 'CANCELLATION REASON',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.red[700], letterSpacing: 0.5),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              (booking.cancellationReason != null && booking.cancellationReason!.isNotEmpty)
+                                  ? booking.cancellationReason!
+                                  : 'No reason provided',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: const Color(0xFF2C3E50),
+                                fontWeight: FontWeight.w600,
+                                fontStyle: (booking.cancellationReason != null && booking.cancellationReason!.isNotEmpty)
+                                    ? FontStyle.normal
+                                    : FontStyle.italic,
+                              ),
+                            ),
+                            if (booking.cancelledBy != null && booking.cancelledBy!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'By: ${booking.cancelledBy!}',
+                                style: TextStyle(fontSize: 11, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                     if (tabType == 'new') ...[
                       const SizedBox(height: 20),
                       Row(
                         children: [
-                          Expanded(child: _buildActionButton('Reject', Colors.red, () => _updateStatus(booking.id, 'Rejected'))),
+                          Expanded(child: _buildActionButton('Reject', Colors.red, () => _showRejectDialog(booking))),
                           const SizedBox(width: 12),
                           Expanded(child: _buildActionButton('Accept', const Color(0xFF00AA55), () => _updateStatus(booking.id, 'Confirmed'), isPrimary: true)),
                         ],
@@ -561,7 +618,13 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                     ],
                     if (tabType == 'active') ...[
                       const SizedBox(height: 20),
-                      SizedBox(width: double.infinity, child: _buildActionButton('Mark as Finished', const Color(0xFF1565C0), () => _handleCompletedTap(booking), isPrimary: true)),
+                      Row(
+                        children: [
+                          Expanded(child: _buildActionButton('Cancel Booking', Colors.red, () => _showRejectDialog(booking))),
+                          const SizedBox(width: 12),
+                          Expanded(child: _buildActionButton('Mark as Finished', const Color(0xFF1565C0), () => _handleCompletedTap(booking), isPrimary: true)),
+                        ],
+                      ),
                     ],
                   ],
                 ),
@@ -583,6 +646,158 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color, width: 1.5)),
       ),
       child: Text(label, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+    );
+  }
+
+  void _showRejectDialog(BookingDetails booking) {
+    final TextEditingController reasonController = TextEditingController();
+    final bool isCancel = booking.status.toLowerCase() == 'confirmed';
+    final actionName = isCancel ? 'Cancel' : 'Reject';
+    final actionStatus = isCancel ? 'Cancelled' : 'Rejected';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        String? errorText;
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.cancel_outlined, color: Color(0xFFD32F2F), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '$actionName Booking',
+                    style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Are you sure you want to ${actionName.toLowerCase()} this booking request?',
+                    style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Text(
+                        'Reason for ${actionName.toLowerCase()} ',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2C3E50), fontSize: 13),
+                      ),
+                      const Text(
+                        '*',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: reasonController,
+                    maxLength: 150,
+                    maxLines: 2,
+                    onChanged: (_) {
+                      if (errorText != null) {
+                        setStateDialog(() {
+                          errorText = null;
+                        });
+                      }
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Enter reason for ${actionName.toLowerCase()}...',
+                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                      counterText: '',
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      filled: true,
+                      fillColor: const Color(0xFFF9FBF9),
+                      errorText: errorText,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: errorText != null ? Colors.red : Colors.grey[200]!, width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: errorText != null ? Colors.red : const Color(0xFF00AA55), width: 1.5),
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(
+                    'Keep Booking',
+                    style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final reason = reasonController.text.trim();
+                    if (reason.isEmpty) {
+                      setStateDialog(() {
+                        errorText = 'Please enter a reason to ${actionName.toLowerCase()}';
+                      });
+                      return;
+                    }
+
+                    Navigator.pop(dialogContext); // Close dialog
+                    
+                    // Show loading spinner
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => const Center(
+                        child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+                      ),
+                    );
+                    
+                    try {
+                      final prefs = await SharedPreferences.getInstance();
+                      final userName = prefs.getString('user_name') ?? 'Owner';
+                      final userRole = prefs.getString('user_role') ?? 'Owner';
+                      final cancelledBy = '$userRole ($userName)';
+                      
+                      await _bookingManager.updateBookingStatus(
+                        booking.id, 
+                        actionStatus,
+                        providerId: _currentProviderId,
+                        cancelledBy: cancelledBy,
+                        cancellationReason: reason,
+                      );
+                      
+                      if (mounted) {
+                        Navigator.pop(context); // Close spinner
+                        UiUtils.showCenteredToast(context, 'Booking ${actionStatus.toLowerCase()} successfully');
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        Navigator.pop(context); // Close spinner
+                        UiUtils.showCustomAlert(context, 'Failed to update booking: $e', isError: true);
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[600],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: Text('Yes, $actionName', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

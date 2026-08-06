@@ -28,6 +28,7 @@ class BookServiceDetailScreen extends StatefulWidget {
   final String? ownerProfileImage;
   final String? description;
   final String? serialNumber;
+  final String? equipmentName;
 
   const BookServiceDetailScreen({
     super.key,
@@ -39,6 +40,7 @@ class BookServiceDetailScreen extends StatefulWidget {
     this.ownerProfileImage,
     this.description,
     this.serialNumber,
+    this.equipmentName,
   });
 
   @override
@@ -208,10 +210,16 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         }
         
         bool isOccupiedInThisSlot = false;
-        if (bookedHours.isNotEmpty) {
-          isOccupiedInThisSlot = bookedHours.contains(hour);
-        } else {
-          isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+        bool isSameDay = bStart.year == slotStart.year &&
+                         bStart.month == slotStart.month &&
+                         bStart.day == slotStart.day;
+                         
+        if (isSameDay) {
+          if (bookedHours.isNotEmpty) {
+            isOccupiedInThisSlot = bookedHours.contains(hour);
+          } else {
+            isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+          }
         }
         
         if (isOccupiedInThisSlot) {
@@ -671,7 +679,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       final Map<String, dynamic> notesMap = {
         'Booked By': userName ?? 'Unknown User',
         'Provider': widget.providerName,
-        'Service': widget.serviceName,
+        'Service': (widget.equipmentName != null && widget.equipmentName!.isNotEmpty) 
+            ? '${widget.serviceName} - ${widget.equipmentName}' 
+            : widget.serviceName,
         'Location': _addressController.text,
         'Preferred Time': timeStr,
         'slots_list': _selectedSlots,
@@ -878,7 +888,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                 ],
               ),
             ),
-             _buildListingDetailsCard(widget.description, widget.serialNumber),
+            _buildListingDetailsCard(widget.description, widget.serialNumber, widget.equipmentName),
              const SizedBox(height: 24),
 
             // Requirement Details Card
@@ -1740,7 +1750,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     );
   }
 
-  Widget _buildListingDetailsCard(String? description, String? number) {
+  Widget _buildListingDetailsCard(String? description, String? number, String? equipmentName) {
     return Container(
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.all(24),
@@ -1772,6 +1782,20 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             ],
           ),
           const SizedBox(height: 20),
+          if (equipmentName != null && equipmentName.isNotEmpty) ...[
+            Text(
+              'EQUIPMENT NAME',
+              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              equipmentName,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+            ),
+            const SizedBox(height: 16),
+            Divider(color: Colors.grey[100], height: 1),
+            const SizedBox(height: 16),
+          ],
           if (number != null && number.trim().isNotEmpty) ...[
             Text(
               'SERIAL/REGISTRATION NUMBER',

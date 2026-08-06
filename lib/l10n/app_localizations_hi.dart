@@ -117,7 +117,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get tractorTrolley => 'ट्रैक्टर ट्रॉली';
 
   @override
-  String get fullTruck => 'फुल ट्रक';
+  String get truck => 'ट्रक';
 
   @override
   String get tempo => 'टेम्पो';

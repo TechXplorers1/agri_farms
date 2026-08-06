@@ -11,30 +11,13 @@ class LocationHelper {
     String district = 'District';
     String exactAddress = '';
 
-    // 1. Try Nominatim (Cross-platform)
-    try {
-      final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json');
-      final response = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['address'] != null) {
-          final addr = data['address'];
-          village = addr['suburb'] ?? addr['village'] ?? addr['neighbourhood'] ?? addr['city_district'] ?? 'Unknown Village';
-          district = addr['district'] ?? addr['city'] ?? addr['county'] ?? 'District';
-          exactAddress = data['display_name'] ?? '';
-        }
-      }
-    } catch (e) {
-      debugPrint("Nominatim reverse geocoding failed: $e");
-    }
-
-    // 2. Fallback to native geocoding (Android/iOS only)
-    if (exactAddress.isEmpty && !kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    // 1. Try Native geocoding first (Android/iOS) for better accuracy (e.g. Google Maps)
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
       try {
         final placemarks = await geo.placemarkFromCoordinates(lat, lng);
         if (placemarks.isNotEmpty) {
           final p = placemarks[0];
-          village = p.subLocality ?? p.locality ?? 'Unknown Village';
+          village = p.subLocality ?? p.locality ?? p.name ?? 'Unknown Village';
           district = p.subAdministrativeArea ?? p.administrativeArea ?? 'District';
           
           if (exactAddress.isEmpty) {
@@ -51,6 +34,25 @@ class LocationHelper {
         }
       } catch (e) {
         debugPrint("Native reverse geocoding failed: $e");
+      }
+    }
+
+    // 2. Fallback to Nominatim if native fails or is unavailable
+    if (exactAddress.isEmpty) {
+      try {
+        final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=$lat&lon=$lng&format=json');
+        final response = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          if (data['address'] != null) {
+            final addr = data['address'];
+            village = addr['suburb'] ?? addr['village'] ?? addr['neighbourhood'] ?? addr['city_district'] ?? 'Unknown Village';
+            district = addr['district'] ?? addr['city'] ?? addr['county'] ?? 'District';
+            exactAddress = data['display_name'] ?? '';
+          }
+        }
+      } catch (e) {
+        debugPrint("Nominatim reverse geocoding failed: $e");
       }
     }
 

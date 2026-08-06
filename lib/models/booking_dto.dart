@@ -35,6 +35,23 @@ class BookingDTO {
     this.cancellationReason,
   });
 
+  static DateTime? _parseDateTime(dynamic jsonVal) {
+    if (jsonVal == null) return null;
+    try {
+      String str = jsonVal.toString();
+      if (!str.endsWith('Z') && !str.contains('+') && !RegExp(r'-\d{2}:\d{2}$').hasMatch(str)) {
+        str += 'Z';
+      }
+      return DateTime.parse(str).toLocal();
+    } catch (_) {
+      try {
+        return DateTime.parse(jsonVal.toString()).toLocal();
+      } catch (e) {
+        return null;
+      }
+    }
+  }
+
   factory BookingDTO.fromJson(Map<String, dynamic> json) {
     return BookingDTO(
       bookingId: json['bookingId'],
@@ -42,9 +59,9 @@ class BookingDTO {
       providerId: json['providerId'],
       assetId: json['assetId'],
       assetType: json['assetType'],
-      bookingDate: json['bookingDate'] != null ? DateTime.parse(json['bookingDate']) : null,
-      scheduledStartTime: json['scheduledStartTime'] != null ? DateTime.parse(json['scheduledStartTime']) : null,
-      scheduledEndTime: json['scheduledEndTime'] != null ? DateTime.parse(json['scheduledEndTime']) : null,
+      bookingDate: _parseDateTime(json['bookingDate']),
+      scheduledStartTime: _parseDateTime(json['scheduledStartTime']),
+      scheduledEndTime: _parseDateTime(json['scheduledEndTime']),
       status: json['status'],
       totalAmount: json['totalAmount'] != null ? (json['totalAmount'] as num).toDouble() : null,
       locationLat: json['locationLat'] != null ? (json['locationLat'] as num).toDouble() : null,
@@ -63,9 +80,9 @@ class BookingDTO {
       'providerId': providerId,
       'assetId': assetId,
       'assetType': assetType,
-      'bookingDate': bookingDate?.toIso8601String(),
-      'scheduledStartTime': scheduledStartTime?.toIso8601String(),
-      'scheduledEndTime': scheduledEndTime?.toIso8601String(),
+      'bookingDate': bookingDate?.toUtc().toIso8601String(),
+      'scheduledStartTime': scheduledStartTime?.toUtc().toIso8601String(),
+      'scheduledEndTime': scheduledEndTime?.toUtc().toIso8601String(),
       'status': status,
       'totalAmount': totalAmount,
       'locationLat': locationLat,

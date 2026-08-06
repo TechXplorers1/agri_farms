@@ -21,6 +21,7 @@ class Equipment {
   final double? operatorPrice;
   final String? ownerBusinessName;
   final String? ownerName;
+  final int? jobsCompleted;
 
   Equipment({
     this.equipmentId,
@@ -45,6 +46,7 @@ class Equipment {
     this.operatorPrice,
     this.ownerBusinessName,
     this.ownerName,
+    this.jobsCompleted,
   });
 
   factory Equipment.fromJson(Map<String, dynamic> json) {
@@ -71,6 +73,7 @@ class Equipment {
       operatorPrice: (json['operatorPrice'] as num?)?.toDouble(),
       ownerBusinessName: json['ownerBusinessName'],
       ownerName: json['ownerName'],
+      jobsCompleted: (json['jobsCompleted'] as num?)?.toInt(),
     );
   }
 

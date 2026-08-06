@@ -211,27 +211,35 @@ class NotificationService {
         final prefs = await SharedPreferences.getInstance();
         final userRole = (prefs.getString('user_role') ?? 'Farmer').toLowerCase();
 
-        if (type == 'booking_request') {
-          Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
-        } else if (type == 'booking_status_update') {
+        final typeStr = (type ?? '').toLowerCase();
+        final statusStr = (data['status'] ?? '').toString().toLowerCase();
+        final bool isCancelledNotif = typeStr == 'booking_cancelled' || statusStr.contains('cancel');
+        final bool isRejectedNotif = statusStr.contains('reject');
+        final bool isBookingRequest = typeStr == 'booking_request';
+
+        if (isCancelledNotif) {
+          // Cancellation notification sent to Owner / Vendor -> navigate to ProviderRequestsScreen History tab (index 2)
+          Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen(initialTabIndex: 2)));
+        } else if (isBookingRequest) {
+          // Booking request notification sent to Owner / Vendor -> navigate to ProviderRequestsScreen New Requests tab (index 0)
+          Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen(initialTabIndex: 0)));
+        } else if (isRejectedNotif) {
+          // Rejection notification sent to Farmer -> navigate to GenericHistoryScreen History tab (index 1)
           Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
             title: 'Activity Bookings',
             categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
             showBackButton: true,
+            initialTabIndex: 1,
           )));
-        } else if (type == 'booking_cancelled') {
-          if (['owner', 'provider'].contains(userRole)) {
-            Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
-          } else {
-            Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
-              title: 'Activity Bookings',
-              categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
-              showBackButton: true,
-            )));
-          }
+        } else if (['owner', 'provider', 'vendor'].contains(userRole) || userRole.contains('owner') || userRole.contains('vendor') || userRole.contains('provider')) {
+          Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen(initialTabIndex: 1)));
         } else {
-          // Default: open the notification page
-          Navigator.of(context).push(MaterialPageRoute(builder: (context) => const NotificationsScreen()));
+          Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
+            title: 'Activity Bookings',
+            categories: [BookingCategory.services, BookingCategory.farmWorkers, BookingCategory.transport, BookingCategory.rentals],
+            showBackButton: true,
+            initialTabIndex: 0,
+          )));
         }
       }
     } catch (e) {

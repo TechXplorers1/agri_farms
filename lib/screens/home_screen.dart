@@ -105,6 +105,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final String? savedHNo = prefs.getString('user_hNo');
     final String? savedStreet = prefs.getString('user_street');
     final String? savedArea = prefs.getString('user_area');
+    final String? savedMandal = prefs.getString('user_mandal');
     final String? savedVillage = prefs.getString('user_village');
     final String? savedDistrict = prefs.getString('user_district');
     final String? savedState = prefs.getString('user_state');
@@ -119,6 +120,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (savedHNo != null && savedHNo.isNotEmpty) addressParts.add(savedHNo);
         if (savedStreet != null && savedStreet.isNotEmpty) addressParts.add(savedStreet);
         if (savedArea != null && savedArea.isNotEmpty) addressParts.add(savedArea);
+        if (savedMandal != null && savedMandal.isNotEmpty) addressParts.add(savedMandal);
         if (savedVillage != null && savedVillage.isNotEmpty) addressParts.add(savedVillage);
         if (savedDistrict != null && savedDistrict.isNotEmpty) addressParts.add(savedDistrict);
         if (savedState != null && savedState.isNotEmpty) addressParts.add(savedState);
@@ -156,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           imagePath: 'assets/images/harvester_card.webp', subtitle: AppTranslations.translate(context, 'wheatPaddyHarvest')),
       HomeServiceItem(l10n.sprayers, Icons.water_drop, Colors.blue[50]!, Colors.blue, 'Rentals',
           ServiceProvidersScreen(serviceKey: 'Sprayers', title: l10n.sprayers, userRole: _userRole),
-          imagePath: 'assets/images/sprayer_card.webp', subtitle: AppTranslations.translate(context, 'pestControl')),
+          imagePath: 'assets/images/sprayer_card.jpg', subtitle: AppTranslations.translate(context, 'pestControl')),
       HomeServiceItem(l10n.trolleys, Icons.shopping_cart_outlined, Colors.grey[100]!, Colors.grey, 'Rentals',
           ServiceProvidersScreen(serviceKey: 'Trolleys', title: l10n.trolleys, userRole: _userRole),
           imagePath: 'assets/images/trolley_card.webp', subtitle: AppTranslations.translate(context, 'loadCarry')),
@@ -165,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           imagePath: 'assets/images/jcb_card.webp', subtitle: AppTranslations.translate(context, 'diggingLeveling')),
       HomeServiceItem(l10n.ploughing, Icons.agriculture, const Color(0xFFE3F2FD), Colors.blue, 'Services',
           ServiceProvidersScreen(serviceKey: 'Ploughing', title: l10n.ploughing, userRole: _userRole),
-          imagePath: 'assets/images/agri_services_card.webp', subtitle: AppTranslations.translate(context, 'fieldPreparation')),
+          imagePath: 'assets/images/ploughing_card.jpg', subtitle: AppTranslations.translate(context, 'fieldPreparation')),
       HomeServiceItem(l10n.harvesting, Icons.grass, const Color(0xFFFFF9C4), Colors.orange, 'Services',
           ServiceProvidersScreen(serviceKey: 'Harvesting', title: l10n.harvesting, userRole: _userRole),
           imagePath: 'assets/images/harvester_card.webp', subtitle: AppTranslations.translate(context, 'cropCollection')),
@@ -193,18 +195,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       HomeServiceItem(l10n.tractorTrolley, Icons.agriculture, const Color(0xFFE8F5E9), Colors.green, 'Transport',
           ServiceProvidersScreen(serviceKey: 'Tractor Trolley', title: l10n.tractorTrolley, userRole: _userRole),
           imagePath: 'assets/images/tractor_trolley_card.webp', subtitle: AppTranslations.translate(context, 'bulkCarry')),
-      HomeServiceItem(l10n.fullTruck, Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Full Truck', title: l10n.fullTruck, userRole: _userRole),
+      HomeServiceItem(l10n.truck, Icons.local_shipping_outlined, const Color(0xFFFFF3E0), Colors.orange, 'Transport',
+          ServiceProvidersScreen(serviceKey: 'Truck', title: l10n.truck, userRole: _userRole),
           imagePath: 'assets/images/full_truck_card.webp', subtitle: AppTranslations.translate(context, 'longDistance')),
-      HomeServiceItem(l10n.tempo, Icons.airport_shuttle, const Color(0xFFFFF9C4), Colors.amber[800]!, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Tempo', title: l10n.tempo, userRole: _userRole),
-          imagePath: 'assets/images/tractor_trolley_card.webp', subtitle: AppTranslations.translate(context, 'cityVillage')),
-      HomeServiceItem(l10n.pickupVan, Icons.fire_truck, const Color(0xFFF3E5F5), Colors.purple, 'Transport',
-          ServiceProvidersScreen(serviceKey: 'Pickup Van', title: l10n.pickupVan, userRole: _userRole),
-          imagePath: 'assets/images/pickup_van_card.webp', subtitle: AppTranslations.translate(context, 'quickPickup')),
       HomeServiceItem(l10n.container, Icons.inventory, const Color(0xFFEFEBE9), Colors.brown, 'Transport',
           ServiceProvidersScreen(serviceKey: 'Container', title: l10n.container, userRole: _userRole),
-          imagePath: 'assets/images/full_truck_card.webp', subtitle: AppTranslations.translate(context, 'largeCargo')),
+          imagePath: 'assets/images/full_truck_card.webp', subtitle: AppTranslations.translate(context, 'largeCargo'),
+          isComingSoon: true),
     ];
   }
 
@@ -559,49 +556,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _showManualLocationDialog() {
+  Future<void> _showManualLocationDialog() async {
+    final prefs = await SharedPreferences.getInstance();
+    String tempHNo = prefs.getString('user_hNo') ?? '';
+    String tempStreet = prefs.getString('user_street') ?? '';
+    String tempArea = prefs.getString('user_area') ?? '';
+    String tempMandal = prefs.getString('user_mandal') ?? '';
+    String tempVillage = prefs.getString('user_village') ?? '';
+    String tempDistrict = prefs.getString('user_district') ?? '';
+    String tempState = prefs.getString('user_state') ?? '';
+    String tempPincode = prefs.getString('user_pincode') ?? '';
+
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) {
-        final parts = _userLocation.split(',');
-        String initHNo = '';
-        String initStreet = '';
-        String initArea = '';
-        String initVillage = '';
-        String initDistrict = '';
-        String initStateVal = '';
-        String initPincode = '';
-
-        if (parts.length >= 7) {
-          initHNo = parts[0].trim();
-          initStreet = parts[1].trim();
-          initArea = parts[2].trim();
-          initVillage = parts[3].trim();
-          initDistrict = parts[4].trim();
-          initStateVal = parts[5].trim();
-          initPincode = parts[6].trim();
-        } else if (parts.length == 6) {
-          initHNo = parts[0].trim();
-          initStreet = parts[1].trim();
-          initVillage = parts[2].trim();
-          initDistrict = parts[3].trim();
-          initStateVal = parts[4].trim();
-          initPincode = parts[5].trim();
-        } else if (parts.length == 2) {
-          initVillage = parts[0].trim();
-          initDistrict = parts[1].trim();
-        } else if (parts.isNotEmpty) {
-          initVillage = parts[0].trim();
-        }
-
-        String tempHNo = initHNo;
-        String tempStreet = initStreet;
-        String tempArea = initArea;
-        String tempVillage = initVillage;
-        String tempDistrict = initDistrict;
-        String tempState = initStateVal;
-        String tempPincode = initPincode;
-
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(AppTranslations.translate(context, 'chooseLocation'), style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -614,7 +583,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: 'H.No / Flat No', 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initHNo),
+                  controller: TextEditingController(text: tempHNo),
                   onChanged: (val) => tempHNo = val,
                 ),
                 const SizedBox(height: 12),
@@ -623,7 +592,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: 'Street Name', 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initStreet),
+                  controller: TextEditingController(text: tempStreet),
                   onChanged: (val) => tempStreet = val,
                 ),
                 const SizedBox(height: 12),
@@ -632,7 +601,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: 'Area Name', 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initArea),
+                  controller: TextEditingController(text: tempArea),
                   onChanged: (val) => tempArea = val,
                 ),
                 const SizedBox(height: 12),
@@ -641,8 +610,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: AppTranslations.translate(context, 'village'), 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initVillage),
+                  controller: TextEditingController(text: tempVillage),
                   onChanged: (val) => tempVillage = val,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Mandal', 
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  ),
+                  controller: TextEditingController(text: tempMandal),
+                  onChanged: (val) => tempMandal = val,
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -650,7 +628,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: AppTranslations.translate(context, 'district'), 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initDistrict),
+                  controller: TextEditingController(text: tempDistrict),
                   onChanged: (val) => tempDistrict = val,
                 ),
                 const SizedBox(height: 12),
@@ -659,7 +637,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: 'State', 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initStateVal),
+                  controller: TextEditingController(text: tempState),
                   onChanged: (val) => tempState = val,
                 ),
                 const SizedBox(height: 12),
@@ -668,7 +646,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     labelText: 'Pincode', 
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
                   ),
-                  controller: TextEditingController(text: initPincode),
+                  controller: TextEditingController(text: tempPincode),
                   onChanged: (val) => tempPincode = val,
                 ),
               ],
@@ -684,6 +662,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   if (tempHNo.trim().isNotEmpty) addressParts.add(tempHNo.trim());
                   if (tempStreet.trim().isNotEmpty) addressParts.add(tempStreet.trim());
                   if (tempArea.trim().isNotEmpty) addressParts.add(tempArea.trim());
+                  if (tempMandal.trim().isNotEmpty) addressParts.add(tempMandal.trim());
                   if (tempVillage.trim().isNotEmpty) addressParts.add(tempVillage.trim());
                   if (tempDistrict.trim().isNotEmpty) addressParts.add(tempDistrict.trim());
                   if (tempState.trim().isNotEmpty) addressParts.add(tempState.trim());
@@ -696,10 +675,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   await prefs.setString('user_hNo', tempHNo.trim());
                   await prefs.setString('user_street', tempStreet.trim());
                   await prefs.setString('user_area', tempArea.trim());
+                  await prefs.setString('user_mandal', tempMandal.trim());
                   await prefs.setString('user_village', tempVillage.trim());
                   await prefs.setString('user_district', tempDistrict.trim());
                   await prefs.setString('user_state', tempState.trim());
                   await prefs.setString('user_pincode', tempPincode.trim());
+
+                  final userId = prefs.getString('user_id');
+                  if (userId != null && userId.isNotEmpty) {
+                    try {
+                      await ApiService().updateUser(userId, {
+                        'houseNo': tempHNo.trim(),
+                        'street': tempStreet.trim(),
+                        'mandal': tempMandal.trim(),
+                        'village': tempVillage.trim(),
+                        'district': tempDistrict.trim(),
+                        'state': tempState.trim(),
+                        'pincode': tempPincode.trim(),
+                      });
+                    } catch (e) {
+                      debugPrint('Error updating user location: $e');
+                    }
+                  }
 
                   if (context.mounted) Navigator.pop(context);
                 } else {
@@ -1149,7 +1146,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildTransportCard(HomeServiceItem item) {
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.navigationTarget)),
+      onTap: item.isComingSoon ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => item.navigationTarget)),
       child: Container(
         width: 140,
         decoration: BoxDecoration(
@@ -1160,7 +1157,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           borderRadius: BorderRadius.circular(18),
           child: Stack(fit: StackFit.expand, children: [
             if (item.imagePath != null)
-              Image.asset(item.imagePath!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: item.bgColor))
+              Opacity(
+                opacity: item.isComingSoon ? 0.6 : 1.0,
+                child: Image.asset(item.imagePath!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: item.bgColor)),
+              )
             else
               Container(color: item.bgColor, child: Center(child: Icon(item.icon, color: item.iconColor, size: 42))),
             DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(
@@ -1170,8 +1170,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ))),
             Positioned(left: 12, right: 8, bottom: 10, child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Text(item.title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, height: 1.1), maxLines: 2),
-              if (item.subtitle != null) Text(item.subtitle!, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+              if (item.subtitle != null)
+                Text(
+                  item.isComingSoon ? 'COMING SOON' : item.subtitle!,
+                  style: TextStyle(
+                    color: item.isComingSoon ? Colors.orangeAccent : Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
             ])),
+            if (item.isComingSoon)
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
+                  child: const Icon(Icons.lock_clock_rounded, color: Colors.white, size: 24),
+                ),
+              ),
           ]),
         ),
       ),

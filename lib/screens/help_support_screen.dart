@@ -42,25 +42,6 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
     }
   }
 
-  Future<void> _makeCall() async {
-    final Uri phoneUri = Uri(
-      scheme: 'tel',
-      path: '+9118001234567',
-    );
-    try {
-      await launchUrl(phoneUri, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Could not open dialer: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _submitFeedback() async {
     final message = _feedbackController.text.trim();
     if (message.isEmpty) {
@@ -179,10 +160,6 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     'Can I cancel my rental?',
                     'Yes, you can cancel your rental up to 24 hours before the scheduled time without any penalty. Go to "My Bookings" to manage your rentals.',
                   ),
-                  _buildFAQItem(
-                    'What payment methods are accepted?',
-                    'We accept major credit/debit cards, UPI, and net banking. Cash on delivery is available for select services.',
-                  ),
                   const SizedBox(height: 32),
                   const Text(
                     'Direct Contact',
@@ -195,14 +172,6 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     'support@agrifarms.com',
                     const Color(0xFF1565C0),
                     onTap: _sendEmail,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildContactOption(
-                    Icons.headset_mic_rounded,
-                    'Call Helpline',
-                    '+91 1800 123 4567',
-                    const Color(0xFF00AA55),
-                    onTap: _makeCall,
                   ),
                   const SizedBox(height: 32),
                   const Text(

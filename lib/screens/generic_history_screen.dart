@@ -10,7 +10,11 @@ import '../utils/ui_utils.dart';
 
 String _formatBookingDate(String raw) {
   try {
-    final dt = DateTime.parse(raw);
+    String str = raw;
+    if (!str.endsWith('Z') && !str.contains('+') && !RegExp(r'-\d{2}:\d{2}$').hasMatch(str)) {
+      str += 'Z';
+    }
+    final dt = DateTime.parse(str).toLocal();
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   } catch (_) {
@@ -19,7 +23,7 @@ String _formatBookingDate(String raw) {
 }
 
 String _formatBookingDateTime(BookingDetails booking) {
-  final dt = booking.rawScheduledStartTime;
+  final dt = booking.rawScheduledStartTime?.toLocal();
   if (dt != null) {
     try {
       const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -35,12 +39,13 @@ String _formatBookingDateTime(BookingDetails booking) {
 
 String _formatBookingDateOnlyOrTime(DateTime dt) {
   try {
+    final localDt = dt.toLocal();
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    final hour = dt.hour;
-    final minute = dt.minute.toString().padLeft(2, '0');
+    final hour = localDt.hour;
+    final minute = localDt.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour % 12 == 0 ? 12 : hour % 12;
-    return '${dt.day} ${months[dt.month - 1]} ${dt.year} at $displayHour:$minute $period';
+    return '${localDt.day} ${months[localDt.month - 1]} ${localDt.year} at $displayHour:$minute $period';
   } catch (_) {
     return dt.toString();
   }
@@ -50,12 +55,14 @@ class GenericHistoryScreen extends StatefulWidget {
   final String title;
   final List<BookingCategory> categories;
   final bool showBackButton;
+  final int initialTabIndex;
 
   const GenericHistoryScreen({
     super.key,
     required this.title,
     required this.categories,
     this.showBackButton = true,
+    this.initialTabIndex = 0,
   });
 
   @override
@@ -223,6 +230,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
     final isFarmer = _userRole.toLowerCase() == 'farmer';
     return DefaultTabController(
       length: isFarmer ? 2 : 3,
+      initialIndex: widget.initialTabIndex,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7F2),
         appBar: AppBar(
@@ -411,7 +419,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
     
     final filtered = bookings.where((b) {
       final s = b.status.trim().toLowerCase();
-      final targetDate = b.rawScheduledStartTime ?? b.rawBookingDate;
+      final targetDate = (b.rawScheduledStartTime ?? b.rawBookingDate).toLocal();
       final bookingDay = DateTime(targetDate.year, targetDate.month, targetDate.day);
       
       // If a date filter is selected, check if booking date matches selected date
@@ -603,7 +611,8 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                     ),
                   ],
 
-                  if (booking.status.toLowerCase() == 'cancelled') ...[
+                  if (['cancelled', 'rejected'].contains(booking.status.toLowerCase()) ||
+                      (booking.cancellationReason != null && booking.cancellationReason!.isNotEmpty)) ...[
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
@@ -621,7 +630,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                               Icon(Icons.cancel_outlined, size: 16, color: Colors.red[700]),
                               const SizedBox(width: 8),
                               Text(
-                                'CANCELLATION INFO',
+                                booking.status.toLowerCase() == 'rejected' ? 'REJECTION INFO' : 'CANCELLATION INFO',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w900,
@@ -639,9 +648,9 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                                 children: [
                                   const Icon(Icons.person_outline_rounded, size: 14, color: Colors.grey),
                                   const SizedBox(width: 8),
-                                  const Text(
-                                    'Cancelled By: ',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50)),
+                                  Text(
+                                    booking.status.toLowerCase() == 'rejected' ? 'Rejected By: ' : 'Cancelled By: ',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2C3E50)),
                                   ),
                                   Text(
                                     booking.cancelledBy!,
@@ -797,123 +806,146 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   }
 
   void _confirmCancelBooking(BookingDetails booking) {
-    final TextEditingController reasonController = TextEditingController();
-    showDialog(
+    final TextEditingController reasonController = TextEditingController();    showDialog(
       context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          backgroundColor: Colors.white,
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red[50],
-                  shape: BoxShape.circle,
+      builder: (dialogContext) {
+        String? errorText;
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.cancel_outlined, color: Color(0xFFD32F2F), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'Cancel Booking',
+                    style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Are you sure you want to cancel this booking? This action cannot be undone and will release your scheduled time slot.',
+                    style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: const [
+                      Text(
+                        'Reason for cancellation ',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2C3E50), fontSize: 13),
+                      ),
+                      Text(
+                        '*',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: reasonController,
+                    maxLength: 150,
+                    maxLines: 2,
+                    onChanged: (_) {
+                      if (errorText != null) {
+                        setStateDialog(() {
+                          errorText = null;
+                        });
+                      }
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Enter reason for cancellation...',
+                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                      counterText: '',
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      filled: true,
+                      fillColor: const Color(0xFFF9FBF9),
+                      errorText: errorText,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: errorText != null ? Colors.red : Colors.grey[200]!, width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: errorText != null ? Colors.red : const Color(0xFF00AA55), width: 1.5),
+                      ),
+                    ),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: Text(
+                    'Keep Booking',
+                    style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+                  ),
                 ),
-                child: const Icon(Icons.cancel_outlined, color: Color(0xFFD32F2F), size: 22),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Cancel Booking',
-                style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Are you sure you want to cancel this booking? This action cannot be undone and will release your scheduled time slot.',
-                style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Reason for cancellation (optional):',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2C3E50), fontSize: 13),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: reasonController,
-                maxLength: 100,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  hintText: 'Enter a short description...',
-                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
-                  counterText: '',
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  filled: true,
-                  fillColor: const Color(0xFFF9FBF9),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[200]!, width: 1.5),
+                ElevatedButton(
+                  onPressed: () async {
+                    final reason = reasonController.text.trim();
+                    if (reason.isEmpty) {
+                      setStateDialog(() {
+                        errorText = 'Please enter a reason to cancel';
+                      });
+                      return;
+                    }
+
+                    Navigator.pop(dialogContext); // Close dialog
+                    
+                    // Show loading spinner
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => const Center(
+                        child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+                      ),
+                    );
+                    
+                    try {
+                      final prefs = await SharedPreferences.getInstance();
+                      final userName = prefs.getString('user_name') ?? 'Farmer';
+                      final userRole = prefs.getString('user_role') ?? 'Farmer';
+                      final cancelledBy = '$userRole ($userName)';
+                      
+                      await _bookingManager.updateBookingStatus(
+                        booking.id, 
+                        'Cancelled',
+                        cancelledBy: cancelledBy,
+                        cancellationReason: reason,
+                      );
+                      
+                      if (mounted) {
+                        Navigator.pop(context); // Close spinner
+                        UiUtils.showCenteredToast(context, 'Booking cancelled successfully');
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        Navigator.pop(context); // Close spinner
+                        UiUtils.showCustomAlert(context, 'Failed to cancel booking: $e', isError: true);
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[600],
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
-                  ),
+                  child: const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-                style: const TextStyle(fontSize: 13),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(
-                'Keep Booking',
-                style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final reason = reasonController.text.trim();
-                Navigator.pop(dialogContext); // Close dialog
-                
-                // Show loading spinner
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (context) => const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF00AA55)),
-                  ),
-                );
-                
-                try {
-                  final prefs = await SharedPreferences.getInstance();
-                  final userName = prefs.getString('user_name') ?? 'Farmer';
-                  final userRole = prefs.getString('user_role') ?? 'Farmer';
-                  final cancelledBy = '$userRole ($userName)';
-                  
-                  await _bookingManager.updateBookingStatus(
-                    booking.id, 
-                    'Cancelled',
-                    cancelledBy: cancelledBy,
-                    cancellationReason: reason.isNotEmpty ? reason : null,
-                  );
-                  
-                  if (mounted) {
-                    Navigator.pop(context); // Close spinner
-                    UiUtils.showCenteredToast(context, 'Booking cancelled successfully');
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    Navigator.pop(context); // Close spinner
-                    UiUtils.showCustomAlert(context, 'Failed to cancel booking: $e', isError: true);
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[600],
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              child: const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );

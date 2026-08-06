@@ -314,8 +314,16 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
           final String status = booking['status']?.toString().toUpperCase() ?? '';
           if (status == 'CANCELLED' || status == 'REJECTED' || status == 'COMPLETED' || status == 'FINISHED') continue;
           
-          DateTime bStart = DateTime.parse(booking['scheduledStartTime']).toLocal();
-          DateTime bEnd = DateTime.parse(booking['scheduledEndTime']).toLocal();
+          DateTime _parseRaw(dynamic val) {
+            if (val == null) return DateTime.now();
+            String s = val.toString();
+            if (!s.endsWith('Z') && !s.contains('+') && !RegExp(r'-\d{2}:\d{2}$').hasMatch(s)) {
+              s += 'Z';
+            }
+            return DateTime.parse(s).toLocal();
+          }
+          DateTime bStart = _parseRaw(booking['scheduledStartTime']);
+          DateTime bEnd = _parseRaw(booking['scheduledEndTime']);
           
           Map<String, dynamic> notes = {};
           try { notes = jsonDecode(booking['notes']?.toString() ?? '{}'); } catch(_){}
@@ -328,10 +336,16 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
           }
           
           bool isOccupiedInThisSlot = false;
-          if (bookedHours.isNotEmpty) {
-            isOccupiedInThisSlot = bookedHours.contains(hour);
-          } else {
-            isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+          bool isSameDay = bStart.year == slotStart.year &&
+                           bStart.month == slotStart.month &&
+                           bStart.day == slotStart.day;
+                           
+          if (isSameDay) {
+            if (bookedHours.isNotEmpty) {
+              isOccupiedInThisSlot = bookedHours.contains(hour);
+            } else {
+              isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+            }
           }
           
           if (isOccupiedInThisSlot) {
