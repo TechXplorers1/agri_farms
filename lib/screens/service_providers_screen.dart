@@ -108,6 +108,10 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         return parts.isNotEmpty ? parts.join(', ') : defaultVal;
       }
 
+      int parseJobsCompleted(Map<String, dynamic> item, String assetIdKey) {
+        return (item['jobsCompleted'] as num?)?.toInt() ?? 0;
+      }
+
       List<ServiceProvider> providers = [];
 
       if (transportTypes.contains(widget.serviceKey)) {
@@ -127,6 +131,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           rating: (v['rating'] ?? 5.0).toDouble(),
           approvalStatus: v['approvalStatus'] ?? 'Pending',
           location: buildAddress(v, 'Nearby'),
+          jobsCompleted: parseJobsCompleted(v, 'vehicleId'),
           vehicleType: v['vehicleType'],
           loadCapacity: v['loadCapacity'] ?? 'Standard',
           price: '₹${v['pricePerKmOrTrip']} / Day',
@@ -160,6 +165,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           rating: (e['rating'] ?? 5.0).toDouble(),
           approvalStatus: e['approvalStatus'] ?? 'Pending',
           location: buildAddress(e, 'Nearby'),
+          jobsCompleted: parseJobsCompleted(e, 'equipmentId'),
           brandModel: e['brandModel'] ?? 'Standard',
           condition: e['condition'] ?? 'Good',
           price: '₹${e['pricePerHour']} / hr',
@@ -190,6 +196,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            rating: (s['rating'] ?? 5.0).toDouble(),
            approvalStatus: s['approvalStatus'] ?? 'Pending',
            location: buildAddress(s, 'Village'),
+           jobsCompleted: parseJobsCompleted(s, 'serviceId'),
            equipmentUsed: s['equipmentUsed'] ?? 'Expert Tools',
            price: '₹${s['priceRate']} ${s['priceUnit'] ?? ""}',
            operatorIncluded: s['operatorIncluded'] ?? true,
@@ -213,6 +220,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
               rating: (w['rating'] ?? 5.0).toDouble(),
               approvalStatus: w['approvalStatus'] ?? 'Pending',
               location: buildAddress(w, 'Nearby'),
+              jobsCompleted: parseJobsCompleted(w, 'groupId'),
               maleCount: (w['maleCount'] as num?)?.toInt() ?? 0,
               femaleCount: (w['femaleCount'] as num?)?.toInt() ?? 0,
               malePrice: (w['pricePerMale'] as num?)?.toInt() ?? 0,
@@ -396,7 +404,15 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           future: _providersFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
+              return FutureBuilder(
+                future: Future.delayed(const Duration(milliseconds: 300)),
+                builder: (context, delaySnapshot) {
+                  if (delaySnapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox.shrink(); // Show nothing briefly for fast loads
+                  }
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55))); // Show spinner if late
+                },
+              );
             }
           final allProviders = snapshot.data ?? [];
 

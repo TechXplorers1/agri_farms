@@ -26,6 +26,7 @@ class Equipment {
   final String? brand;
   final String? model;
   final String? vehicleNumber;
+  final int? jobsCompleted;
 
   Equipment({
     this.equipmentId,
@@ -55,6 +56,7 @@ class Equipment {
     this.brand,
     this.model,
     this.vehicleNumber,
+    this.jobsCompleted,
   });
 
   factory Equipment.fromJson(Map<String, dynamic> json) {
@@ -86,6 +88,7 @@ class Equipment {
       brand: json['brand'],
       model: json['model'],
       vehicleNumber: json['vehicleNumber'],
+      jobsCompleted: json['jobsCompleted'],
     );
   }
 
@@ -118,6 +121,7 @@ class Equipment {
       'brand': brand,
       'model': model,
       'vehicleNumber': vehicleNumber,
+      'jobsCompleted': jobsCompleted,
     };
   }
 }

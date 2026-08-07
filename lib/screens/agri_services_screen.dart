@@ -49,7 +49,7 @@ class AgriServicesScreen extends StatelessWidget {
               mainAxisSpacing: 20,
               crossAxisSpacing: 20,
               children: [
-                 _buildServiceCard(context, 'Ploughing', l10n.ploughing, 'assets/images/agri_services_card.webp', AppTranslations.translate(context, 'ploughFieldPrep')),
+                 _buildServiceCard(context, 'Ploughing', l10n.ploughing, 'assets/images/ploughing_card.jpg', AppTranslations.translate(context, 'ploughFieldPrep')),
                  _buildServiceCard(context, 'Electricians', AppTranslations.translate(context, 'electricians'), 'assets/images/electrician_card.webp', AppTranslations.translate(context, 'expertPowerFixes')),
                  _buildServiceCard(context, 'Harvesting', l10n.harvesting, 'assets/images/harvester_card.webp', AppTranslations.translate(context, 'premiumCropYield')),
                  _buildServiceCard(context, 'Farm Workers', l10n.farmWorkers, 'assets/images/farm_workers_card.webp', AppTranslations.translate(context, 'skilledDailyHelp')),

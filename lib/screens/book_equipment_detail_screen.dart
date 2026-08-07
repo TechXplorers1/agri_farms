@@ -128,9 +128,6 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.attachedEquipments != null) {
-      _selectedEquipments = List.from(widget.attachedEquipments!);
-    }
     _loadAddress();
     _fetchAssetBookings();
   }

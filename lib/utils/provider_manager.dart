@@ -234,6 +234,7 @@ class ProviderManager extends ChangeNotifier {
             condition: 'Good', // Default
             location: eq.location ?? '',
             isAvailable: eq.isAvailable ?? true,
+            jobsCompleted: eq.jobsCompleted ?? 0,
             image: eq.imageUrl,
             description: eq.description,
             vehicleNumber: eq.vehicleNumber,
@@ -270,6 +271,7 @@ class ProviderManager extends ChangeNotifier {
             serviceArea: v.location,
             location: v.location ?? '',
             isAvailable: v.isAvailable ?? true,
+            jobsCompleted: v.jobsCompleted ?? 0,
             image: v.imageUrl,
           ));
         }
@@ -296,6 +298,7 @@ class ProviderManager extends ChangeNotifier {
             operatorIncluded: true,
             location: s.location ?? '',
             isAvailable: s.isAvailable ?? true,
+            jobsCompleted: s.jobsCompleted ?? 0,
             image: s.imageUrl,
           ));
         }

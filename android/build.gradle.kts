@@ -22,13 +22,13 @@ subprojects {
         if (androidExtension != null) {
             try {
                 val method = androidExtension.javaClass.getMethod("setNdkVersion", String::class.java)
-                method.invoke(androidExtension, "28.2.13676358")
-                println("Successfully set ndkVersion to 28.2.13676358 on project ${project.name}")
+                method.invoke(androidExtension, "26.3.11579264")
+                println("Successfully set ndkVersion to 26.3.11579264 on project ${project.name}")
             } catch (e: Exception) {
                 try {
                     val setter = androidExtension.javaClass.getMethods().firstOrNull { it.name == "setNdkVersion" }
-                    setter?.invoke(androidExtension, "28.2.13676358")
-                    println("Successfully set ndkVersion to 28.2.13676358 on project ${project.name} via matching name")
+                    setter?.invoke(androidExtension, "26.3.11579264")
+                    println("Successfully set ndkVersion to 26.3.11579264 on project ${project.name} via matching name")
                 } catch (e2: Exception) {
                     println("Failed to set ndkVersion on project ${project.name}: ${e2.message}")
                 }
