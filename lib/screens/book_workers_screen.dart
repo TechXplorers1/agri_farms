@@ -615,7 +615,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
