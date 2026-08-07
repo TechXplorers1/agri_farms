@@ -29,7 +29,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _houseNoController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
-  final TextEditingController _countryController = TextEditingController();
+  final TextEditingController _countryController = TextEditingController(text: 'India');
   final TextEditingController _pincodeController = TextEditingController();
 
   String? _userId;
@@ -237,7 +237,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _houseNoController.text = prefs.getString('user_houseNo') ?? '';
       _streetController.text = prefs.getString('user_street') ?? '';
       _stateController.text = prefs.getString('user_state') ?? '';
-      _countryController.text = prefs.getString('user_country') ?? '';
+      _countryController.text = (prefs.getString('user_country') != null && prefs.getString('user_country')!.isNotEmpty) ? prefs.getString('user_country')! : 'India';
       _pincodeController.text = prefs.getString('user_pincode') ?? ''; 
       _profileImageUrl = prefs.getString('user_profile_image');
       _detectedLat = prefs.getDouble('user_latitude');
@@ -261,7 +261,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               _houseNoController.text = userData['houseNo'] ?? _houseNoController.text;
               _streetController.text = userData['street'] ?? _streetController.text;
               _stateController.text = userData['state'] ?? _stateController.text;
-              _countryController.text = userData['country'] ?? _countryController.text;
+              _countryController.text = (userData['country'] != null && userData['country'].toString().isNotEmpty) ? userData['country'] : 'India';
               _pincodeController.text = userData['pincode'] ?? _pincodeController.text;
               _profileImageUrl = userData['profileImageUrl'] ?? _profileImageUrl;
               if (userData['latitude'] != null) {
@@ -340,10 +340,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _errors['pincode'] = 'Please enter a valid 6-digit Pincode';
         hasErrors = true;
       }
-    }
-    if (_countryController.text.trim().isEmpty) {
-      _errors['country'] = 'Country is required';
-      hasErrors = true;
     }
     
     final email = _emailController.text.trim();
@@ -737,6 +733,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: 20),
+                        _buildTextField(_countryController, 'Country', 'India', Icons.public_rounded, enabled: false),
+                        const SizedBox(height: 20),
                         
                         const SizedBox(height: 10),
                         Row(
@@ -808,8 +806,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 ),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        _buildTextField(_countryController, 'Country', 'Country name...', Icons.public_rounded, errorKey: 'country'),
                         const SizedBox(height: 20),
                         _buildTextField(_phoneController, 'Mobile Number', '', Icons.phone_android_rounded, enabled: false),
                         const SizedBox(height: 20),

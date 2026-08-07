@@ -11,6 +11,8 @@ import '../utils/provider_manager.dart';
 import '../utils/ui_utils.dart';
 import '../utils/app_translations.dart';
 import '../utils/translated_text.dart';
+import '../data/ploughing_data.dart';
+import '../data/harvesting_data.dart';
 
 import '../services/api_service.dart';
 import '../services/translation_service.dart';
@@ -442,11 +444,12 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             availableMakes = ['Up to 500 kg', '500 kg - 1 Ton', '1 Ton - 2 Ton', 'Above 2 Ton'];
           } else if (widget.serviceKey == 'Truck') {
             availableMakes = ['Up to 5 Ton', '5 Ton - 10 Ton', '10 Ton - 20 Ton', 'Above 20 Ton'];
+          } else if (widget.serviceKey == 'Ploughing') {
+            availableMakes = PloughingData.equipmentTypes;
+          } else if (widget.serviceKey == 'Harvesting') {
+            availableMakes = HarvestingData.equipmentTypes;
           } else {
-            String dataCategory = widget.serviceKey;
-            if (widget.serviceKey == 'Ploughing') dataCategory = 'Tractors';
-            if (widget.serviceKey == 'Harvesting') dataCategory = 'Harvesters';
-            availableMakes = VehicleData.getMakes(dataCategory);
+            availableMakes = VehicleData.getMakes(widget.serviceKey);
           }
 
           final filteredProviders = allProviders.where((provider) {
@@ -482,6 +485,48 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                    matchesMake = capacityKg > 10000 && capacityKg <= 20000;
                  } else if (_selectedMake == 'Above 20 Ton') {
                    matchesMake = capacityKg > 20000;
+                 }
+               } else if (widget.serviceKey == 'Ploughing' || widget.serviceKey == 'Harvesting') {
+                 final sel = _selectedMake!.toLowerCase();
+                 String equip = '';
+                 if (provider is ServiceListing) {
+                   equip = '${provider.equipmentUsed} ${provider.serviceName}'.toLowerCase();
+                 } else if (provider is EquipmentListing) {
+                   equip = '${provider.brandModel} ${provider.serviceName}'.toLowerCase();
+                 } else {
+                   equip = provider.name.toLowerCase();
+                 }
+
+                 if (sel.contains('mouldboard') || sel.contains('mb')) {
+                   matchesMake = equip.contains('mouldboard') || equip.contains('mb');
+                 } else if (sel.contains('disc plough')) {
+                   matchesMake = equip.contains('disc plough') || equip.contains('disc plow');
+                 } else if (sel.contains('rotavator') || sel.contains('rotary')) {
+                   matchesMake = equip.contains('rotavator') || equip.contains('rotary');
+                 } else if (sel.contains('cultivator')) {
+                   matchesMake = equip.contains('cultivator') || equip.contains('tyne');
+                 } else if (sel.contains('harrow')) {
+                   matchesMake = equip.contains('harrow');
+                 } else if (sel.contains('subsoiler')) {
+                   matchesMake = equip.contains('subsoiler');
+                 } else if (sel.contains('chisel')) {
+                   matchesMake = equip.contains('chisel');
+                 } else if (sel.contains('ridger')) {
+                   matchesMake = equip.contains('ridger');
+                 } else if (sel.contains('combine')) {
+                   matchesMake = equip.contains('combine') || equip.contains('harvester');
+                 } else if (sel.contains('sugarcane')) {
+                   matchesMake = equip.contains('sugarcane');
+                 } else if (sel.contains('maize') || sel.contains('corn')) {
+                   matchesMake = equip.contains('maize') || equip.contains('corn');
+                 } else if (sel.contains('reaper')) {
+                   matchesMake = equip.contains('reaper') || equip.contains('binder');
+                 } else if (sel.contains('cotton')) {
+                   matchesMake = equip.contains('cotton');
+                 } else if (sel.contains('groundnut')) {
+                   matchesMake = equip.contains('groundnut');
+                 } else {
+                   matchesMake = equip.contains(sel) || _selectedMake == 'All';
                  }
                } else if (provider is EquipmentListing) {
                  matchesMake = provider.brandModel.contains(_selectedMake!); 
@@ -554,12 +599,22 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       child: Row(
         children: [
           if (makes.isNotEmpty && makes.length > 1) ...[
-            Expanded(
-              child: _buildFilterDropdown(
-                hint: (widget.serviceKey == 'Mini Truck' || widget.serviceKey == 'Truck') ? 'Load Capacity' : AppTranslations.translate(context, 'chooseMake'), value: _selectedMake, items: ['All', ...makes],
-                onChanged: (v) => setState(() => _selectedMake = v == 'All' ? null : v),
-              ),
-            ),
+            Builder(builder: (context) {
+              String filterHint = AppTranslations.translate(context, 'chooseMake');
+              if (widget.serviceKey == 'Mini Truck' || widget.serviceKey == 'Truck') {
+                filterHint = 'Load Capacity';
+              } else if (widget.serviceKey == 'Ploughing' || widget.serviceKey == 'Harvesting') {
+                filterHint = 'Equipment Type';
+              }
+              return Expanded(
+                child: _buildFilterDropdown(
+                  hint: filterHint,
+                  value: _selectedMake,
+                  items: ['All', ...makes],
+                  onChanged: (v) => setState(() => _selectedMake = v == 'All' ? null : v),
+                ),
+              );
+            }),
             const SizedBox(width: 12),
           ],
           Expanded(
@@ -942,6 +997,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            assetId: provider.id,
            rate: rate > 0 ? rate : 500,
            operatorPrice: provider.operatorPrice,
+           operatorAvailable: provider.operatorAvailable,
            ownerProfileImage: provider.ownerProfileImage,
            description: provider.description,
            serialNumber: (provider.vehicleNumber != null && provider.vehicleNumber!.trim().isNotEmpty) ? provider.vehicleNumber! : provider.id.substring(0, 8).toUpperCase(),
@@ -957,6 +1013,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            description: provider.description,
            serialNumber: provider.id.substring(0, 8).toUpperCase(),
            equipmentName: provider is ServiceListing ? provider.equipmentUsed : null,
+           operatorIncluded: provider is ServiceListing ? provider.operatorIncluded : true,
          )));
       }
   }
