@@ -45,10 +45,9 @@ class ApiConfig {
 
   static String getFullImageUrl(String? path) {
     if (path == null || path.isEmpty) return '';
-    // If path is a direct S3 URL that might be private/403, proxy it through backend endpoint
+    // If it's already a full S3 URL, return it directly (S3 bucket is public-read)
     if (path.contains('.s3.') || path.contains('s3.amazonaws.com')) {
-      final filename = path.substring(path.lastIndexOf('/') + 1);
-      return '$baseUrl/api/media/download/$filename';
+      return path;
     }
     if (path.startsWith('http')) return path;
     if (path.startsWith('/')) return '$baseUrl$path';

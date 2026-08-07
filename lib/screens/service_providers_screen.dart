@@ -11,6 +11,8 @@ import '../utils/provider_manager.dart';
 import '../utils/ui_utils.dart';
 import '../utils/app_translations.dart';
 import '../utils/translated_text.dart';
+import '../data/ploughing_data.dart';
+import '../data/harvesting_data.dart';
 
 import '../services/api_service.dart';
 import '../services/translation_service.dart';
@@ -108,47 +110,15 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         return parts.isNotEmpty ? parts.join(', ') : defaultVal;
       }
 
-      Map<String, int> completedJobsByAsset = {};
-      Map<String, int> completedJobsByProvider = {};
-
-      try {
-        final allBookingsRaw = await apiService.get('/api/bookings/all');
-        if (allBookingsRaw is List) {
-          for (var b in allBookingsRaw) {
-            final status = (b['status'] ?? '').toString().toUpperCase();
-            if (status == 'COMPLETED' || status == 'FINISHED') {
-              final assetId = b['assetId']?.toString();
-              final providerId = b['providerId']?.toString();
-              if (assetId != null && assetId.isNotEmpty) {
-                completedJobsByAsset[assetId] = (completedJobsByAsset[assetId] ?? 0) + 1;
-              }
-              if (providerId != null && providerId.isNotEmpty) {
-                completedJobsByProvider[providerId] = (completedJobsByProvider[providerId] ?? 0) + 1;
-              }
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('Note: Could not fetch bookings count fallback: $e');
-      }
-
       int parseJobsCompleted(Map<String, dynamic> item, String assetIdKey) {
-        int backendVal = (item['jobsCompleted'] as num?)?.toInt() ?? 0;
-        if (backendVal > 0) return backendVal;
-        
-        final assetId = item[assetIdKey]?.toString() ?? '';
-        final providerId = item['ownerId']?.toString() ?? '';
-        
-        int assetCount = completedJobsByAsset[assetId] ?? 0;
-        int providerCount = completedJobsByProvider[providerId] ?? 0;
-        return assetCount > 0 ? assetCount : providerCount;
+        return (item['jobsCompleted'] as num?)?.toInt() ?? 0;
       }
 
       List<ServiceProvider> providers = [];
 
       if (transportTypes.contains(widget.serviceKey)) {
         final vehiclesRaw = await apiService.getVehicles(type: widget.serviceKey) as List;
-        final vehicles = vehiclesRaw.where((v) => v['ownerId']?.toString() != currentUserId).toList();
+        final vehicles = vehiclesRaw;
         
         providers = vehicles.map<ServiceProvider>((v) => TransportListing(
           id: v['vehicleId'].toString(),
@@ -179,11 +149,11 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       } else if (equipmentTypes.contains(widget.serviceKey)) {
         final equipmentRawAll = await apiService.getEquipment() as List;
         final equipmentRaw = equipmentRawAll.where((e) {
-           final cat = e['category']?.toString().toLowerCase() ?? '';
-           final key = widget.serviceKey.toLowerCase();
-           return cat == key || cat + 's' == key || cat == key + 's';
+           final cat = e['category']?.toString().toLowerCase().trim() ?? '';
+           final key = widget.serviceKey.toLowerCase().trim();
+           return cat.contains(key) || key.contains(cat) || cat == key || cat + 's' == key || cat == key + 's';
         }).toList();
-        final equipment = equipmentRaw.where((e) => e['ownerId']?.toString() != currentUserId).toList();
+        final equipment = equipmentRaw;
 
         providers = equipment.map<ServiceProvider>((e) => EquipmentListing(
           id: e['equipmentId'].toString(),
@@ -208,10 +178,13 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           ownerProfileImage: e['ownerProfileImageUrl'],
           description: e['description'] ?? 'High quality agricultural machinery for hire.',
           vehicleNumber: e['vehicleNumber'],
+          attachedEquipments: e['attachedEquipments'] != null && e['attachedEquipments'].toString().isNotEmpty 
+              ? e['attachedEquipments'].toString().split(',').map((e) => e.trim()).toList()
+              : [],
         )).toList();
       } else if (serviceTypes.contains(widget.serviceKey)) {
          final servicesRaw = await apiService.getServices(type: widget.serviceKey) as List;
-         final services = servicesRaw.where((s) => s['ownerId']?.toString() != currentUserId).toList();
+         final services = servicesRaw;
 
          providers = services.map<ServiceProvider>((s) => ServiceListing(
            id: s['serviceId'].toString(),
@@ -235,8 +208,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            description: s['description'] ?? 'Professional agricultural services by experienced operator.',
          )).toList();
       } else if (widget.serviceKey == 'Farm Workers') {
-         final workersRaw = await apiService.getWorkerGroups() as List;
-         final workers = workersRaw.where((w) => w['ownerId']?.toString() != currentUserId).toList();
+         final workers = await apiService.getWorkerGroups() as List;
+         
           providers = workers.map<ServiceProvider>((w) => FarmWorkerListing(
               id: w['groupId'].toString(),
               providerId: w['ownerId']?.toString(),
@@ -434,7 +407,15 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           future: _providersFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
+              return FutureBuilder(
+                future: Future.delayed(const Duration(milliseconds: 300)),
+                builder: (context, delaySnapshot) {
+                  if (delaySnapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox.shrink(); // Show nothing briefly for fast loads
+                  }
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55))); // Show spinner if late
+                },
+              );
             }
           final allProviders = snapshot.data ?? [];
 
@@ -443,11 +424,12 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             availableMakes = ['Up to 500 kg', '500 kg - 1 Ton', '1 Ton - 2 Ton', 'Above 2 Ton'];
           } else if (widget.serviceKey == 'Truck') {
             availableMakes = ['Up to 5 Ton', '5 Ton - 10 Ton', '10 Ton - 20 Ton', 'Above 20 Ton'];
+          } else if (widget.serviceKey == 'Ploughing') {
+            availableMakes = PloughingData.equipmentTypes;
+          } else if (widget.serviceKey == 'Harvesting') {
+            availableMakes = HarvestingData.equipmentTypes;
           } else {
-            String dataCategory = widget.serviceKey;
-            if (widget.serviceKey == 'Ploughing') dataCategory = 'Tractors';
-            if (widget.serviceKey == 'Harvesting') dataCategory = 'Harvesters';
-            availableMakes = VehicleData.getMakes(dataCategory);
+            availableMakes = VehicleData.getMakes(widget.serviceKey);
           }
 
           final filteredProviders = allProviders.where((provider) {
@@ -483,6 +465,48 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                    matchesMake = capacityKg > 10000 && capacityKg <= 20000;
                  } else if (_selectedMake == 'Above 20 Ton') {
                    matchesMake = capacityKg > 20000;
+                 }
+               } else if (widget.serviceKey == 'Ploughing' || widget.serviceKey == 'Harvesting') {
+                 final sel = _selectedMake!.toLowerCase();
+                 String equip = '';
+                 if (provider is ServiceListing) {
+                   equip = '${provider.equipmentUsed} ${provider.serviceName}'.toLowerCase();
+                 } else if (provider is EquipmentListing) {
+                   equip = '${provider.brandModel} ${provider.serviceName}'.toLowerCase();
+                 } else {
+                   equip = provider.name.toLowerCase();
+                 }
+
+                 if (sel.contains('mouldboard') || sel.contains('mb')) {
+                   matchesMake = equip.contains('mouldboard') || equip.contains('mb');
+                 } else if (sel.contains('disc plough')) {
+                   matchesMake = equip.contains('disc plough') || equip.contains('disc plow');
+                 } else if (sel.contains('rotavator') || sel.contains('rotary')) {
+                   matchesMake = equip.contains('rotavator') || equip.contains('rotary');
+                 } else if (sel.contains('cultivator')) {
+                   matchesMake = equip.contains('cultivator') || equip.contains('tyne');
+                 } else if (sel.contains('harrow')) {
+                   matchesMake = equip.contains('harrow');
+                 } else if (sel.contains('subsoiler')) {
+                   matchesMake = equip.contains('subsoiler');
+                 } else if (sel.contains('chisel')) {
+                   matchesMake = equip.contains('chisel');
+                 } else if (sel.contains('ridger')) {
+                   matchesMake = equip.contains('ridger');
+                 } else if (sel.contains('combine')) {
+                   matchesMake = equip.contains('combine') || equip.contains('harvester');
+                 } else if (sel.contains('sugarcane')) {
+                   matchesMake = equip.contains('sugarcane');
+                 } else if (sel.contains('maize') || sel.contains('corn')) {
+                   matchesMake = equip.contains('maize') || equip.contains('corn');
+                 } else if (sel.contains('reaper')) {
+                   matchesMake = equip.contains('reaper') || equip.contains('binder');
+                 } else if (sel.contains('cotton')) {
+                   matchesMake = equip.contains('cotton');
+                 } else if (sel.contains('groundnut')) {
+                   matchesMake = equip.contains('groundnut');
+                 } else {
+                   matchesMake = equip.contains(sel) || _selectedMake == 'All';
                  }
                } else if (provider is EquipmentListing) {
                  matchesMake = provider.brandModel.contains(_selectedMake!); 
@@ -555,12 +579,22 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       child: Row(
         children: [
           if (makes.isNotEmpty && makes.length > 1) ...[
-            Expanded(
-              child: _buildFilterDropdown(
-                hint: (widget.serviceKey == 'Mini Truck' || widget.serviceKey == 'Truck') ? 'Load Capacity' : AppTranslations.translate(context, 'chooseMake'), value: _selectedMake, items: ['All', ...makes],
-                onChanged: (v) => setState(() => _selectedMake = v == 'All' ? null : v),
-              ),
-            ),
+            Builder(builder: (context) {
+              String filterHint = AppTranslations.translate(context, 'chooseMake');
+              if (widget.serviceKey == 'Mini Truck' || widget.serviceKey == 'Truck') {
+                filterHint = 'Load Capacity';
+              } else if (widget.serviceKey == 'Ploughing' || widget.serviceKey == 'Harvesting') {
+                filterHint = 'Equipment Type';
+              }
+              return Expanded(
+                child: _buildFilterDropdown(
+                  hint: filterHint,
+                  value: _selectedMake,
+                  items: ['All', ...makes],
+                  onChanged: (v) => setState(() => _selectedMake = v == 'All' ? null : v),
+                ),
+              );
+            }),
             const SizedBox(width: 12),
           ],
           Expanded(
@@ -615,15 +649,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider,
-      onTap: () async {
-        final prefs = await SharedPreferences.getInstance();
-        final currentUserId = prefs.getString('user_id');
-        Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
-          providerName: provider.name, providerId: provider.providerId ?? currentUserId ?? '1', assetId: provider.id,
-          maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
-          priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
-        )));
-      },
+      onTap: () => _showAssetDetails(context, provider),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -631,15 +657,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           const SizedBox(height: 6),
           _buildWorkerStats(provider, l10n),
           const SizedBox(height: 12),
-          _buildBookFullWidthButton(l10n.bookWorkers, () async {
-             final prefs = await SharedPreferences.getInstance();
-             final currentUserId = prefs.getString('user_id');
-             Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
-               providerName: provider.name, providerId: provider.providerId ?? currentUserId ?? '1', assetId: provider.id,
-               maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
-               priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
-             )));
-          }),
+          _buildBookFullWidthButton(l10n.bookWorkers, () => _showAssetDetails(context, provider)),
         ],
       ),
     );
@@ -649,7 +667,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider, subtitle: provider.equipmentUsed,
-      onTap: () => _navigateToBooking(context, provider),
+      onTap: () => _showAssetDetails(context, provider),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -658,7 +676,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             const SizedBox(width: 4),
             Text('${provider.jobsCompleted} ${AppTranslations.translate(context, 'jobsCompleted')}', style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
-          _buildBookMiniButton(provider.price, () => _navigateToBooking(context, provider)),
+          _buildBookMiniButton(provider.price, () => _showAssetDetails(context, provider)),
         ],
       ),
     );
@@ -668,7 +686,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider, subtitle: '${provider.vehicleType} • ${provider.loadCapacity}',
-      onTap: () => _navigateToBooking(context, provider),
+      onTap: () => _showAssetDetails(context, provider),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -692,7 +710,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                 ),
               ]),
               ElevatedButton(
-                onPressed: () => _navigateToBooking(context, provider),
+                onPressed: () => _showAssetDetails(context, provider),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A1A2E),
                   foregroundColor: Colors.white,
@@ -741,7 +759,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider, subtitle: provider.brandModel,
-      onTap: () => _navigateToBooking(context, provider),
+      onTap: () => _showAssetDetails(context, provider),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -751,7 +769,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             const SizedBox(width: 8),
             TranslatedText(provider.operatorAvailable ? l10n.withOperatorAvailable : l10n.noOperator, style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
-          _buildBookMiniButton(provider.price, () => _navigateToBooking(context, provider)),
+          _buildBookMiniButton(provider.price, () => _showAssetDetails(context, provider)),
         ],
       ),
     );
@@ -930,6 +948,12 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            description: provider.description,
            vehicleNumber: provider.vehicleNumber,
          )));
+      } else if (provider is FarmWorkerListing) {
+         Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
+           providerName: displayName, providerId: actualProviderId, assetId: provider.id,
+           maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
+           priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
+         )));
       } else if (provider is EquipmentListing) {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookEquipmentDetailScreen(
            providerName: displayName,
@@ -938,9 +962,11 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            assetId: provider.id,
            rate: rate > 0 ? rate : 500,
            operatorPrice: provider.operatorPrice,
+           operatorAvailable: provider.operatorAvailable,
            ownerProfileImage: provider.ownerProfileImage,
            description: provider.description,
-           serialNumber: (provider.vehicleNumber != null && provider.vehicleNumber!.trim().isNotEmpty) ? provider.vehicleNumber! : provider.id.substring(0, 8).toUpperCase(),
+           serialNumber: (provider.vehicleNumber != null && provider.vehicleNumber!.trim().isNotEmpty) ? provider.vehicleNumber! : null,
+           attachedEquipments: provider.attachedEquipments,
          )));
       } else {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookServiceDetailScreen(
@@ -951,8 +977,9 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            priceInfo: priceString,
            ownerProfileImage: provider.ownerProfileImage,
            description: provider.description,
-           serialNumber: provider.id.substring(0, 8).toUpperCase(),
+           serialNumber: null,
            equipmentName: provider is ServiceListing ? provider.equipmentUsed : null,
+           operatorIncluded: provider is ServiceListing ? provider.operatorIncluded : true,
          )));
       }
   }
@@ -1044,8 +1071,12 @@ class _AssetDetailModal extends StatelessWidget {
   Widget _buildEquipmentDetails(BuildContext context, EquipmentListing item) {
     return Column(children: [
       _detailRow(Icons.construction_rounded, 'Brand & Model', item.brandModel),
-      _detailRow(Icons.numbers_rounded, 'Vehicle/Reg Number', (item.vehicleNumber != null && item.vehicleNumber!.trim().isNotEmpty) ? item.vehicleNumber! : item.id.substring(0, 8).toUpperCase()),
-      _detailRow(Icons.description_outlined, 'Description', item.description ?? 'High quality agricultural machinery for hire.'),
+      if (item.vehicleNumber != null && item.vehicleNumber!.trim().isNotEmpty)
+        _detailRow(Icons.numbers_rounded, 'Vehicle/Reg Number', item.vehicleNumber!),
+      if (item.attachedEquipments.isNotEmpty)
+        _detailRow(Icons.agriculture_rounded, 'Attached Equipments', item.attachedEquipments.join(', ')),
+      if (item.description != null && item.description!.trim().isNotEmpty)
+        _detailRow(Icons.description_outlined, 'Description', item.description!),
       _detailRow(Icons.info_outline_rounded, 'Condition', item.condition),
       _detailRow(Icons.person_outline_rounded, 'Operator', item.operatorAvailable ? AppTranslations.translate(context, 'available') : 'Not Provided'),
       _detailRow(Icons.payments_outlined, 'Price Rate', item.price),
@@ -1173,7 +1204,6 @@ class _AssetDetailModal extends StatelessWidget {
   Widget _buildWorkerDetails(BuildContext context, FarmWorkerListing item) {
     return Column(children: [
       _detailRow(Icons.groups_rounded, 'Total Staff', '${item.maleCount + item.femaleCount} Members'),
-      _detailRow(Icons.numbers_rounded, 'Group Registration Code', item.id.substring(0, 8).toUpperCase()),
       _detailRow(Icons.description_outlined, 'Description', item.description ?? 'Experienced agricultural worker team.'),
       _detailRow(Icons.psychology_outlined, 'Expertise', item.skills),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
@@ -1187,7 +1217,6 @@ class _AssetDetailModal extends StatelessWidget {
     final bool isElectrOrVet = item.serviceName == 'Electricians' || item.serviceName == 'Vet Care';
     return Column(children: [
       _detailRow(Icons.handyman_outlined, 'Tools', item.equipmentUsed),
-      _detailRow(Icons.numbers_rounded, 'Service Reference Number', item.id.substring(0, 8).toUpperCase()),
       _detailRow(Icons.description_outlined, 'Description', item.description ?? (isElectrOrVet ? 'Professional agricultural services.' : 'Professional agricultural services by experienced operator.')),
       if (!isElectrOrVet)
         _detailRow(Icons.person_outline_rounded, 'Expert', item.operatorIncluded ? 'Provided' : 'Machine Only'),

@@ -18,6 +18,7 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
   String? _userId;
   bool _isLoading = true;
   bool _isInitialLoading = true;
+  bool _showSpinner = false;
 
   List<dynamic> _vehicles = [];
   List<dynamic> _equipment = [];
@@ -31,16 +32,23 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
   }
 
   Future<void> _fetchItems() async {
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted && _isLoading && _isInitialLoading) {
+        setState(() => _showSpinner = true);
+      }
+    });
+
     try {
       final prefs = await SharedPreferences.getInstance();
       _userId = prefs.getString('user_id');
 
       if (_userId != null) {
+        // Run all 4 API calls in parallel; each gracefully falls back to [] on error
         final results = await Future.wait([
-          _apiService.getVehicles(ownerId: _userId),
-          _apiService.getEquipment(ownerId: _userId),
-          _apiService.getServices(ownerId: _userId),
-          _apiService.getWorkerGroups(ownerId: _userId),
+          _apiService.getVehicles(ownerId: _userId).catchError((_) => <dynamic>[]),
+          _apiService.getEquipment(ownerId: _userId).catchError((_) => <dynamic>[]),
+          _apiService.getServices(ownerId: _userId).catchError((_) => <dynamic>[]),
+          _apiService.getWorkerGroups(ownerId: _userId).catchError((_) => <dynamic>[]),
         ]);
 
         if (mounted) {
@@ -53,12 +61,13 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
         }
       }
     } catch (e) {
-      if (mounted) UiUtils.showCustomAlert(context, 'Failed to load items: $e', isError: true);
+      debugPrint('Failed to load items: $e');
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
           _isInitialLoading = false;
+          _showSpinner = false;
         });
       }
     }
@@ -153,14 +162,14 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
           ),
         ),
         body: _isLoading && _isInitialLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)))
+            ? (_showSpinner ? const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55))) : const SizedBox.shrink())
             : RefreshIndicator(
                 onRefresh: _fetchItems,
                 color: const Color(0xFF00AA55),
                 child: TabBarView(
                   children: [
                     _buildList(_vehicles, 'Vehicle', 'vehicleId', (item) => '${item["vehicleType"]}', (item) => 'Num: ${item["vehicleNumber"] ?? "N/A"} • ₹${item["pricePerKmOrTrip"]}'),
-                    _buildList(_equipment, 'Equipment', 'equipmentId', (item) => '${item["brandModel"]}', (item) => '${item["category"]} • ₹${item["pricePerHour"]}/hr'),
+                    _buildList(_equipment, 'Equipment', 'equipmentId', (item) => '${item["brandModel"]}', (item) => '${item["ownerBusinessName"] ?? item["ownerName"] ?? "Provider"} • ${item["category"]} • ₹${item["pricePerHour"]}/hr'),
                     _buildList(_services, 'Service', 'serviceId', (item) => '${item["businessName"]}', (item) => '${item["serviceType"]} • ₹${item["priceRate"]}'),
                     _buildList(_workerGroups, 'WorkerGroup', 'groupId', (item) => '${item["groupName"]}', (item) => '${item["maleCount"]} Men, ${item["femaleCount"]} Women'),
                   ],

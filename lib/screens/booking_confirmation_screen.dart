@@ -72,8 +72,17 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7F2),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          (route) => false,
+        );
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F7F2),
       body: Stack(
         children: [
           // Background Pattern (Faint)
@@ -338,8 +347,9 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class DashLinePainter extends CustomPainter {

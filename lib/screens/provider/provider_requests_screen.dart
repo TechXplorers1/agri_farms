@@ -283,7 +283,32 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                                 ],
                               ),
                             ),
-                            const Tab(text: 'Active'),
+                            Tab(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('Active'),
+                                  if (activeBookings.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF00AA55),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${activeBookings.length}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                             const Tab(text: 'History'),
                           ],
                         ),
@@ -540,7 +565,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                       const SizedBox(height: 12),
                       Text('REQUEST DETAILS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5)),
                       const SizedBox(height: 8),
-                      ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Provider', 'Count', 'Vehicle Count', 'Location', 'location'].contains(e.key)).map((e) =>
+                      ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Provider', 'Count', 'Vehicle Count', 'Location', 'location', 'slots_list', 'Slots List'].contains(e.key)).map((e) =>
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Row(
@@ -662,18 +687,23 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
+              actionsAlignment: MainAxisAlignment.spaceBetween,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.cancel_outlined, color: Color(0xFFD32F2F), size: 22),
-                  ),
-                  const SizedBox(width: 12),
                   Text(
                     '$actionName Booking',
                     style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.pop(dialogContext),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                      child: const Icon(Icons.close_rounded, color: Color(0xFFD32F2F), size: 20),
+                    ),
                   ),
                 ],
               ),
@@ -687,14 +717,27 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                   ),
                   const SizedBox(height: 16),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Reason for ${actionName.toLowerCase()} ',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2C3E50), fontSize: 13),
+                      Row(
+                        children: [
+                          Text(
+                            'Reason for ${actionName.toLowerCase()} ',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2C3E50), fontSize: 13),
+                          ),
+                          const Text(
+                            '*',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
+                          ),
+                        ],
                       ),
-                      const Text(
-                        '*',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
+                      Text(
+                        '${reasonController.text.trim().length}/15 min',
+                        style: TextStyle(
+                          color: reasonController.text.trim().length >= 15 ? const Color(0xFF00AA55) : Colors.grey[500],
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -703,21 +746,20 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                     controller: reasonController,
                     maxLength: 150,
                     maxLines: 2,
-                    onChanged: (_) {
-                      if (errorText != null) {
-                        setStateDialog(() {
+                    onChanged: (val) {
+                      setStateDialog(() {
+                        if (val.trim().length >= 15 && errorText != null) {
                           errorText = null;
-                        });
-                      }
+                        }
+                      });
                     },
                     decoration: InputDecoration(
-                      hintText: 'Enter reason for ${actionName.toLowerCase()}...',
+                      hintText: 'Enter reason for ${actionName.toLowerCase()} (at least 15 characters)...',
                       hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
                       counterText: '',
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       filled: true,
                       fillColor: const Color(0xFFF9FBF9),
-                      errorText: errorText,
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: errorText != null ? Colors.red : Colors.grey[200]!, width: 1.5),
@@ -729,6 +771,21 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                     ),
                     style: const TextStyle(fontSize: 13),
                   ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.error_outline_rounded, size: 14, color: Colors.red),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            errorText!,
+                            style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
               actions: [
@@ -742,9 +799,9 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                 ElevatedButton(
                   onPressed: () async {
                     final reason = reasonController.text.trim();
-                    if (reason.isEmpty) {
+                    if (reason.length < 15) {
                       setStateDialog(() {
-                        errorText = 'Please enter a reason to ${actionName.toLowerCase()}';
+                        errorText = 'Reason must be at least 15 characters (${reason.length}/15)';
                       });
                       return;
                     }

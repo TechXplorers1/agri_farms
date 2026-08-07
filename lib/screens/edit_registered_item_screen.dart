@@ -45,6 +45,12 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   late TextEditingController _operatorPriceController;
   bool _isFetchingLocation = false;
 
+  final List<String> _availableAttachedEquipments = [
+    'Mouldboard Plow', 'Disc Plow', 'Chisel Plow', 'Rotavator', 'Disc Harrow', 'Other'
+  ];
+  List<String> _selectedAttachedEquipments = [];
+  final TextEditingController _otherAttachedEquipmentController = TextEditingController();
+
   XFile? _imageFile;
   String? _imageUrl;
 
@@ -79,6 +85,11 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
       _secondaryController.text = widget.itemData['category']?.toString() ?? '';
       _boolFlag = widget.itemData['operatorAvailable'] ?? false;
       _condition = widget.itemData['conditionStatus']?.toString() ?? 'Good';
+      
+      final attachedStr = widget.itemData['attachedEquipments']?.toString();
+      if (attachedStr != null && attachedStr.isNotEmpty) {
+        _selectedAttachedEquipments = attachedStr.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      }
     } else if (widget.category == 'Service') {
       _nameController.text = widget.itemData['businessName']?.toString() ?? '';
       _priceController.text = widget.itemData['priceRate']?.toString() ?? '';
@@ -103,6 +114,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _ownerBusinessNameController.dispose();
     _descriptionController.dispose();
     _operatorPriceController.dispose();
+    _otherAttachedEquipmentController.dispose();
     super.dispose();
   }
 
@@ -214,6 +226,15 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['operatorPrice'] = _boolFlag ? (double.tryParse(_operatorPriceController.text) ?? 0.0) : 0.0;
         updatedData['conditionStatus'] = _condition;
         updatedData['location'] = _locationController.text;
+
+        List<String> finalAttached = List.from(_selectedAttachedEquipments);
+        finalAttached.remove('Other');
+        if (finalAttached.isNotEmpty) {
+          updatedData['attachedEquipments'] = finalAttached.join(', ');
+        } else {
+          updatedData['attachedEquipments'] = '';
+        }
+
         await _apiService.updateEquipment(widget.itemData['equipmentId'], updatedData);
       } else if (widget.category == 'Service') {
         updatedData['businessName'] = _nameController.text;
@@ -236,6 +257,46 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
       Navigator.pop(context, true); // Return true to indicate change
     } catch (e) {
       UiUtils.showCustomAlert(context, 'Failed to update: $e', isError: true);
+    }
+  }
+
+  Future<void> _deleteListing() async {
+    bool confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to delete this listing? This action cannot be undone.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false), 
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey))
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red[50], foregroundColor: Colors.red, elevation: 0),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (!confirm) return;
+
+    try {
+      final id = widget.itemData['equipmentId'] ?? widget.itemData['vehicleId'] ?? widget.itemData['serviceId'] ?? widget.itemData['groupId'];
+      
+      if (widget.category == 'Vehicle') await _apiService.deleteVehicle(id);
+      else if (widget.category == 'Equipment') await _apiService.deleteEquipment(id);
+      else if (widget.category == 'Service') await _apiService.deleteService(id);
+      else if (widget.category == 'WorkerGroup') await _apiService.deleteWorkerGroup(id);
+
+      if (mounted) {
+        UiUtils.showCenteredToast(context, '${widget.category} deleted successfully');
+        Navigator.pop(context, true); // Return true to signal deletion
+      }
+    } catch (e) {
+      if (mounted) UiUtils.showCustomAlert(context, 'Failed to delete: $e', isError: true);
     }
   }
 
@@ -454,6 +515,108 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
               ),
             ),
 
+            if (widget.category == 'Equipment' && _secondaryController.text == 'Tractors')
+              _buildSectionCard(
+                title: 'Attached Equipments',
+                icon: Icons.agriculture_rounded,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Select included equipments:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 12,
+                      children: [
+                        ..._availableAttachedEquipments.map((eq) {
+                          final isSelected = _selectedAttachedEquipments.contains(eq);
+                          return InputChip(
+                            label: Text(eq),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedAttachedEquipments.add(eq);
+                                } else {
+                                  _selectedAttachedEquipments.remove(eq);
+                                  if (eq == 'Other') _otherAttachedEquipmentController.clear();
+                                }
+                              });
+                            },
+                            onDeleted: isSelected ? () {
+                              setState(() {
+                                _selectedAttachedEquipments.remove(eq);
+                                if (eq == 'Other') _otherAttachedEquipmentController.clear();
+                              });
+                            } : null,
+                            deleteIconColor: const Color(0xFF00AA55),
+                            showCheckmark: false,
+                            selectedColor: const Color(0xFFE8F5E9),
+                            labelStyle: TextStyle(
+                              color: isSelected ? const Color(0xFF1B5E20) : Colors.grey[700],
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(
+                                color: isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!,
+                              ),
+                            ),
+                            backgroundColor: Colors.white,
+                          );
+                        }),
+                        ..._selectedAttachedEquipments
+                            .where((eq) => !_availableAttachedEquipments.contains(eq))
+                            .map((eq) => InputChip(
+                                  label: Text(eq),
+                                  onDeleted: () {
+                                    setState(() {
+                                      _selectedAttachedEquipments.remove(eq);
+                                    });
+                                  },
+                                  deleteIconColor: const Color(0xFF00AA55),
+                                  backgroundColor: const Color(0xFFE8F5E9),
+                                  labelStyle: const TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.w700),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    side: const BorderSide(color: Color(0xFF00AA55)),
+                                  ),
+                                )),
+                      ],
+                    ),
+                    if (_selectedAttachedEquipments.contains('Other')) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField('Custom Equipment', _otherAttachedEquipmentController, Icons.add_circle_outline_rounded, hint: 'e.g. Paddy Cultivator'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () {
+                              final text = _otherAttachedEquipmentController.text.trim();
+                              if (text.isNotEmpty && !_selectedAttachedEquipments.contains(text)) {
+                                setState(() {
+                                  _selectedAttachedEquipments.add(text);
+                                  _otherAttachedEquipmentController.clear();
+                                });
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00AA55),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            ),
+                            child: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
             _buildSectionCard(
               title: 'Lush Location',
               icon: Icons.location_on_outlined,
@@ -495,6 +658,31 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 ),
                 child: const Text('Update Listing', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Delete Button
+            Container(
+              width: double.infinity,
+              height: 60,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(color: Colors.red.withOpacity(0.15), blurRadius: 15, offset: const Offset(0, 8)),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: _deleteListing,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.red,
+                  elevation: 0,
+                  side: const BorderSide(color: Colors.red, width: 1.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                ),
+                child: const Text('Delete Listing', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
               ),
             ),
             const SizedBox(height: 40),

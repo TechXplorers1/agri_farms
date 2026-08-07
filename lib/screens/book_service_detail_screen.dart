@@ -15,6 +15,8 @@ import 'package:geocoding/geocoding.dart' as geo;
 import '../utils/location_helper.dart';
 import '../utils/translated_text.dart';
 import '../services/geocoding_service.dart';
+import '../data/ploughing_data.dart';
+import '../data/harvesting_data.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'dart:async';
 
@@ -29,6 +31,7 @@ class BookServiceDetailScreen extends StatefulWidget {
   final String? description;
   final String? serialNumber;
   final String? equipmentName;
+  final bool? operatorIncluded;
 
   const BookServiceDetailScreen({
     super.key,
@@ -41,6 +44,7 @@ class BookServiceDetailScreen extends StatefulWidget {
     this.description,
     this.serialNumber,
     this.equipmentName,
+    this.operatorIncluded,
   });
 
   @override
@@ -185,6 +189,18 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   ];
   String? _selectedMachineryType;
 
+  // Ploughing Specific Fields
+  String? _selectedPloughEquipmentType;
+  String? _selectedPloughCapacity;
+  final TextEditingController _customPloughEquipmentTypeController = TextEditingController();
+  final TextEditingController _customPloughCapacityController = TextEditingController();
+
+  // Harvesting Specific Fields
+  String? _selectedHarvestEquipmentType;
+  String? _selectedHarvestCapacity;
+  final TextEditingController _customHarvestEquipmentTypeController = TextEditingController();
+  final TextEditingController _customHarvestCapacityController = TextEditingController();
+
   bool _isSlotBlockedForDate(DateTime date, int hour) {
     DateTime slotStart = DateTime(date.year, date.month, date.day, hour);
     DateTime slotEnd = slotStart.add(const Duration(hours: 1)); 
@@ -315,6 +331,10 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     _quantityController.dispose();
     _customPurposeController.dispose();
     _customAssetController.dispose();
+    _customPloughEquipmentTypeController.dispose();
+    _customPloughCapacityController.dispose();
+    _customHarvestEquipmentTypeController.dispose();
+    _customHarvestCapacityController.dispose();
     _scrollController.dispose();
     _geocodeDebounce?.cancel();
     super.dispose();
@@ -649,6 +669,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     bool isVetCare = serviceLower.contains('vet') || serviceLower.contains('animal') || serviceLower.contains('paw') || serviceLower.contains('pet');
     bool isMechanic = serviceLower.contains('mechanic');
     bool isSoilTesting = serviceLower.contains('soil') || serviceLower.contains('test');
+    bool isPloughing = serviceLower.contains('plough') || serviceLower.contains('plow');
+    bool isHarvesting = serviceLower.contains('harvest');
 
     bool isQtyValid = false;
     if (isElectrician) {
@@ -701,6 +723,30 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         notesMap['Number of Samples'] = _quantityController.text;
       } else {
         notesMap['Number of Acres'] = _quantityController.text;
+      }
+
+      if (isPloughing) {
+        if (_selectedPloughEquipmentType != null) {
+          notesMap['Ploughing Equipment Type'] = (_selectedPloughEquipmentType == 'Others' && _customPloughEquipmentTypeController.text.isNotEmpty)
+              ? _customPloughEquipmentTypeController.text
+              : _selectedPloughEquipmentType;
+        }
+        if (_selectedPloughCapacity != null) {
+          notesMap['Equipment Capacity'] = (_selectedPloughCapacity == 'Custom / Other Capacity' && _customPloughCapacityController.text.isNotEmpty)
+              ? _customPloughCapacityController.text
+              : _selectedPloughCapacity;
+        }
+      } else if (isHarvesting) {
+        if (_selectedHarvestEquipmentType != null) {
+          notesMap['Harvesting Equipment Type'] = (_selectedHarvestEquipmentType == 'Others' && _customHarvestEquipmentTypeController.text.isNotEmpty)
+              ? _customHarvestEquipmentTypeController.text
+              : _selectedHarvestEquipmentType;
+        }
+        if (_selectedHarvestCapacity != null) {
+          notesMap['Equipment Capacity'] = (_selectedHarvestCapacity == 'Custom / Other Specification' && _customHarvestCapacityController.text.isNotEmpty)
+              ? _customHarvestCapacityController.text
+              : _selectedHarvestCapacity;
+        }
       }
 
       DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first);
@@ -805,6 +851,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     bool isVetCare = serviceLower.contains('vet') || serviceLower.contains('animal') || serviceLower.contains('paw') || serviceLower.contains('pet');
     bool isMechanic = serviceLower.contains('mechanic');
     bool isSoilTesting = serviceLower.contains('soil') || serviceLower.contains('test');
+    bool isPloughing = serviceLower.contains('plough') || serviceLower.contains('plow');
+    bool isHarvesting = serviceLower.contains('harvest');
     
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F2),
@@ -995,6 +1043,126 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                                 ),
                               ],
                             )
+                          : isPloughing
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildDropdownField(
+                                      label: 'Ploughing Equipment Type',
+                                      hint: 'Choose equipment type (e.g. MB, Rotavator)',
+                                      value: _selectedPloughEquipmentType,
+                                      items: PloughingData.equipmentTypes,
+                                      errorKey: 'purpose',
+                                      icon: Icons.agriculture_rounded,
+                                      onChanged: (val) => setState(() {
+                                        _selectedPloughEquipmentType = val;
+                                        _selectedPloughCapacity = null;
+                                      }),
+                                    ),
+                                    if (_selectedPloughEquipmentType == 'Others') ...[
+                                      const SizedBox(height: 20),
+                                      _buildTextField(
+                                        controller: _customPloughEquipmentTypeController,
+                                        label: 'Custom Equipment Type',
+                                        hint: 'Specify equipment type...',
+                                        errorKey: 'custom_eq',
+                                        icon: Icons.edit_note_rounded,
+                                      ),
+                                    ],
+                                    const SizedBox(height: 20),
+                                    _buildDropdownField(
+                                      label: 'Equipment Capacity / Specification',
+                                      hint: 'Choose capacity (e.g. 3 Bottom, 42 Blades)',
+                                      value: _selectedPloughCapacity,
+                                      items: PloughingData.getCapacities(_selectedPloughEquipmentType),
+                                      errorKey: 'asset',
+                                      icon: Icons.straighten_rounded,
+                                      onChanged: (val) => setState(() => _selectedPloughCapacity = val),
+                                    ),
+                                    if (_selectedPloughCapacity == 'Custom / Other Capacity') ...[
+                                      const SizedBox(height: 20),
+                                      _buildTextField(
+                                        controller: _customPloughCapacityController,
+                                        label: 'Custom Capacity / Specs',
+                                        hint: 'e.g. 5 Bottom Heavy Duty / 75 HP',
+                                        errorKey: 'custom_cap',
+                                        icon: Icons.tune_rounded,
+                                      ),
+                                    ],
+                                    const SizedBox(height: 20),
+                                    _buildTextField(
+                                      controller: _quantityController,
+                                      label: 'Number of Acres',
+                                      hint: 'e.g. 2 Acres',
+                                      keyboardType: TextInputType.number,
+                                      errorKey: 'qty',
+                                      icon: Icons.landscape_rounded,
+                                      onChanged: (_) {
+                                        if (_fieldErrors.containsKey('qty')) setState(() => _fieldErrors.remove('qty'));
+                                      },
+                                    ),
+                                  ],
+                                )
+                          : isHarvesting
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildDropdownField(
+                                      label: 'Harvesting Equipment Type',
+                                      hint: 'Choose equipment type (e.g. Combine, Reaper)',
+                                      value: _selectedHarvestEquipmentType,
+                                      items: HarvestingData.equipmentTypes,
+                                      errorKey: 'purpose',
+                                      icon: Icons.agriculture_rounded,
+                                      onChanged: (val) => setState(() {
+                                        _selectedHarvestEquipmentType = val;
+                                        _selectedHarvestCapacity = null;
+                                      }),
+                                    ),
+                                    if (_selectedHarvestEquipmentType == 'Others') ...[
+                                      const SizedBox(height: 20),
+                                      _buildTextField(
+                                        controller: _customHarvestEquipmentTypeController,
+                                        label: 'Custom Equipment Type',
+                                        hint: 'Specify equipment type...',
+                                        errorKey: 'custom_eq',
+                                        icon: Icons.edit_note_rounded,
+                                      ),
+                                    ],
+                                    const SizedBox(height: 20),
+                                    _buildDropdownField(
+                                      label: 'Equipment Capacity / Specification',
+                                      hint: 'Choose capacity (e.g. Track Type, 14 Ft Cutter)',
+                                      value: _selectedHarvestCapacity,
+                                      items: HarvestingData.getCapacities(_selectedHarvestEquipmentType),
+                                      errorKey: 'asset',
+                                      icon: Icons.straighten_rounded,
+                                      onChanged: (val) => setState(() => _selectedHarvestCapacity = val),
+                                    ),
+                                    if (_selectedHarvestCapacity == 'Custom / Other Specification') ...[
+                                      const SizedBox(height: 20),
+                                      _buildTextField(
+                                        controller: _customHarvestCapacityController,
+                                        label: 'Custom Capacity / Specs',
+                                        hint: 'e.g. Track Type 14 Feet Cutter Bar',
+                                        errorKey: 'custom_cap',
+                                        icon: Icons.tune_rounded,
+                                      ),
+                                    ],
+                                    const SizedBox(height: 20),
+                                    _buildTextField(
+                                      controller: _quantityController,
+                                      label: 'Number of Acres',
+                                      hint: 'e.g. 2 Acres',
+                                      keyboardType: TextInputType.number,
+                                      errorKey: 'qty',
+                                      icon: Icons.landscape_rounded,
+                                      onChanged: (_) {
+                                        if (_fieldErrors.containsKey('qty')) setState(() => _fieldErrors.remove('qty'));
+                                      },
+                                    ),
+                                  ],
+                                )
                           : _buildTextField(
                               controller: _quantityController,
                               label: isSoilTesting ? 'Number of Soil Samples' : 'Number of Acres',

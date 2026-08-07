@@ -120,7 +120,7 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception('Failed to load data: ${response.statusCode}');
+        throw Exception('Failed to load data: ${response.statusCode} - body: ${response.body}');
       }
     } catch (e) {
       throw Exception('Error fetching data: $e');

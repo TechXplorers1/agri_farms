@@ -18,6 +18,8 @@ import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
 import '../utils/location_helper.dart';
+import '../data/ploughing_data.dart';
+import '../data/harvesting_data.dart';
 
 class UploadItemScreen extends StatefulWidget {
   final String category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
@@ -297,6 +299,19 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _operatorPriceController = TextEditingController();
   String _condition = 'Good';
 
+  // Attached Equipments
+  final List<String> _selectedAttachedEquipments = [];
+  final TextEditingController _otherAttachedEquipmentController = TextEditingController();
+  bool _isOtherAttachedEquipmentSelected = false;
+  final List<String> _availableAttachedEquipments = [
+    'Mouldboard Plow',
+    'Disc Plow',
+    'Chisel Plow',
+    'Rotavator (Rotary Tiller)',
+    'Disc Harrow',
+    'Other'
+  ];
+
   // Farm Worker Specific
   final TextEditingController _maleCountController = TextEditingController();
   final TextEditingController _femaleCountController = TextEditingController();
@@ -311,8 +326,16 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   String _roleGender = 'Male';
   // Skills handled by _selectedSkills list now
   
-  // Service Specific (Ploughing, etc.)
+  // Service Specific (Ploughing, Harvesting, etc.)
   final TextEditingController _equipmentUsedController = TextEditingController(); // e.g., "John Deere 5310"
+  String? _selectedPloughEquipmentType;
+  String? _selectedPloughCapacity;
+  final TextEditingController _customPloughEquipmentTypeController = TextEditingController();
+  final TextEditingController _customPloughCapacityController = TextEditingController();
+  String? _selectedHarvestEquipmentType;
+  String? _selectedHarvestCapacity;
+  final TextEditingController _customHarvestEquipmentTypeController = TextEditingController();
+  final TextEditingController _customHarvestCapacityController = TextEditingController();
   bool _operatorIncludedService = true;
   String? _selectedServiceType; // New for generic Services category
 
@@ -348,6 +371,11 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _femalePriceController.dispose();
     _roleCountController.dispose();
     _operatorPriceController.dispose();
+    _equipmentUsedController.dispose();
+    _customPloughEquipmentTypeController.dispose();
+    _customPloughCapacityController.dispose();
+    _customHarvestEquipmentTypeController.dispose();
+    _customHarvestCapacityController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -641,6 +669,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'approvalStatus': 'Pending',
         'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Equipment',
         'vehicleNumber': _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
+        'attachedEquipments': _getFinalAttachedEquipments(),
       };
 
       await ApiService().addEquipment(equipmentData);
@@ -660,6 +689,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         yearOfManufacture: _yearController.text.isNotEmpty ? _yearController.text : null,
         vehicleNumber: _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
         image: 'https://placehold.co/600x400?text=Equipment',
+        attachedEquipments: _getFinalAttachedEquipmentsList(),
       );
 
       ProviderManager().addProvider(newProvider);
@@ -667,6 +697,22 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     } catch (e) {
       _showError('Failed to save equipment to server: $e');
     }
+  }
+
+  String? _getFinalAttachedEquipments() {
+    final list = _getFinalAttachedEquipmentsList();
+    if (list.isEmpty) return '';
+    return list.join(', ');
+  }
+
+  List<String> _getFinalAttachedEquipmentsList() {
+    if (_selectedEquipmentType != 'Tractors') return [];
+    List<String> finalEquipments = List.from(_selectedAttachedEquipments);
+    finalEquipments.remove('Other');
+    if (_isOtherAttachedEquipmentSelected && _otherAttachedEquipmentController.text.trim().isNotEmpty) {
+      finalEquipments.add(_otherAttachedEquipmentController.text.trim());
+    }
+    return finalEquipments;
   }
 
   void _completeSubmission() {
@@ -835,8 +881,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      _buildTextField('Country', _countryController, 'Country Name'),
-                      const SizedBox(height: 20),
+                      _buildTextField('Country', _countryController, 'India', icon: Icons.public_rounded, enabled: false),
                       const SizedBox(height: 20),
                       _buildTextField(
                         AppLocalizations.of(context)!.descriptionLabel, 
@@ -1215,12 +1260,31 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final String sType = _selectedServiceType ?? widget.category;
       final bool hasOperator = (sType != 'Electricians' && sType != 'Vet Care') && _operatorIncludedService;
 
+      String equipString = _equipmentUsedController.text.isNotEmpty ? _equipmentUsedController.text : 'Standard Equipment';
+      if (_selectedPloughEquipmentType != null && (sType == 'Ploughing' || widget.category == 'Ploughing')) {
+        String eqType = (_selectedPloughEquipmentType == 'Others' && _customPloughEquipmentTypeController.text.isNotEmpty)
+            ? _customPloughEquipmentTypeController.text
+            : _selectedPloughEquipmentType!;
+        String cap = (_selectedPloughCapacity == 'Custom / Other Capacity' && _customPloughCapacityController.text.isNotEmpty)
+            ? _customPloughCapacityController.text
+            : (_selectedPloughCapacity ?? '');
+        equipString = "$eqType${cap.isNotEmpty ? ' ($cap)' : ''}${_equipmentUsedController.text.isNotEmpty ? ' - ${_equipmentUsedController.text}' : ''}";
+      } else if (_selectedHarvestEquipmentType != null && (sType == 'Harvesting' || widget.category == 'Harvesting')) {
+        String eqType = (_selectedHarvestEquipmentType == 'Others' && _customHarvestEquipmentTypeController.text.isNotEmpty)
+            ? _customHarvestEquipmentTypeController.text
+            : _selectedHarvestEquipmentType!;
+        String cap = (_selectedHarvestCapacity == 'Custom / Other Specification' && _customHarvestCapacityController.text.isNotEmpty)
+            ? _customHarvestCapacityController.text
+            : (_selectedHarvestCapacity ?? '');
+        equipString = "$eqType${cap.isNotEmpty ? ' ($cap)' : ''}${_equipmentUsedController.text.isNotEmpty ? ' - ${_equipmentUsedController.text}' : ''}";
+      }
+
       final Map<String, dynamic> serviceData = {
         'ownerId': ownerId,
         'serviceType': sType,
         'businessName': _nameController.text,
         'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : 'No description provided',
-        'equipmentUsed': _equipmentUsedController.text.isNotEmpty ? _equipmentUsedController.text : 'Standard Equipment',
+        'equipmentUsed': equipString,
         'priceRate': parsedPrice,
         'operatorIncluded': hasOperator,
         'operatorPrice': hasOperator ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
@@ -1243,7 +1307,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         rating: 5.0,
         approvalStatus: 'Pending',
         location: _locationController.text,
-        equipmentUsed: _equipmentUsedController.text.isNotEmpty ? _equipmentUsedController.text : 'Standard Equipment',
+        equipmentUsed: equipString,
         price: _priceController.text,
         operatorIncluded: hasOperator,
         jobsCompleted: 0,
@@ -1336,7 +1400,79 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               if (_selectedServiceType == 'Farm Workers') ...[
                  const SizedBox(height: 24),
                  _buildFarmWorkerForm(),
-              ] else ...[
+              ] else if (serviceType == 'Ploughing' || _selectedServiceType == 'Ploughing' || widget.category == 'Ploughing') ...[
+                  const SizedBox(height: 20),
+                  _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value: _selectedPloughEquipmentType,
+                    decoration: _inputDecoration('Ploughing Equipment Type', icon: Icons.agriculture_rounded),
+                    items: PloughingData.equipmentTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedPloughEquipmentType = val;
+                        _selectedPloughCapacity = null;
+                      });
+                    },
+                  ),
+                  if (_selectedPloughEquipmentType == 'Others') ...[
+                    const SizedBox(height: 20),
+                    _buildTextField('Custom Equipment Type', _customPloughEquipmentTypeController, 'Specify equipment type...', icon: Icons.edit_note_rounded),
+                  ],
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value: _selectedPloughCapacity,
+                    decoration: _inputDecoration('Equipment Capacity / Specification', icon: Icons.straighten_rounded),
+                    items: PloughingData.getCapacities(_selectedPloughEquipmentType).map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedPloughCapacity = val;
+                      });
+                    },
+                  ),
+                  if (_selectedPloughCapacity == 'Custom / Other Capacity') ...[
+                    const SizedBox(height: 20),
+                    _buildTextField('Custom Capacity / Specs', _customPloughCapacityController, 'e.g. 5 Bottom Heavy Duty / 75 HP', icon: Icons.tune_rounded),
+                  ],
+                  const SizedBox(height: 20),
+                  _buildTextField('Tractor Brand / Model (Optional)', _equipmentUsedController, 'e.g. John Deere 5310 4WD', icon: Icons.handyman_rounded),
+               ] else if (serviceType == 'Harvesting' || _selectedServiceType == 'Harvesting' || widget.category == 'Harvesting') ...[
+                  const SizedBox(height: 20),
+                  _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value: _selectedHarvestEquipmentType,
+                    decoration: _inputDecoration('Harvesting Equipment Type', icon: Icons.agriculture_rounded),
+                    items: HarvestingData.equipmentTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedHarvestEquipmentType = val;
+                        _selectedHarvestCapacity = null;
+                      });
+                    },
+                  ),
+                  if (_selectedHarvestEquipmentType == 'Others') ...[
+                    const SizedBox(height: 20),
+                    _buildTextField('Custom Equipment Type', _customHarvestEquipmentTypeController, 'Specify equipment type...', icon: Icons.edit_note_rounded),
+                  ],
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value: _selectedHarvestCapacity,
+                    decoration: _inputDecoration('Equipment Capacity / Specification', icon: Icons.straighten_rounded),
+                    items: HarvestingData.getCapacities(_selectedHarvestEquipmentType).map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedHarvestCapacity = val;
+                      });
+                    },
+                  ),
+                  if (_selectedHarvestCapacity == 'Custom / Other Specification') ...[
+                    const SizedBox(height: 20),
+                    _buildTextField('Custom Capacity / Specs', _customHarvestCapacityController, 'e.g. Track Type 14 Feet Cutter Bar', icon: Icons.tune_rounded),
+                  ],
+                  const SizedBox(height: 20),
+                  _buildTextField('Harvester Model / Brand (Optional)', _equipmentUsedController, 'e.g. Claas Dominator 130', icon: Icons.handyman_rounded),
+               ] else ...[
                  const SizedBox(height: 20),
                  _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
                  const SizedBox(height: 20),
@@ -1479,6 +1615,116 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           ),
         ),
 
+        if (_selectedEquipmentType == 'Tractors')
+          _buildSectionCard(
+            title: 'Attached Equipments',
+            icon: Icons.agriculture_rounded,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select any attached equipments available with the tractor:',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF2C3E50), fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: _availableAttachedEquipments.map((equipment) {
+                    final isSelected = _selectedAttachedEquipments.contains(equipment);
+                    return InputChip(
+                      label: Text(equipment),
+                      selected: isSelected,
+                      selectedColor: const Color(0xFFE8F5E9),
+                      showCheckmark: false,
+                      deleteIconColor: const Color(0xFF00AA55),
+                      labelStyle: TextStyle(
+                        color: isSelected ? const Color(0xFF1B5E20) : const Color(0xFF2C3E50),
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!,
+                        ),
+                      ),
+                      backgroundColor: Colors.white,
+                      onSelected: (bool selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedAttachedEquipments.add(equipment);
+                            if (equipment == 'Other') _isOtherAttachedEquipmentSelected = true;
+                          } else {
+                            _selectedAttachedEquipments.remove(equipment);
+                            if (equipment == 'Other') {
+                              _isOtherAttachedEquipmentSelected = false;
+                              _otherAttachedEquipmentController.clear();
+                            }
+                          }
+                        });
+                      },
+                      onDeleted: isSelected ? () {
+                        setState(() {
+                          _selectedAttachedEquipments.remove(equipment);
+                          if (equipment == 'Other') {
+                            _isOtherAttachedEquipmentSelected = false;
+                            _otherAttachedEquipmentController.clear();
+                          }
+                        });
+                      } : null,
+                    );
+                  }).toList(),
+                ),
+                if (_isOtherAttachedEquipmentSelected) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          'Other Equipment Name',
+                          _otherAttachedEquipmentController,
+                          'e.g. Cultivator',
+                          icon: Icons.edit_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2.0),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final text = _otherAttachedEquipmentController.text.trim();
+                            if (text.isNotEmpty) {
+                              setState(() {
+                                if (!_availableAttachedEquipments.contains(text)) {
+                                  _availableAttachedEquipments.insert(_availableAttachedEquipments.length - 1, text);
+                                }
+                                if (!_selectedAttachedEquipments.contains(text)) {
+                                  _selectedAttachedEquipments.add(text);
+                                }
+                                _otherAttachedEquipmentController.clear();
+                                _selectedAttachedEquipments.remove('Other');
+                                _isOtherAttachedEquipmentSelected = false;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AA55),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            minimumSize: const Size(0, 54),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          ),
+                          child: const Text('Add', style: TextStyle(fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
         _buildSectionCard(
           title: 'Rental Terms & Condition',
           icon: Icons.fact_check_rounded,
@@ -1565,7 +1811,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey, Widget? suffixIcon, IconData? icon}) {
+  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey, Widget? suffixIcon, IconData? icon, bool enabled = true}) {
     bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
     final errorText = hasError ? _fieldErrors[errorKey] : null;
 
@@ -1591,6 +1837,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             const SizedBox(height: 10),
             TextField(
               controller: controller,
+              enabled: enabled,
               maxLines: maxLines,
               keyboardType: keyboardType,
               inputFormatters: keyboardType == TextInputType.number ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))] : null,
@@ -1598,7 +1845,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 if (hasError) setState(() => _fieldErrors.remove(errorKey));
               },
               decoration: _inputDecoration(translatedHint, isError: hasError, icon: icon).copyWith(suffixIcon: suffixIcon),
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: enabled ? null : Colors.grey[700]),
             ),
             if (hasError && translatedError != null)
               Padding(
