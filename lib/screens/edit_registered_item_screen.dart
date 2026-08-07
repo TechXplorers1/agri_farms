@@ -36,6 +36,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   late TextEditingController _locationController;
   late TextEditingController _ownerBusinessNameController;
   late TextEditingController _descriptionController;
+  late TextEditingController _serviceAreaController;
 
   // Specifics
   late TextEditingController _secondaryController; // e.g., brandModel, type, groupName
@@ -44,6 +45,11 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   late TextEditingController _capacityController; // Vehicle
   late TextEditingController _operatorPriceController;
   bool _isFetchingLocation = false;
+
+  // Vehicle type-specific
+  String? _selectedVehicleType;
+  String _selectedCapacityUnit = 'Ton';
+  final List<String> _transportTypes = ['Mini Truck', 'Tractor Trolley', 'Truck', 'Container'];
 
   final List<String> _availableAttachedEquipments = [
     'Mouldboard Plow', 'Disc Plow', 'Chisel Plow', 'Rotavator', 'Disc Harrow', 'Other'
@@ -69,15 +75,26 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _capacityController = TextEditingController();
     _ownerBusinessNameController = TextEditingController(text: widget.itemData['ownerBusinessName']?.toString() ?? '');
     _descriptionController = TextEditingController(text: widget.itemData['description']?.toString() ?? '');
+    _serviceAreaController = TextEditingController(text: widget.itemData['serviceArea']?.toString() ?? '');
     _imageUrl = widget.itemData['imageUrl']?.toString();
     _operatorPriceController = TextEditingController(text: widget.itemData['operatorPrice']?.toString() ?? '');
 
     if (widget.category == 'Vehicle') {
+      _selectedVehicleType = widget.itemData['vehicleType']?.toString();
       _nameController.text = widget.itemData['vehicleNumber']?.toString() ?? '';
       _priceController.text = widget.itemData['pricePerKmOrTrip']?.toString() ?? '';
       _pricePerKmController.text = widget.itemData['pricePerKm']?.toString() ?? '';
-      _secondaryController.text = widget.itemData['vehicleType']?.toString() ?? '';
-      _capacityController.text = widget.itemData['loadCapacity']?.toString() ?? '';
+      _secondaryController.text = _selectedVehicleType ?? '';
+
+      // Parse capacity and unit from stored string e.g. "1.5 Ton" or "500 kg"
+      final rawCap = widget.itemData['loadCapacity']?.toString() ?? '';
+      if (rawCap.toLowerCase().contains('kg')) {
+        _selectedCapacityUnit = 'kg';
+        _capacityController.text = rawCap.toLowerCase().replaceAll('kg', '').replaceAll('kgs', '').trim();
+      } else {
+        _selectedCapacityUnit = 'Ton';
+        _capacityController.text = rawCap.toLowerCase().replaceAll('tons', '').replaceAll('ton', '').trim();
+      }
       _boolFlag = widget.itemData['driverIncluded'] ?? false;
     } else if (widget.category == 'Equipment') {
       _nameController.text = widget.itemData['brandModel']?.toString() ?? '';
@@ -98,8 +115,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     } else if (widget.category == 'WorkerGroup') {
       _nameController.text = widget.itemData['groupName']?.toString() ?? '';
       _priceController.text = widget.itemData['pricePerMale']?.toString() ?? '';
-      _secondaryController.text = widget.itemData['pricePerFemale']?.toString() ?? ''; // Using secondary for female price
-      // Can add more fields if needed
+      _secondaryController.text = widget.itemData['pricePerFemale']?.toString() ?? '';
     }
   }
 
@@ -113,6 +129,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _capacityController.dispose();
     _ownerBusinessNameController.dispose();
     _descriptionController.dispose();
+    _serviceAreaController.dispose();
     _operatorPriceController.dispose();
     _otherAttachedEquipmentController.dispose();
     super.dispose();
@@ -197,13 +214,26 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
       }
 
       if (widget.category == 'Vehicle') {
+        updatedData['vehicleType'] = _selectedVehicleType;
         updatedData['vehicleNumber'] = _nameController.text;
-        updatedData['pricePerKmOrTrip'] = double.tryParse(_priceController.text) ?? 0.0;
-        updatedData['pricePerKm'] = double.tryParse(_pricePerKmController.text) ?? 0.0;
-        updatedData['vehicleType'] = _secondaryController.text;
-        updatedData['loadCapacity'] = _capacityController.text;
+        // Store capacity with unit e.g. "1.5 Ton" or "500 kg"
+        final capNum = _capacityController.text.trim();
+        updatedData['loadCapacity'] = capNum.isNotEmpty ? '$capNum $_selectedCapacityUnit' : '';
+        // Type-specific pricing
+        if (_selectedVehicleType == 'Tractor Trolley') {
+          updatedData['pricePerKmOrTrip'] = double.tryParse(_priceController.text) ?? 0.0;
+          updatedData['pricePerKm'] = double.tryParse(_pricePerKmController.text) ?? 0.0;
+        } else if (_selectedVehicleType == 'Mini Truck' || _selectedVehicleType == 'Truck') {
+          updatedData['pricePerKmOrTrip'] = 0.0;
+          updatedData['pricePerKm'] = double.tryParse(_pricePerKmController.text) ?? 0.0;
+        } else {
+          updatedData['pricePerKmOrTrip'] = double.tryParse(_priceController.text) ?? 0.0;
+          updatedData['pricePerKm'] = double.tryParse(_pricePerKmController.text) ?? 0.0;
+        }
         updatedData['driverIncluded'] = _boolFlag;
         updatedData['operatorPrice'] = _boolFlag ? (double.tryParse(_operatorPriceController.text) ?? 0.0) : 0.0;
+        updatedData['serviceArea'] = _serviceAreaController.text;
+        updatedData['description'] = _descriptionController.text.isNotEmpty ? _descriptionController.text : null;
         updatedData['location'] = _locationController.text;
         await _apiService.updateVehicle(widget.itemData['vehicleId'], updatedData);
       } else if (widget.category == 'Equipment') {
@@ -415,7 +445,37 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
               child: Column(
                 children: [
                   if (widget.category == 'Vehicle') ...[
-                    _buildTextField('Vehicle Type', _secondaryController, Icons.category_rounded, hint: 'e.g., Tractor, Trolley'),
+                    // Vehicle Type Dropdown
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Vehicle Type', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FBF9),
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(color: const Color(0xFFE8F5E9)),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _selectedVehicleType,
+                              isExpanded: true,
+                              hint: const Text('Select Vehicle Type'),
+                              icon: const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
+                              items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontWeight: FontWeight.w600)))).toList(),
+                              onChanged: (v) => setState(() {
+                                _selectedVehicleType = v;
+                                // Reset prices when type changes
+                                _priceController.clear();
+                                _pricePerKmController.clear();
+                              }),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 20),
                     _buildTextField('Vehicle Number', _nameController, Icons.badge_outlined, hint: 'e.g., TS 01 AB 1234'),
                   ] else if (widget.category == 'Equipment') ...[
@@ -443,11 +503,56 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
               child: Column(
                 children: [
                   if (widget.category == 'Vehicle') ...[
-                    _buildTextField('Load Capacity', _capacityController, Icons.line_weight_rounded, hint: 'e.g., 5 Tons'),
+                    // Load Capacity with unit
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: _buildTextField('Load Capacity', _capacityController, Icons.line_weight_rounded, keyboardType: TextInputType.number, hint: 'e.g., 1.5'),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 1,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Unit', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF9FBF9),
+                                  borderRadius: BorderRadius.circular(15),
+                                  border: Border.all(color: const Color(0xFFE8F5E9)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _selectedCapacityUnit,
+                                    isExpanded: true,
+                                    items: ['Ton', 'kg'].map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontWeight: FontWeight.w600)))).toList(),
+                                    onChanged: (v) => setState(() => _selectedCapacityUnit = v!),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 20),
-                    _buildTextField('Daily Rate / Flat Price', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
-                    const SizedBox(height: 20),
-                    _buildTextField('KM-wise Rate', _pricePerKmController, Icons.speed_rounded, keyboardType: TextInputType.number),
+                    // Type-specific pricing fields
+                    if (_selectedVehicleType == 'Tractor Trolley') ...[
+                      _buildTextField('Full Day Price', _priceController, Icons.wb_sunny_rounded, keyboardType: TextInputType.number, hint: 'e.g. 1500'),
+                      const SizedBox(height: 12),
+                      _buildTextField('Half Day Price', _pricePerKmController, Icons.wb_twilight_rounded, keyboardType: TextInputType.number, hint: 'e.g. 800'),
+                    ] else if (_selectedVehicleType == 'Mini Truck' || _selectedVehicleType == 'Truck') ...[
+                      _buildTextField('KM-wise Rate (per KM)', _pricePerKmController, Icons.speed_rounded, keyboardType: TextInputType.number, hint: 'e.g. 20'),
+                    ] else ...[
+                      _buildTextField('Daily Rate / Flat Price', _priceController, Icons.payments_rounded, keyboardType: TextInputType.number, hint: 'e.g. 1500'),
+                      const SizedBox(height: 12),
+                      _buildTextField('KM-wise Rate (per KM)', _pricePerKmController, Icons.speed_rounded, keyboardType: TextInputType.number, hint: 'e.g. 20'),
+                    ],
                     const SizedBox(height: 12),
                     _buildSwitchTile('Driver Included', _boolFlag, (v) => setState(() {
                       _boolFlag = v;
@@ -457,6 +562,10 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                       const SizedBox(height: 12),
                       _buildTextField('Driver Price', _operatorPriceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number, hint: 'Driver charge per day/trip'),
                     ],
+                    const SizedBox(height: 12),
+                    _buildTextField('Service Area', _serviceAreaController, Icons.map_rounded, hint: 'e.g. Within 50km'),
+                    const SizedBox(height: 12),
+                    _buildTextField('Description', _descriptionController, Icons.description_rounded, hint: 'Any extra info about this vehicle...', maxLines: 3),
                   ] else if (widget.category == 'Equipment') ...[
                     _buildTextField('Price Per Hour', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
                     const SizedBox(height: 20),

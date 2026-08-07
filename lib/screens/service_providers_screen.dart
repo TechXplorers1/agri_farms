@@ -947,6 +947,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            ownerProfileImage: provider.ownerProfileImage,
            description: provider.description,
            vehicleNumber: provider.vehicleNumber,
+           serviceArea: provider.serviceArea,
          )));
       } else if (provider is FarmWorkerListing) {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
@@ -1062,7 +1063,7 @@ class _AssetDetailModal extends StatelessWidget {
           if (provider is ServiceListing) _buildServiceDetails(context, provider as ServiceListing),
           const SizedBox(height: 32),
           SizedBox(width: double.infinity, height: 54, child: ElevatedButton(onPressed: onBookNow, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
-            child: Text((provider is FarmWorkerListing) ? l10n.bookNow : l10n.rentNow, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)))),
+            child: Text(l10n.bookNow, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)))),
         ]))),
       ]),
     );

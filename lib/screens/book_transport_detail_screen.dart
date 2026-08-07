@@ -26,6 +26,7 @@ class BookTransportDetailScreen extends StatefulWidget {
   final String? ownerProfileImage;
   final String? description;
   final String? vehicleNumber;
+  final String? serviceArea;
 
   const BookTransportDetailScreen({
     super.key,
@@ -40,6 +41,7 @@ class BookTransportDetailScreen extends StatefulWidget {
     this.ownerProfileImage,
     this.description,
     this.vehicleNumber,
+    this.serviceArea,
   });
 
   @override
@@ -424,8 +426,34 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
 
   void _confirmBooking() async {
-    bool hasValidPrice = _totalPrice > 0;
-    bool requirementsMet = false;
+    setState(() {
+      _fieldErrors.clear();
+    });
+
+    if (_selectedDate == null) {
+      UiUtils.showCenteredToast(context, 'Please select a date', isError: true);
+      _scrollToField(_timeSectionKey);
+      return;
+    }
+
+    if (_selectedSlots.isEmpty) {
+      UiUtils.showCenteredToast(context, 'Please select at least one time slot', isError: true);
+      _scrollToField(_timeSectionKey);
+      return;
+    }
+
+    if (_selectedGoodsType == null) {
+      setState(() => _fieldErrors['goods'] = 'Please select goods type');
+      _scrollToField(_goodsSectionKey);
+      return;
+    }
+
+    if (_addressController.text.trim().isEmpty) {
+      setState(() => _fieldErrors['address'] = 'Please enter delivery location');
+      _scrollToField(_addressSectionKey);
+      return;
+    }
+
     if (_isKmWise) {
       final double kmVal = double.tryParse(_kmController.text.trim()) ?? 0.0;
       if (kmVal <= 0) {
@@ -433,15 +461,16 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         _scrollToField(_timeSectionKey);
         return;
       }
-      requirementsMet = _selectedGoodsType != null && _selectedDate != null && _selectedSlots.isNotEmpty && _addressController.text.isNotEmpty && _kmController.text.isNotEmpty && hasValidPrice;
-    } else {
-      requirementsMet = _selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty && hasValidPrice;
     }
 
-    if (requirementsMet) {
-      setState(() {
-        _isSubmitting = true;
-      });
+    if (_totalPrice <= 0) {
+      UiUtils.showCenteredToast(context, 'Total price cannot be zero. Please check details.', isError: true);
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
       // Save address
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
@@ -518,40 +547,6 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         });
         UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
       }
-    } else {
-      if (_selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty && !hasValidPrice) {
-        UiUtils.showCenteredToast(context, 'Total price cannot be zero. Cannot book without cost info.', isError: true);
-        return;
-      }
-      setState(() {
-        _fieldErrors.clear();
-        if (_selectedGoodsType == null) {
-          _fieldErrors['goods'] = AppLocalizations.of(context)!.selectGoodsTypeError;
-        }
-        if (_addressController.text.isEmpty) {
-          _fieldErrors['address'] = 'Please enter address';
-        }
-        if (_selectedDate == null) {
-          _fieldErrors['date'] = AppLocalizations.of(context)!.selectDateError;
-        }
-        if (_selectedSlots.isEmpty) {
-          _fieldErrors['slots'] = 'Please select at least one time slot';
-        }
-      });
-
-      // Scroll to first error
-      if (_fieldErrors.containsKey('goods')) {
-        _scrollToField(_goodsSectionKey);
-      } else if (_fieldErrors.containsKey('address')) {
-        _scrollToField(_addressSectionKey);
-      } else if (_fieldErrors.containsKey('date')) {
-        _scrollToField(_dateSectionKey);
-      } else if (_fieldErrors.containsKey('slots')) {
-        _scrollToField(_timeSectionKey);
-      }
-
-      UiUtils.showCenteredToast(context, AppLocalizations.of(context)!.fillAllDetails, isError: true);
-    }
   }
 
   @override
@@ -679,7 +674,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                 ],
               ),
              ),
-             _buildListingDetailsCard(widget.description, widget.vehicleNumber),
+             _buildListingDetailsCard(widget.description, widget.vehicleNumber, widget.serviceArea),
              const SizedBox(height: 24),
              // Pricing Mode for Tractor Trolley: Full Day / Half Day
              if (widget.vehicleType == 'Tractor Trolley') ...[
@@ -1334,6 +1329,8 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         filled: true,
         fillColor: const Color(0xFFF9FBF9),
         contentPadding: const EdgeInsets.all(16),
+        errorText: hasError ? _fieldErrors[errorKey] : null,
+        errorStyle: const TextStyle(fontWeight: FontWeight.w600, color: Colors.red),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
@@ -1342,6 +1339,14 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
           borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
         ),
       ),
     );
@@ -1402,7 +1407,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     );
   }
 
-  Widget _buildListingDetailsCard(String? description, String? number) {
+  Widget _buildListingDetailsCard(String? description, String? number, String? serviceArea) {
     return Container(
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.all(24),
@@ -1434,6 +1439,20 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             ],
           ),
           const SizedBox(height: 20),
+          if (serviceArea != null && serviceArea.trim().isNotEmpty) ...[
+            Text(
+              'SERVICE AREA',
+              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              serviceArea,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+            ),
+            const SizedBox(height: 16),
+            Divider(color: Colors.grey[100], height: 1),
+            const SizedBox(height: 16),
+          ],
           if (number != null && number.trim().isNotEmpty) ...[
             Text(
               'VEHICLE NUMBER',
@@ -1454,7 +1473,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            description ?? 'Comfortable and reliable transport logistics description.',
+            (description != null && description.trim().isNotEmpty) ? description : 'Comfortable and reliable transport logistics description.',
             style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w600, height: 1.5),
           ),
         ],
