@@ -169,11 +169,12 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           price: '₹${v['pricePerKmOrTrip']} / Day',
           pricePerKm: (v['pricePerKm'] as num?)?.toDouble(),
           driverIncluded: v['driverIncluded'] ?? true,
+          operatorPrice: (v['operatorPrice'] as num?)?.toDouble(),
           vehicleNumber: v['vehicleNumber'],
           serviceArea: v['serviceArea'],
           image: v['imageUrl'],
           ownerProfileImage: v['ownerProfileImageUrl'],
-          description: v['brand'] != null ? '${v['brand']} ${v['model'] ?? ""} (Condition: ${v['vehicleCondition'] ?? "Good"})' : 'Comfortable and reliable agricultural logistics transport.',
+          description: v['description'] ?? (v['brand'] != null ? '${v['brand']} ${v['model'] ?? ""} (Condition: ${v['vehicleCondition'] ?? "Good"})' : 'Comfortable and reliable agricultural logistics transport.'),
         )).toList();
       } else if (equipmentTypes.contains(widget.serviceKey)) {
         final equipmentRawAll = await apiService.getEquipment() as List;
@@ -575,28 +576,12 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   }
 
   Widget _buildFilterDropdown({required String hint, required String? value, required List<String> items, required Function(String?) onChanged, bool isLocation = false}) {
-    return Container(
-      height: 42, padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(color: const Color(0xFFF5F7F5), borderRadius: BorderRadius.circular(10)),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value, isExpanded: true,
-          hint: Row(children: [
-            if (isLocation) const Icon(Icons.location_on, size: 14, color: Color(0xFF00AA55)),
-            if (isLocation) const SizedBox(width: 6),
-            Expanded(child: Text(hint, style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
-          ]),
-          icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey),
-          items: items.map((s) {
-            String displayText = s;
-            if (s == 'All') {
-              displayText = AppTranslations.translate(context, 'all');
-            }
-            return DropdownMenuItem(value: s, child: Text(displayText, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)));
-          }).toList(),
-          onChanged: onChanged,
-        ),
-      ),
+    return _FilterDropdownButton(
+      hint: hint,
+      value: value,
+      items: items,
+      onChanged: onChanged,
+      isLocation: isLocation,
     );
   }
 
@@ -691,9 +676,20 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(children: [
-                Icon(Icons.person_pin_circle_outlined, size: 14, color: Colors.blue[600]),
+                Icon(
+                  Icons.person_pin_circle_outlined,
+                  size: 14,
+                  color: provider.driverIncluded ? Colors.blue[600] : Colors.grey[400],
+                ),
                 const SizedBox(width: 4),
-                Text(l10n.driverIncluded, style: TextStyle(color: Colors.blue[700], fontSize: 12, fontWeight: FontWeight.w600)),
+                Text(
+                  provider.driverIncluded ? l10n.driverIncluded : 'No Driver',
+                  style: TextStyle(
+                    color: provider.driverIncluded ? Colors.blue[700] : Colors.grey[500],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ]),
               ElevatedButton(
                 onPressed: () => _navigateToBooking(context, provider),
@@ -1213,3 +1209,217 @@ class _AssetDetailModal extends StatelessWidget {
     ]));
   }
 }
+
+// ── Inline overlay dropdown ────────────────────────────────────────────────────
+
+class _FilterDropdownButton extends StatefulWidget {
+  final String hint;
+  final String? value;
+  final List<String> items;
+  final Function(String?) onChanged;
+  final bool isLocation;
+
+  const _FilterDropdownButton({
+    required this.hint,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.isLocation = false,
+  });
+
+  @override
+  State<_FilterDropdownButton> createState() => _FilterDropdownButtonState();
+}
+
+class _FilterDropdownButtonState extends State<_FilterDropdownButton> {
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  bool _isOpen = false;
+
+  void _toggleDropdown() {
+    if (_isOpen) {
+      _closeDropdown();
+    } else {
+      _openDropdown();
+    }
+  }
+
+  void _openDropdown() {
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => GestureDetector(
+        // Tap outside to close
+        behavior: HitTestBehavior.translucent,
+        onTap: _closeDropdown,
+        child: Stack(
+          children: [
+            Positioned.fill(child: Container(color: Colors.transparent)),
+            CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: Offset(0, size.height + 4), // gap below the button
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: size.width,
+                  constraints: const BoxConstraints(maxHeight: 240),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.12),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: widget.items.length,
+                      itemBuilder: (ctx, index) {
+                        final item = widget.items[index];
+                        final displayText = item == 'All'
+                            ? AppTranslations.translate(ctx, 'all')
+                            : item;
+                        final isSelected = item == (widget.value ?? 'All');
+
+                        return InkWell(
+                          onTap: () {
+                            _closeDropdown();
+                            widget.onChanged(item == 'All' ? null : item);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFF00AA55).withOpacity(0.07)
+                                  : Colors.white,
+                              border: index < widget.items.length - 1
+                                  ? Border(
+                                      bottom: BorderSide(
+                                        color: Colors.grey[100]!,
+                                        width: 0.8,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    displayText,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? const Color(0xFF00AA55)
+                                          : const Color(0xFF2C3E50),
+                                    ),
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(
+                                    Icons.check_rounded,
+                                    size: 16,
+                                    color: Color(0xFF00AA55),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() => _isOpen = true);
+  }
+
+  void _closeDropdown() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() => _isOpen = false);
+  }
+
+  @override
+  void dispose() {
+    _closeDropdown();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final displayLabel =
+        widget.value == null || widget.value == 'All' ? widget.hint : widget.value!;
+    final isActive = widget.value != null && widget.value != 'All';
+
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: GestureDetector(
+        onTap: _toggleDropdown,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: isActive
+                ? const Color(0xFF00AA55).withOpacity(0.1)
+                : const Color(0xFFF5F7F5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isActive ? const Color(0xFF00AA55) : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              if (widget.isLocation)
+                Icon(
+                  Icons.location_on,
+                  size: 14,
+                  color: isActive ? const Color(0xFF00AA55) : Colors.grey[500],
+                ),
+              if (widget.isLocation) const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  displayLabel,
+                  style: TextStyle(
+                    color: isActive ? const Color(0xFF00AA55) : Colors.grey[600],
+                    fontSize: 13,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              AnimatedRotation(
+                turns: _isOpen ? 0.5 : 0.0,
+                duration: const Duration(milliseconds: 180),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: isActive ? const Color(0xFF00AA55) : Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

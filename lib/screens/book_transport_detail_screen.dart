@@ -52,8 +52,8 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   String? get _selectedGoodsType => _goodsTypeController.text.trim().isEmpty ? null : _goodsTypeController.text.trim();
   bool _isKmWise = false;
   bool _isTrolleyHalfDay = false; // For Tractor Trolley: false = Full Day, true = Half Day
-  bool _includeDriver = true;
-  final TextEditingController _kmController = TextEditingController(text: '10');
+  late bool _includeDriver;
+  final TextEditingController _kmController = TextEditingController();
 
   DateTime? _selectedDate;
   final TextEditingController _addressController = TextEditingController();
@@ -216,6 +216,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _includeDriver = widget.driverIncluded ?? true;
     // Default to Daily-wise if available, otherwise KM-wise
     if (widget.vehicleType == 'Mini Truck' || widget.vehicleType == 'Truck' || widget.rate <= 0) {
       _isKmWise = true;
@@ -227,6 +228,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     }
     _loadAddress();
     _fetchAssetBookings();
+    _kmController.addListener(() => setState(() {}));
   }
 
   Future<void> _fetchAssetBookings() async {
@@ -375,17 +377,17 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   double get _totalPrice {
     double base = 0.0;
     if (widget.vehicleType == 'Tractor Trolley') {
-      // Half day uses pricePerKm field, Full day uses rate
       base = _isTrolleyHalfDay ? (widget.pricePerKm ?? widget.rate / 2) : widget.rate;
     } else if (_isKmWise) {
-      final double kmVal = double.tryParse(_kmController.text) ?? 0.0;
+      final double kmVal = double.tryParse(_kmController.text.trim()) ?? 0.0;
+      if (kmVal <= 0) return 0.0; // No price until distance is entered
       final double rateKm = widget.pricePerKm ?? 20.0;
       base = rateKm * kmVal;
     } else {
       base = widget.rate * _selectedSlots.length;
     }
     if (_includeDriver) {
-      base += widget.driverPrice ?? 300.0;
+      base += widget.driverPrice ?? 0.0;
     }
     return base;
   }
@@ -425,6 +427,12 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     bool hasValidPrice = _totalPrice > 0;
     bool requirementsMet = false;
     if (_isKmWise) {
+      final double kmVal = double.tryParse(_kmController.text.trim()) ?? 0.0;
+      if (kmVal <= 0) {
+        setState(() => _fieldErrors['km'] = 'Please enter a distance greater than 0');
+        _scrollToField(_timeSectionKey);
+        return;
+      }
       requirementsMet = _selectedGoodsType != null && _selectedDate != null && _selectedSlots.isNotEmpty && _addressController.text.isNotEmpty && _kmController.text.isNotEmpty && hasValidPrice;
     } else {
       requirementsMet = _selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty && hasValidPrice;
@@ -860,7 +868,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                  child: SwitchListTile(
                    title: TranslatedText('Include Driver', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B5E20))),
                    subtitle: TranslatedText(
-                     '+ ₹${(widget.driverPrice ?? 300.0).toStringAsFixed(0)} / booking extra charge',
+                     '+ ₹${(widget.driverPrice ?? 0.0).toStringAsFixed(0)} / booking extra charge',
                      style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
                    ),
                    value: _includeDriver,
@@ -1141,27 +1149,28 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: const Color(0xFFC8E6C9)),
+                    if ((double.tryParse(_kmController.text.trim()) ?? 0) > 0)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: const Color(0xFFC8E6C9)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Estimated Price:',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20)),
+                            ),
+                            Text(
+                              '₹${_totalPrice.toStringAsFixed(0)}',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF00AA55)),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Estimated Price:',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20)),
-                          ),
-                          Text(
-                            '₹${_totalPrice.toStringAsFixed(0)}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF00AA55)),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ],
               ),
