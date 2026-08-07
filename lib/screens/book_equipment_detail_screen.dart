@@ -24,6 +24,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
   final String assetId;
   final double rate; // Rate per hour or day
   final double? operatorPrice;
+  final bool operatorAvailable;
   final String? ownerProfileImage;
   final String? description;
   final String? serialNumber;
@@ -37,6 +38,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
     required this.assetId,
     required this.rate,
     this.operatorPrice,
+    this.operatorAvailable = true,
     this.ownerProfileImage,
     this.description,
     this.serialNumber,
@@ -128,6 +130,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _includeOperator = widget.operatorAvailable;
     _loadAddress();
     _fetchAssetBookings();
   }
@@ -467,7 +470,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -944,8 +947,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                   _buildAddressInputField(
                     controller: _countryController,
                     label: 'Country',
-                    hint: 'Country...',
+                    hint: 'India',
                     icon: Icons.public_rounded,
+                    enabled: false,
                   ),
                   const SizedBox(height: 20),
                   Row(
@@ -1238,20 +1242,54 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             _buildSectionCard(
               title: 'Rental Options',
               icon: Icons.checklist_rounded,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FBF9),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: SwitchListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  title: TranslatedText('Include Operator', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B5E20))),
-                  subtitle: TranslatedText('+ ₹${(widget.operatorPrice ?? 200.0).toStringAsFixed(0)} / hr extra charge', style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600)),
-                  value: _includeOperator, 
-                  activeColor: const Color(0xFF00AA55),
-                  onChanged: (val) => setState(() => _includeOperator = val),
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      color: widget.operatorAvailable ? const Color(0xFFF9FBF9) : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(20),
+                      border: widget.operatorAvailable ? null : Border.all(color: Colors.grey[300]!),
+                    ),
+                    child: SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      title: TranslatedText('Include Operator', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: widget.operatorAvailable ? const Color(0xFF1B5E20) : Colors.grey[600])),
+                      subtitle: widget.operatorAvailable
+                          ? TranslatedText('+ ₹${(widget.operatorPrice ?? 200.0).toStringAsFixed(0)} / hr extra charge', style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600))
+                          : TranslatedText('Operator not provided by owner', style: TextStyle(fontSize: 12, color: Colors.orange[800], fontWeight: FontWeight.w700)),
+                      value: _includeOperator, 
+                      activeColor: const Color(0xFF00AA55),
+                      onChanged: widget.operatorAvailable 
+                          ? (val) => setState(() => _includeOperator = val)
+                          : (val) {
+                              UiUtils.showCenteredToast(context, 'Operator is not available from owner for this listing.', isError: true);
+                            },
+                    ),
+                  ),
+                  if (!widget.operatorAvailable)
+                    Container(
+                      margin: const EdgeInsets.only(top: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFFE0B2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: Colors.orange[800], size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TranslatedText(
+                              'Operator not available for this equipment. Machine can be rented without operator.',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange[900]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
 
@@ -1438,6 +1476,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     required String hint,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    bool enabled = true,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1449,18 +1488,19 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF9FBF9),
+            color: enabled ? const Color(0xFFF9FBF9) : Colors.grey[100],
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: const Color(0xFFE8F5E9)),
+            border: Border.all(color: enabled ? const Color(0xFFE8F5E9) : Colors.grey[300]!),
           ),
           child: TextField(
             controller: controller,
+            enabled: enabled,
             keyboardType: keyboardType,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF2C3E50)),
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: enabled ? const Color(0xFF2C3E50) : Colors.grey[700]),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500, fontSize: 13),
-              prefixIcon: Icon(icon, color: const Color(0xFF00AA55), size: 18),
+              prefixIcon: Icon(icon, color: enabled ? const Color(0xFF00AA55) : Colors.grey[500], size: 18),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),

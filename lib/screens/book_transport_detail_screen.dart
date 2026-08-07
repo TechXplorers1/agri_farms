@@ -216,6 +216,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _includeDriver = widget.driverIncluded != false;
     // Default to Daily-wise if available, otherwise KM-wise
     if (widget.vehicleType == 'Mini Truck' || widget.vehicleType == 'Truck' || widget.rate <= 0) {
       _isKmWise = true;
@@ -395,7 +396,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -425,7 +426,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     bool hasValidPrice = _totalPrice > 0;
     bool requirementsMet = false;
     if (_isKmWise) {
-      requirementsMet = _selectedGoodsType != null && _selectedDate != null && _addressController.text.isNotEmpty && _kmController.text.isNotEmpty && hasValidPrice;
+      requirementsMet = _selectedGoodsType != null && _selectedDate != null && _selectedSlots.isNotEmpty && _addressController.text.isNotEmpty && _kmController.text.isNotEmpty && hasValidPrice;
     } else {
       requirementsMet = _selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty && hasValidPrice;
     }
@@ -852,25 +853,59 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                const SizedBox(height: 24),
              ],
 
-             // Driver Option
-             if (widget.driverIncluded == true) ...[
-               _buildSectionCard(
-                 title: 'Driver Options',
-                 icon: Icons.person_pin_circle_outlined,
-                 child: SwitchListTile(
-                   title: TranslatedText('Include Driver', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color(0xFF1B5E20))),
-                   subtitle: TranslatedText(
-                     '+ ₹${(widget.driverPrice ?? 300.0).toStringAsFixed(0)} / booking extra charge',
-                     style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
-                   ),
-                   value: _includeDriver,
-                   onChanged: (val) => setState(() => _includeDriver = val),
-                   activeColor: const Color(0xFF00AA55),
-                   contentPadding: EdgeInsets.zero,
-                 ),
-               ),
-               const SizedBox(height: 24),
-             ],
+              // Driver Option
+              _buildSectionCard(
+                title: 'Driver Options',
+                icon: Icons.person_pin_circle_outlined,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SwitchListTile(
+                      title: TranslatedText('Include Driver', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: widget.driverIncluded != false ? const Color(0xFF1B5E20) : Colors.grey[600])),
+                      subtitle: widget.driverIncluded != false
+                          ? TranslatedText(
+                              '+ ₹${(widget.driverPrice ?? 300.0).toStringAsFixed(0)} / booking extra charge',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
+                            )
+                          : TranslatedText(
+                              'Driver/Operator not provided by owner',
+                              style: TextStyle(fontSize: 12, color: Colors.orange[800], fontWeight: FontWeight.w700),
+                            ),
+                      value: _includeDriver,
+                      onChanged: widget.driverIncluded != false 
+                          ? (val) => setState(() => _includeDriver = val)
+                          : (val) {
+                              UiUtils.showCenteredToast(context, 'Driver/Operator is not available from owner for this listing.', isError: true);
+                            },
+                      activeColor: const Color(0xFF00AA55),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    if (widget.driverIncluded == false)
+                      Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3E0),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFFE0B2)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded, color: Colors.orange[800], size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TranslatedText(
+                                'Driver / Operator not provided by owner for this vehicle. Vehicle can be rented for self-drive / own driver.',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange[900]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
 
             // Goods Selection
             _buildSectionCard(
