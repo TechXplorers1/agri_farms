@@ -103,7 +103,7 @@ class EquipmentRentalsScreen extends StatelessWidget {
               children: [
                  _buildEquipmentCard(context, 'Tractors', l10n.tractors, 'assets/images/tractor_card.webp', 'Heavy Duty Pulling'),
                  _buildEquipmentCard(context, 'Harvesters', l10n.harvesters, 'assets/images/harvester_card.webp', 'Precision Reaping'),
-                 _buildEquipmentCard(context, 'Sprayers', l10n.sprayers, 'assets/images/sprayer_card.webp', 'Fast Crop Care'),
+                 _buildEquipmentCard(context, 'Sprayers', l10n.sprayers, 'assets/images/sprayer_card.jpg', 'Fast Crop Care'),
                  _buildEquipmentCard(context, 'JCB', l10n.jcb, 'assets/images/jcb_card.webp', 'Land Preparation'),
                  _buildEquipmentCard(context, 'Trolleys', l10n.trolleys, 'assets/images/trolley_card.webp', 'Secure Haulage'),
               ],

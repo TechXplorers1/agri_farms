@@ -396,7 +396,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       context: context,
       initialDate: DateTime.now().add(const Duration(days: 1)),
       firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -426,7 +426,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     bool hasValidPrice = _totalPrice > 0;
     bool requirementsMet = false;
     if (_isKmWise) {
-      requirementsMet = _selectedGoodsType != null && _selectedDate != null && _addressController.text.isNotEmpty && _kmController.text.isNotEmpty && hasValidPrice;
+      requirementsMet = _selectedGoodsType != null && _selectedDate != null && _selectedSlots.isNotEmpty && _addressController.text.isNotEmpty && _kmController.text.isNotEmpty && hasValidPrice;
     } else {
       requirementsMet = _selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty && hasValidPrice;
     }
