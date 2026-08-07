@@ -108,6 +108,42 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         return parts.isNotEmpty ? parts.join(', ') : defaultVal;
       }
 
+      Map<String, int> completedJobsByAsset = {};
+      Map<String, int> completedJobsByProvider = {};
+
+      try {
+        final allBookingsRaw = await apiService.get('/api/bookings/all');
+        if (allBookingsRaw is List) {
+          for (var b in allBookingsRaw) {
+            final status = (b['status'] ?? '').toString().toUpperCase();
+            if (status == 'COMPLETED' || status == 'FINISHED') {
+              final assetId = b['assetId']?.toString();
+              final providerId = b['providerId']?.toString();
+              if (assetId != null && assetId.isNotEmpty) {
+                completedJobsByAsset[assetId] = (completedJobsByAsset[assetId] ?? 0) + 1;
+              }
+              if (providerId != null && providerId.isNotEmpty) {
+                completedJobsByProvider[providerId] = (completedJobsByProvider[providerId] ?? 0) + 1;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Note: Could not fetch bookings count fallback: $e');
+      }
+
+      int parseJobsCompleted(Map<String, dynamic> item, String assetIdKey) {
+        int backendVal = (item['jobsCompleted'] as num?)?.toInt() ?? 0;
+        if (backendVal > 0) return backendVal;
+        
+        final assetId = item[assetIdKey]?.toString() ?? '';
+        final providerId = item['ownerId']?.toString() ?? '';
+        
+        int assetCount = completedJobsByAsset[assetId] ?? 0;
+        int providerCount = completedJobsByProvider[providerId] ?? 0;
+        return assetCount > 0 ? assetCount : providerCount;
+      }
+
       List<ServiceProvider> providers = [];
 
       if (transportTypes.contains(widget.serviceKey)) {
@@ -127,6 +163,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           rating: (v['rating'] ?? 5.0).toDouble(),
           approvalStatus: v['approvalStatus'] ?? 'Pending',
           location: buildAddress(v, 'Nearby'),
+          jobsCompleted: parseJobsCompleted(v, 'vehicleId'),
           vehicleType: v['vehicleType'],
           loadCapacity: v['loadCapacity'] ?? 'Standard',
           price: '₹${v['pricePerKmOrTrip']} / Day',
@@ -160,6 +197,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           rating: (e['rating'] ?? 5.0).toDouble(),
           approvalStatus: e['approvalStatus'] ?? 'Pending',
           location: buildAddress(e, 'Nearby'),
+          jobsCompleted: parseJobsCompleted(e, 'equipmentId'),
           brandModel: e['brandModel'] ?? 'Standard',
           condition: e['condition'] ?? 'Good',
           price: '₹${e['pricePerHour']} / hr',
@@ -187,6 +225,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            rating: (s['rating'] ?? 5.0).toDouble(),
            approvalStatus: s['approvalStatus'] ?? 'Pending',
            location: buildAddress(s, 'Village'),
+           jobsCompleted: parseJobsCompleted(s, 'serviceId'),
            equipmentUsed: s['equipmentUsed'] ?? 'Expert Tools',
            price: '₹${s['priceRate']} ${s['priceUnit'] ?? ""}',
            operatorIncluded: s['operatorIncluded'] ?? true,
@@ -210,6 +249,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
               rating: (w['rating'] ?? 5.0).toDouble(),
               approvalStatus: w['approvalStatus'] ?? 'Pending',
               location: buildAddress(w, 'Nearby'),
+              jobsCompleted: parseJobsCompleted(w, 'groupId'),
               maleCount: (w['maleCount'] as num?)?.toInt() ?? 0,
               femaleCount: (w['femaleCount'] as num?)?.toInt() ?? 0,
               malePrice: (w['pricePerMale'] as num?)?.toInt() ?? 0,
