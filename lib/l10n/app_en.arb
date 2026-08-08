@@ -7,7 +7,7 @@
   "@namaste": {
     "description": "Greeting text"
   },
-  "searchHint": "Search seeds, tractor, spraying...",
+  "searchHint": "Search tractor, spraying...",
   "@searchHint": {
     "description": "Hint text for search bar"
   },
@@ -191,8 +191,8 @@
   "staffPricing": "Staff & Pricing",
   "maleWorkers": "Male Workers",
   "femaleWorkers": "Female Workers",
-  "priceMale": "Price/Male (₹)",
-  "priceFemale": "Price/Female (₹)",
+  "priceMale": "Price/Male (â‚¹)",
+  "priceFemale": "Price/Female (â‚¹)",
   "dailyWage": "Daily Wage",
   "vehicleDetails": "Vehicle Details",
   "vehicleType": "Vehicle Type",
@@ -217,7 +217,7 @@
   "fillRequiredFields": "Please fill required fields",
   "selectSkillError": "Please select at least one skill",
   "filter": "Filter",
-  "chooseMake": "Choose Make",
+  "chooseMake": "Choose Brand",
   "chooseType": "Choose Type",
   "chooseVehicle": "Choose Vehicle",
   "chooseEquipment": "Choose Equipment",
