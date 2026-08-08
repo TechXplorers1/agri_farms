@@ -7,7 +7,7 @@ class ApiConfig {
   // Development base API endpoint
   // Use localhost when running Flutter on Chrome (web) - same machine as backend
   // Use your machine's local IP (e.g. http://192.168.29.237:8081) for physical Android/iOS devices
-  static const String devBaseUrl = 'http://192.29.168.237:8081
+  static const String devBaseUrl = 'http://192.168.29.237:8081';
 
   // Production base API endpoint (AWS ECS Load Balancer / Custom Domain)
   // Override at build time using: --dart-define=API_URL=https://your-load-balancer-url

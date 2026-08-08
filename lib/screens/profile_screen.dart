@@ -351,7 +351,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Icons.agriculture_outlined,
                               const Color(0xFFF9A825),
                               onTap: () {
-                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen(mode: 'rentals')));
                               },
                             ),
                           ),
@@ -363,7 +363,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Icons.handyman_outlined,
                               const Color(0xFF1565C0),
                               onTap: () {
-                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen(initialTabIndex: 2)));
+                                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen(mode: 'services')));
                               },
                             ),
                           ),

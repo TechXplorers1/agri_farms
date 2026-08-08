@@ -228,7 +228,9 @@ class ProviderManager extends ChangeNotifier {
             latitude: eq.latitude,
             longitude: eq.longitude,
             rating: eq.rating ?? 0.0,
-            price: '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / hour',
+            price: eq.category == 'Sprayers'
+                ? '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / litre'
+                : '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / hour',
             operatorAvailable: eq.operatorAvailable ?? false,
             operatorPrice: eq.operatorPrice ?? 0.0,
             condition: 'Good', // Default
