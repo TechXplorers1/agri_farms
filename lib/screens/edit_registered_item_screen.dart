@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:agriculture/l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
@@ -10,6 +11,7 @@ import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
 import '../utils/translated_text.dart';
+import '../data/harvesting_data.dart';
 
 class EditRegisteredItemScreen extends StatefulWidget {
   final String category; // 'Vehicle', 'Equipment', 'Service', 'WorkerGroup'
@@ -43,6 +45,19 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   String? _condition; // Equipment
   late TextEditingController _capacityController; // Vehicle
   late TextEditingController _operatorPriceController;
+  late TextEditingController _equipmentUsedController;
+  late TextEditingController _houseNoController;
+  late TextEditingController _streetController;
+  late TextEditingController _villageController;
+  late TextEditingController _mandalController;
+  late TextEditingController _districtController;
+  late TextEditingController _stateController;
+  late TextEditingController _countryController;
+  late TextEditingController _pincodeController;
+  Map<String, List<String>> _equipmentCapacityMap = {};
+  String? _selectedEquipmentTypeForCap;
+  late TextEditingController _capacityInputController;
+  late TextEditingController _customEquipmentTypeController;
   bool _isFetchingLocation = false;
 
   XFile? _imageFile;
@@ -64,7 +79,44 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _ownerBusinessNameController = TextEditingController(text: widget.itemData['ownerBusinessName']?.toString() ?? '');
     _descriptionController = TextEditingController(text: widget.itemData['description']?.toString() ?? '');
     _imageUrl = widget.itemData['imageUrl']?.toString();
-    _operatorPriceController = TextEditingController(text: widget.itemData['operatorPrice']?.toString() ?? '');
+    double opPriceVal = 0.0;
+    if (widget.itemData['operatorPrice'] != null) {
+      opPriceVal = (widget.itemData['operatorPrice'] as num?)?.toDouble() ??
+          (double.tryParse(widget.itemData['operatorPrice'].toString().replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0);
+    }
+    _operatorPriceController = TextEditingController(
+      text: opPriceVal > 0 ? opPriceVal.toStringAsFixed(0) : (widget.itemData['operatorPrice']?.toString() ?? ''),
+    );
+    _equipmentUsedController = TextEditingController(text: widget.itemData['equipmentUsed']?.toString() ?? '');
+    _houseNoController = TextEditingController(text: widget.itemData['houseNo']?.toString() ?? '');
+    _streetController = TextEditingController(text: widget.itemData['street']?.toString() ?? '');
+    _villageController = TextEditingController(text: widget.itemData['village']?.toString() ?? '');
+    _mandalController = TextEditingController(text: widget.itemData['mandal']?.toString() ?? '');
+    _districtController = TextEditingController(text: widget.itemData['district']?.toString() ?? '');
+    _stateController = TextEditingController(text: widget.itemData['state']?.toString() ?? '');
+    _countryController = TextEditingController(text: widget.itemData['country']?.toString() ?? 'India');
+    _pincodeController = TextEditingController(text: widget.itemData['pincode']?.toString() ?? '');
+    _capacityInputController = TextEditingController();
+    _customEquipmentTypeController = TextEditingController();
+
+    String storedEquip = widget.itemData['equipmentUsed']?.toString() ?? widget.itemData['brandModel']?.toString() ?? '';
+    if (storedEquip.isNotEmpty) {
+      List<String> parts = storedEquip.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      for (var item in parts) {
+        if (item.contains(' - ')) {
+          var splitVal = item.split(' - ');
+          var type = splitVal[0].trim();
+          var cap = splitVal[1].trim();
+          if (_equipmentCapacityMap.containsKey(type)) {
+            if (!_equipmentCapacityMap[type]!.contains(cap)) {
+              _equipmentCapacityMap[type]!.add(cap);
+            }
+          } else {
+            _equipmentCapacityMap[type] = [cap];
+          }
+        }
+      }
+    }
 
     if (widget.category == 'Vehicle') {
       _nameController.text = widget.itemData['vehicleNumber']?.toString() ?? '';
@@ -83,7 +135,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
       _nameController.text = widget.itemData['businessName']?.toString() ?? '';
       _priceController.text = widget.itemData['priceRate']?.toString() ?? '';
       _secondaryController.text = widget.itemData['serviceType']?.toString() ?? '';
-      _boolFlag = widget.itemData['operatorIncluded'] ?? false;
+      _boolFlag = widget.itemData['operatorIncluded'] ?? true;
     } else if (widget.category == 'WorkerGroup') {
       _nameController.text = widget.itemData['groupName']?.toString() ?? '';
       _priceController.text = widget.itemData['pricePerMale']?.toString() ?? '';
@@ -103,6 +155,17 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _ownerBusinessNameController.dispose();
     _descriptionController.dispose();
     _operatorPriceController.dispose();
+    _equipmentUsedController.dispose();
+    _houseNoController.dispose();
+    _streetController.dispose();
+    _villageController.dispose();
+    _mandalController.dispose();
+    _districtController.dispose();
+    _stateController.dispose();
+    _countryController.dispose();
+    _pincodeController.dispose();
+    _capacityInputController.dispose();
+    _customEquipmentTypeController.dispose();
     super.dispose();
   }
 
@@ -147,6 +210,8 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
       if (mounted) {
         setState(() {
            _locationController.text = exactAddress;
+           _villageController.text = village;
+           _districtController.text = district;
         });
         
         UiUtils.showCenteredToast(
@@ -195,7 +260,17 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['location'] = _locationController.text;
         await _apiService.updateVehicle(widget.itemData['vehicleId'], updatedData);
       } else if (widget.category == 'Equipment') {
-        updatedData['brandModel'] = _nameController.text;
+        if (_secondaryController.text == 'Harvesters' || _secondaryController.text == 'Sprayers' || _secondaryController.text == 'Harvesting') {
+          List<String> list = [];
+          _equipmentCapacityMap.forEach((type, caps) {
+            for (var c in caps) {
+              list.add("$type - $c");
+            }
+          });
+          updatedData['brandModel'] = list.isNotEmpty ? list.join(', ') : 'Standard Equipment';
+        } else {
+          updatedData['brandModel'] = _nameController.text;
+        }
         updatedData['ownerBusinessName'] = _ownerBusinessNameController.text.isNotEmpty ? _ownerBusinessNameController.text : null;
         updatedData['description'] = _descriptionController.text.isNotEmpty ? _descriptionController.text : null;
         
@@ -211,18 +286,41 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['pricePerHour'] = double.tryParse(_priceController.text) ?? 0.0;
         updatedData['category'] = _secondaryController.text;
         updatedData['operatorAvailable'] = _boolFlag;
-        updatedData['operatorPrice'] = _boolFlag ? (double.tryParse(_operatorPriceController.text) ?? 0.0) : 0.0;
+        updatedData['operatorPrice'] = _boolFlag ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0;
         updatedData['conditionStatus'] = _condition;
         updatedData['location'] = _locationController.text;
         await _apiService.updateEquipment(widget.itemData['equipmentId'], updatedData);
       } else if (widget.category == 'Service') {
         updatedData['businessName'] = _nameController.text;
-        updatedData['priceRate'] = double.tryParse(_priceController.text) ?? 0.0;
+        updatedData['priceRate'] = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
         updatedData['serviceType'] = _secondaryController.text;
-        final bool isElectrOrVet = _secondaryController.text == 'Electricians' || _secondaryController.text == 'Vet Care';
-        updatedData['operatorIncluded'] = isElectrOrVet ? false : _boolFlag;
-        updatedData['operatorPrice'] = (isElectrOrVet || !_boolFlag) ? 0.0 : (double.tryParse(_operatorPriceController.text) ?? 0.0);
+        final bool isNoOpPriceService = _secondaryController.text == 'Electricians' || _secondaryController.text == 'Vet Care' || _secondaryController.text == 'Drone Spraying';
+        bool hasOperator = (isNoOpPriceService && _secondaryController.text != 'Drone Spraying') ? false : _boolFlag;
+        double parsedOpPrice = (isNoOpPriceService || !hasOperator) ? 0.0 : (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0);
+        updatedData['operatorIncluded'] = hasOperator;
+        updatedData['operatorPrice'] = parsedOpPrice;
+        
+        if (_secondaryController.text == 'Harvesting' || _secondaryController.text == 'Drone Spraying') {
+          List<String> list = [];
+          _equipmentCapacityMap.forEach((type, caps) {
+            for (var c in caps) {
+              list.add("$type - $c");
+            }
+          });
+          updatedData['equipmentUsed'] = list.isNotEmpty ? list.join(', ') : 'Standard Equipment';
+        } else {
+          updatedData['equipmentUsed'] = _equipmentUsedController.text;
+        }
+        updatedData['description'] = _descriptionController.text;
         updatedData['location'] = _locationController.text;
+        updatedData['houseNo'] = _houseNoController.text;
+        updatedData['street'] = _streetController.text;
+        updatedData['village'] = _villageController.text;
+        updatedData['mandal'] = _mandalController.text;
+        updatedData['district'] = _districtController.text;
+        updatedData['state'] = _stateController.text;
+        updatedData['country'] = _countryController.text;
+        updatedData['pincode'] = _pincodeController.text;
         await _apiService.updateService(widget.itemData['serviceId'], updatedData);
       } else if (widget.category == 'WorkerGroup') {
         updatedData['groupName'] = _nameController.text;
@@ -362,13 +460,66 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                     const SizedBox(height: 20),
                     _buildTextField('Category', _secondaryController, Icons.category_rounded, hint: 'e.g., Tractor, Harvester'),
                     const SizedBox(height: 20),
-                    _buildTextField('Brand & Model', _nameController, Icons.branding_watermark_outlined, hint: 'e.g., Mahindra 575 DI'),
-                    const SizedBox(height: 20),
-                    _buildTextField('Description (Optional)', _descriptionController, Icons.description_rounded, hint: 'e.g., Accessories included, good condition', maxLines: 3),
+                    if (_secondaryController.text == 'Harvesters' || _secondaryController.text == 'Harvesting') ...[
+                      _buildEquipmentCapacitySection(
+                        categoryTitle: 'HARVESTER TYPES',
+                        subtitle: 'Add harvesters and their capacities:',
+                        dropdownLabel: 'Harvester Type',
+                        dropdownItems: HarvestingData.presetChips,
+                        capacityLabel: 'Capacity (HP or Ft)',
+                        capacityHint: 'e.g. 75 HP or 14 Ft',
+                        defaultUnit: 'HP',
+                        icon: Icons.agriculture_rounded,
+                      ),
+                    ] else if (_secondaryController.text == 'Sprayers' || _secondaryController.text == 'Drone Spraying') ...[
+                      _buildEquipmentCapacitySection(
+                        categoryTitle: 'SPRAYER TYPES',
+                        subtitle: 'Add sprayers and their capacities:',
+                        dropdownLabel: 'Sprayer Type',
+                        dropdownItems: SprayerData.sprayerTypes,
+                        capacityLabel: 'Capacity (Litres)',
+                        capacityHint: 'e.g. 150',
+                        defaultUnit: 'L',
+                        icon: Icons.water_drop_rounded,
+                      ),
+                    ] else ...[
+                      _buildTextField('Brand & Model', _nameController, Icons.branding_watermark_outlined, hint: 'e.g., Mahindra 575 DI'),
+                    ],
                   ] else if (widget.category == 'Service') ...[
-                    _buildTextField('Service Type', _secondaryController, Icons.category_rounded, hint: 'e.g., Electrical, Plumbing'),
+                    _buildTextField('Service Type', _secondaryController, Icons.category_rounded, hint: 'e.g., Drone Spraying', enabled: false),
                     const SizedBox(height: 20),
                     _buildTextField('Business Name', _nameController, Icons.business_rounded, hint: 'e.g., Precision Services'),
+                    const SizedBox(height: 20),
+                    if (_secondaryController.text == 'Harvesting') ...[
+                      _buildEquipmentCapacitySection(
+                        categoryTitle: 'HARVESTER TYPES',
+                        subtitle: 'Add harvesters and their capacities:',
+                        dropdownLabel: 'Harvesting Equipment Type',
+                        dropdownItems: HarvestingData.presetChips,
+                        capacityLabel: 'Capacity (HP or Ft)',
+                        capacityHint: 'e.g. 75 HP or 14 Ft',
+                        defaultUnit: 'HP',
+                        icon: Icons.agriculture_rounded,
+                      ),
+                    ] else if (_secondaryController.text == 'Drone Spraying') ...[
+                      _buildEquipmentCapacitySection(
+                        categoryTitle: 'SPRAYER TYPES',
+                        subtitle: 'Add sprayers and their capacities:',
+                        dropdownLabel: 'Sprayer Type',
+                        dropdownItems: SprayerData.sprayerTypes,
+                        capacityLabel: 'Capacity (Litres)',
+                        capacityHint: 'e.g. 150',
+                        defaultUnit: 'L',
+                        icon: Icons.water_drop_rounded,
+                      ),
+                    ] else ...[
+                      _buildTextField(
+                        _secondaryController.text == 'Drone Spraying' ? 'Drone / Sprayer Details' : 'Equipment Used', 
+                        _equipmentUsedController, 
+                        _secondaryController.text == 'Drone Spraying' ? Icons.airplay_rounded : Icons.handyman_rounded, 
+                        hint: _secondaryController.text == 'Drone Spraying' ? 'e.g., DJI Agras T30 Drone' : 'Standard Equipment'
+                      ),
+                    ],
                   ] else if (widget.category == 'WorkerGroup') ...[
                     _buildTextField('Group Name', _nameController, Icons.group_work_rounded, hint: 'e.g., Evergreen Workers'),
                   ],
@@ -433,14 +584,20 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                       _buildTextField('Operator Price', _operatorPriceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number, hint: 'Operator charge per day/hour'),
                     ],
                   ] else if (widget.category == 'Service') ...[
-                    _buildTextField('Price / Rate', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
+                    _buildTextField(
+                      _secondaryController.text == 'Ploughing' ? 'Price Rate (per Hour)' : 'Price / Rate', 
+                      _priceController, 
+                      Icons.currency_rupee_rounded, 
+                      keyboardType: TextInputType.number,
+                      hint: _secondaryController.text == 'Ploughing' ? 'e.g. ₹1500 / hr' : null,
+                    ),
                     if (_secondaryController.text != 'Electricians' && _secondaryController.text != 'Vet Care') ...[
                       const SizedBox(height: 12),
                       _buildSwitchTile('Operator Included', _boolFlag, (v) => setState(() {
                         _boolFlag = v;
                         if (!v) _operatorPriceController.clear();
                       })),
-                      if (_boolFlag) ...[
+                      if (_boolFlag && _secondaryController.text != 'Drone Spraying') ...[
                         const SizedBox(height: 12),
                         _buildTextField('Operator Price', _operatorPriceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number, hint: 'Operator charge'),
                       ],
@@ -457,20 +614,58 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
             _buildSectionCard(
               title: 'Lush Location',
               icon: Icons.location_on_outlined,
-              child: _buildTextField(
-                'Deployment Location', 
-                _locationController,
-                Icons.map_rounded,
-                hint: 'Village, District...',
-                suffixIcon: _isFetchingLocation 
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
-                      onPressed: _fetchCurrentLocation,
-                    ),
+              child: Column(
+                children: [
+                  _buildTextField(
+                    'Location (Village -> Mandal -> District)', 
+                    _locationController,
+                    Icons.map_rounded,
+                    hint: 'e.g. Rampur, Nagpur',
+                    suffixIcon: _isFetchingLocation 
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
+                        )
+                      : IconButton(
+                          icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                          onPressed: _fetchCurrentLocation,
+                        ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(child: _buildTextField('H.No', _houseNoController, Icons.home_rounded, hint: 'e.g. 123')),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildTextField('Street', _streetController, Icons.map_rounded, hint: 'Street Name')),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(child: _buildTextField('Village', _villageController, Icons.location_city_rounded, hint: 'Village Name')),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildTextField('Mandal', _mandalController, Icons.maps_home_work_rounded, hint: 'Mandal Name')),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(child: _buildTextField('District', _districtController, Icons.location_city_rounded, hint: 'District Name')),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildTextField('State', _stateController, Icons.map_outlined, hint: 'State Name')),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(child: _buildTextField('Pincode', _pincodeController, Icons.pin_drop_rounded, hint: '6-digit code', keyboardType: TextInputType.number)),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildTextField('Country', _countryController, Icons.public_rounded, hint: 'India', enabled: false)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  _buildTextField('Description (Optional)', _descriptionController, Icons.description_rounded, hint: 'Any extra info...', maxLines: 3),
+                ],
               ),
             ),
 
@@ -543,7 +738,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType keyboardType = TextInputType.text, Widget? suffixIcon, String? hint, int maxLines = 1}) {
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType keyboardType = TextInputType.text, Widget? suffixIcon, String? hint, int maxLines = 1, bool enabled = true}) {
     final displayHint = hint ?? '';
     return TranslationBuilder(
       texts: [label, displayHint],
@@ -564,6 +759,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
               ),
               child: TextField(
                 controller: controller,
+                enabled: enabled,
                 keyboardType: keyboardType,
                 maxLines: maxLines,
                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
@@ -601,6 +797,285 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
             activeColor: const Color(0xFF00AA55),
             activeTrackColor: const Color(0xFF00AA55).withOpacity(0.2),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEquipmentCapacitySection({
+    required String categoryTitle,
+    required String subtitle,
+    required String dropdownLabel,
+    required List<String> dropdownItems,
+    required String capacityLabel,
+    required String capacityHint,
+    required String defaultUnit,
+    required IconData icon,
+  }) {
+    final singularName = categoryTitle.replaceAll('TYPES', '').trim().toLowerCase();
+    final addedHeaderLabel = 'Added ${singularName[0].toUpperCase()}${singularName.substring(1)}s:';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE8F5E9), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: const Color(0xFF00AA55), size: 20),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                categoryTitle.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1B5E20),
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2C3E50),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Dropdown
+          DropdownButtonFormField<String>(
+            value: dropdownItems.contains(_selectedEquipmentTypeForCap) ? _selectedEquipmentTypeForCap : null,
+            decoration: InputDecoration(
+              labelText: dropdownLabel,
+              labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
+              prefixIcon: Icon(icon, color: const Color(0xFF00AA55), size: 20),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              filled: true,
+              fillColor: const Color(0xFFF9FBF9),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+                borderSide: const BorderSide(color: Color(0xFFE8F5E9)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+                borderSide: const BorderSide(color: Color(0xFF00AA55), width: 2),
+              ),
+            ),
+            items: dropdownItems.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+            onChanged: (val) {
+              setState(() {
+                _selectedEquipmentTypeForCap = val;
+              });
+            },
+          ),
+
+          if (_selectedEquipmentTypeForCap == 'Others') ...[
+            const SizedBox(height: 14),
+            _buildTextField(
+              'Custom Equipment Name',
+              _customEquipmentTypeController,
+              Icons.edit_note_rounded,
+              hint: 'Specify custom equipment name...',
+            ),
+          ],
+
+          const SizedBox(height: 16),
+          Text(
+            capacityLabel,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2C3E50),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Capacity TextField + Green Add Button
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FBF9),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: const Color(0xFFE8F5E9)),
+                  ),
+                  child: TextField(
+                    controller: _capacityInputController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: Color(0xFF2C3E50),
+                    ),
+                    decoration: InputDecoration(
+                      hintText: capacityHint,
+                      hintStyle: TextStyle(
+                        color: Colors.grey[400],
+                        fontWeight: FontWeight.w500,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.waves_rounded,
+                        color: Color(0xFF00AA55),
+                        size: 20,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final rawType = _selectedEquipmentTypeForCap;
+                    final typeName = (rawType == 'Others' && _customEquipmentTypeController.text.trim().isNotEmpty)
+                        ? _customEquipmentTypeController.text.trim()
+                        : rawType;
+                    final capVal = _capacityInputController.text.trim();
+
+                    if (typeName == null || typeName.isEmpty) {
+                      UiUtils.showCenteredToast(
+                        context,
+                        'Please select an equipment type',
+                        isError: true,
+                      );
+                      return;
+                    }
+                    if (capVal.isEmpty) {
+                      UiUtils.showCenteredToast(
+                        context,
+                        'Please enter capacity value',
+                        isError: true,
+                      );
+                      return;
+                    }
+
+                    final capFormatted = "$capVal $defaultUnit";
+                    setState(() {
+                      if (_equipmentCapacityMap.containsKey(typeName)) {
+                        if (!_equipmentCapacityMap[typeName]!.contains(capFormatted)) {
+                          _equipmentCapacityMap[typeName]!.add(capFormatted);
+                        }
+                      } else {
+                        _equipmentCapacityMap[typeName] = [capFormatted];
+                      }
+                      _capacityInputController.clear();
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00AA55),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Add',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Added Equipment Section Chips
+          if (_equipmentCapacityMap.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(
+              addedHeaderLabel,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1B5E20),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 10,
+              children: _equipmentCapacityMap.entries.expand((entry) {
+                final eqType = entry.key;
+                return entry.value.map((capStr) {
+                  final displayLabel = "$eqType - $capStr";
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFC8E6C9)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          displayLabel,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1B5E20),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _equipmentCapacityMap[eqType]!.remove(capStr);
+                              if (_equipmentCapacityMap[eqType]!.isEmpty) {
+                                _equipmentCapacityMap.remove(eqType);
+                              }
+                            });
+                          },
+                          child: const Icon(
+                            Icons.cancel,
+                            size: 18,
+                            color: Color(0xFF00AA55),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                });
+              }).toList(),
+            ),
+          ],
         ],
       ),
     );

@@ -889,7 +889,7 @@ abstract class AppLocalizations {
   /// No description provided for @locationLabel.
   ///
   /// In en, this message translates to:
-  /// **'Location (Village -> District)'**
+  /// **'Location (Village -> Mandal -> District)'**
   String get locationLabel;
 
   /// No description provided for @descriptionLabel.

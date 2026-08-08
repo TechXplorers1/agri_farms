@@ -806,10 +806,12 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   }
 
   void _confirmCancelBooking(BookingDetails booking) {
-    final TextEditingController reasonController = TextEditingController();    showDialog(
+    final TextEditingController reasonController = TextEditingController();
+    showDialog(
       context: context,
       builder: (dialogContext) {
         String? errorText;
+        bool isSubmitting = false;
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
@@ -823,7 +825,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                     style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18),
                   ),
                   InkWell(
-                    onTap: () => Navigator.pop(dialogContext),
+                    onTap: isSubmitting ? null : () => Navigator.pop(dialogContext),
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
                       padding: const EdgeInsets.all(8),
@@ -870,6 +872,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: reasonController,
+                    enabled: !isSubmitting,
                     maxLength: 150,
                     maxLines: 2,
                     onChanged: (val) {
@@ -916,14 +919,14 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
+                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
                   child: Text(
                     'Keep Booking',
                     style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () async {
+                  onPressed: isSubmitting ? null : () async {
                     final reason = reasonController.text.trim();
                     if (reason.length < 15) {
                       setStateDialog(() {
@@ -932,16 +935,9 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                       return;
                     }
 
-                    Navigator.pop(dialogContext); // Close dialog
-                    
-                    // Show loading spinner
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (context) => const Center(
-                        child: CircularProgressIndicator(color: Color(0xFF00AA55)),
-                      ),
-                    );
+                    setStateDialog(() {
+                      isSubmitting = true;
+                    });
                     
                     try {
                       final prefs = await SharedPreferences.getInstance();
@@ -957,12 +953,14 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                       );
                       
                       if (mounted) {
-                        Navigator.pop(context); // Close spinner
+                        Navigator.pop(dialogContext); // Close dialog cleanly
                         UiUtils.showCenteredToast(context, 'Booking cancelled successfully');
                       }
                     } catch (e) {
                       if (mounted) {
-                        Navigator.pop(context); // Close spinner
+                        setStateDialog(() {
+                          isSubmitting = false;
+                        });
                         UiUtils.showCustomAlert(context, 'Failed to cancel booking: $e', isError: true);
                       }
                     }
@@ -973,7 +971,9 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
-                  child: const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: isSubmitting
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             );

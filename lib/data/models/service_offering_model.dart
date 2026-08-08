@@ -21,6 +21,8 @@ class ServiceOffering {
   final double? rating;
   final String? ownerName;
   final int? jobsCompleted;
+  final bool? operatorIncluded;
+  final double? operatorPrice;
 
   ServiceOffering({
     this.serviceId,
@@ -45,6 +47,8 @@ class ServiceOffering {
     this.rating,
     this.ownerName,
     this.jobsCompleted,
+    this.operatorIncluded,
+    this.operatorPrice,
   });
 
   factory ServiceOffering.fromJson(Map<String, dynamic> json) {
@@ -71,6 +75,8 @@ class ServiceOffering {
       rating: (json['rating'] as num?)?.toDouble(),
       ownerName: json['ownerName'],
       jobsCompleted: (json['jobsCompleted'] as num?)?.toInt(),
+      operatorIncluded: json['operatorIncluded'],
+      operatorPrice: (json['operatorPrice'] as num?)?.toDouble() ?? (double.tryParse(json['operatorPrice']?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '') ?? 0.0),
     );
   }
 
@@ -97,6 +103,8 @@ class ServiceOffering {
       if (priceUnit != null) 'priceUnit': priceUnit,
       if (rating != null) 'rating': rating,
       if (ownerName != null) 'ownerName': ownerName,
+      if (operatorIncluded != null) 'operatorIncluded': operatorIncluded,
+      if (operatorPrice != null) 'operatorPrice': operatorPrice,
     };
   }
 }

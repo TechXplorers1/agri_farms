@@ -48,6 +48,7 @@ class ServiceListing extends ServiceProvider {
   String equipmentUsed;
   final String price; // e.g., '₹1200 / acre'
   final bool operatorIncluded;
+  final double operatorPrice;
 
   ServiceListing({
     required super.id,
@@ -67,6 +68,7 @@ class ServiceListing extends ServiceProvider {
     required this.equipmentUsed,
     required this.price,
     required this.operatorIncluded,
+    this.operatorPrice = 0.0,
     super.image,
     super.ownerProfileImage,
     super.description,
@@ -288,7 +290,8 @@ class ProviderManager extends ChangeNotifier {
             rating: s.rating ?? 0.0,
             price: '₹${s.priceRate?.toStringAsFixed(0) ?? 0} ${s.priceUnit ?? ""}',
             equipmentUsed: s.description ?? 'Standard Equipment',
-            operatorIncluded: true,
+            operatorIncluded: s.operatorIncluded ?? true,
+            operatorPrice: s.operatorPrice ?? 0.0,
             location: s.location ?? '',
             isAvailable: s.isAvailable ?? true,
             jobsCompleted: s.jobsCompleted ?? 0,
@@ -379,11 +382,11 @@ class ProviderManager extends ChangeNotifier {
       ServiceProvider? updated;
       
       if (old is ServiceListing) {
-         updated = ServiceListing(
-           id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
-           approvalStatus: status, location: old.location, equipmentUsed: old.equipmentUsed, price: old.price,
-           operatorIncluded: old.operatorIncluded, isAvailable: old.isAvailable, jobsCompleted: old.jobsCompleted
-         );
+          updated = ServiceListing(
+            id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
+            approvalStatus: status, location: old.location, equipmentUsed: old.equipmentUsed, price: old.price,
+            operatorIncluded: old.operatorIncluded, operatorPrice: old.operatorPrice, isAvailable: old.isAvailable, jobsCompleted: old.jobsCompleted
+          );
       } else if (old is FarmWorkerListing) {
          updated = FarmWorkerListing(
            id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,

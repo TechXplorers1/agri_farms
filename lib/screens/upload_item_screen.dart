@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
@@ -273,6 +274,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _houseNoController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
   final TextEditingController _villageController = TextEditingController();
+  final TextEditingController _mandalController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
   final TextEditingController _countryController = TextEditingController(text: 'India');
@@ -338,6 +340,11 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   ];
   final List<String> _selectedSkills = [];
 
+  Map<String, List<String>> _equipmentCapacityMap = {};
+  String? _selectedEquipmentTypeForCap;
+  final TextEditingController _capacityInputController = TextEditingController();
+  final TextEditingController _customEquipmentTypeController = TextEditingController();
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -345,6 +352,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _pricePerKmController.dispose();
     _locationController.dispose();
     _descriptionController.dispose();
+    _mandalController.dispose();
     _capacityController.dispose();
     _vehicleNumberController.dispose();
     _serviceAreaController.dispose();
@@ -359,8 +367,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _equipmentUsedController.dispose();
     _customPloughEquipmentTypeController.dispose();
     _customPloughCapacityController.dispose();
-    _customHarvestEquipmentTypeController.dispose();
-    _customHarvestCapacityController.dispose();
+    _capacityInputController.dispose();
+    _customEquipmentTypeController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -412,6 +420,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _villageController.text = prefs.getString('user_village') ?? '';
+      _mandalController.text = prefs.getString('user_mandal') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
       _houseNoController.text = prefs.getString('user_houseNo') ?? '';
       _streetController.text = prefs.getString('user_street') ?? '';
@@ -429,7 +438,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   Future<void> _updateCoordinatesFromAddress() async {
     try {
-      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
+      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_mandalController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
       
       double? lat, lng;
       // Local geocoding
@@ -555,6 +564,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'houseNo': _houseNoController.text,
         'street': _streetController.text,
         'village': _villageController.text,
+        'mandal': _mandalController.text,
         'district': _districtController.text,
         'state': _stateController.text,
         'country': _countryController.text,
@@ -627,14 +637,25 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
       double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
 
+      String brandModelVal = _brandModelController.text;
+      if (_selectedEquipmentType == 'Harvesters' || _selectedEquipmentType == 'Sprayers' || widget.category == 'Harvesters' || widget.category == 'Sprayers' || widget.category == 'Harvesting') {
+        List<String> list = [];
+        _equipmentCapacityMap.forEach((type, caps) {
+          for (var c in caps) {
+            list.add("$type - $c");
+          }
+        });
+        brandModelVal = list.isNotEmpty ? list.join(', ') : 'Standard Equipment';
+      }
+
       final Map<String, dynamic> equipmentData = {
         'ownerId': ownerId,
         'category': _selectedEquipmentType,
-        'brandModel': _brandModelController.text,
+        'brandModel': brandModelVal,
         'ownerBusinessName': _nameController.text.isNotEmpty ? _nameController.text : null,
         'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
         'brand': _selectedMake ?? 'Other',
-        'model': (_selectedModel != null && _selectedModel != 'Other') ? _selectedModel : _brandModelController.text,
+        'model': (_selectedModel != null && _selectedModel != 'Other') ? _selectedModel : brandModelVal,
         'conditionStatus': _condition,
         'pricePerHour': parsedPrice,
         'operatorAvailable': _operatorAvailable,
@@ -643,6 +664,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'houseNo': _houseNoController.text,
         'street': _streetController.text,
         'village': _villageController.text,
+        'mandal': _mandalController.text,
         'district': _districtController.text,
         'state': _stateController.text,
         'country': _countryController.text,
@@ -836,19 +858,25 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                         children: [
                           Expanded(child: _buildTextField('Village', _villageController, 'Village Name', icon: Icons.location_city_rounded)),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildTextField('District', _districtController, 'District Name')),
+                          Expanded(child: _buildTextField('Mandal', _mandalController, 'Mandal Name', icon: Icons.maps_home_work_rounded)),
                         ],
                       ),
                       const SizedBox(height: 20),
                       Row(
                         children: [
-                          Expanded(child: _buildTextField('State', _stateController, 'State Name')),
+                          Expanded(child: _buildTextField('District', _districtController, 'District Name', icon: Icons.location_city_rounded)),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildTextField('Pincode', _pincodeController, '6-digit code', keyboardType: TextInputType.number)),
+                          Expanded(child: _buildTextField('State', _stateController, 'State Name')),
                         ],
                       ),
                       const SizedBox(height: 20),
-                      _buildTextField('Country', _countryController, 'India', icon: Icons.public_rounded, enabled: false),
+                      Row(
+                        children: [
+                          Expanded(child: _buildTextField('Pincode', _pincodeController, '6-digit code', keyboardType: TextInputType.number)),
+                          const SizedBox(width: 16),
+                          Expanded(child: _buildTextField('Country', _countryController, 'India', icon: Icons.public_rounded, enabled: false)),
+                        ],
+                      ),
                       const SizedBox(height: 20),
                       _buildTextField(
                         AppLocalizations.of(context)!.descriptionLabel, 
@@ -1217,14 +1245,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             ? _customPloughCapacityController.text
             : (_selectedPloughCapacity ?? '');
         equipString = "$eqType${cap.isNotEmpty ? ' ($cap)' : ''}${_equipmentUsedController.text.isNotEmpty ? ' - ${_equipmentUsedController.text}' : ''}";
-      } else if (_selectedHarvestEquipmentType != null && (sType == 'Harvesting' || widget.category == 'Harvesting')) {
-        String eqType = (_selectedHarvestEquipmentType == 'Others' && _customHarvestEquipmentTypeController.text.isNotEmpty)
-            ? _customHarvestEquipmentTypeController.text
-            : _selectedHarvestEquipmentType!;
-        String cap = (_selectedHarvestCapacity == 'Custom / Other Specification' && _customHarvestCapacityController.text.isNotEmpty)
-            ? _customHarvestCapacityController.text
-            : (_selectedHarvestCapacity ?? '');
-        equipString = "$eqType${cap.isNotEmpty ? ' ($cap)' : ''}${_equipmentUsedController.text.isNotEmpty ? ' - ${_equipmentUsedController.text}' : ''}";
+      } else if (sType == 'Harvesting' || sType == 'Drone Spraying' || widget.category == 'Harvesting' || widget.category == 'Drone Spraying') {
+        List<String> list = [];
+        _equipmentCapacityMap.forEach((type, caps) {
+          for (var c in caps) {
+            list.add("$type - $c");
+          }
+        });
+        equipString = list.isNotEmpty ? list.join(', ') : 'Standard Equipment';
       }
 
       final Map<String, dynamic> serviceData = {
@@ -1235,8 +1263,16 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'equipmentUsed': equipString,
         'priceRate': parsedPrice,
         'operatorIncluded': hasOperator,
-        'operatorPrice': hasOperator ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
+        'operatorPrice': (sType == 'Drone Spraying' || !hasOperator) ? 0.0 : (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0),
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        'houseNo': _houseNoController.text,
+        'street': _streetController.text,
+        'village': _villageController.text,
+        'mandal': _mandalController.text,
+        'district': _districtController.text,
+        'state': _stateController.text,
+        'country': _countryController.text,
+        'pincode': _pincodeController.text,
         'latitude': _selectedLatitude,
         'longitude': _selectedLongitude,
         'isAvailable': true,
@@ -1258,6 +1294,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         equipmentUsed: equipString,
         price: _priceController.text,
         operatorIncluded: hasOperator,
+        operatorPrice: (sType == 'Drone Spraying' || !hasOperator) ? 0.0 : (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0),
         jobsCompleted: 0,
         isAvailable: true,
         image: 'https://placehold.co/600x400?text=Service', 
@@ -1388,38 +1425,30 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   const SizedBox(height: 20),
                   _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
                   const SizedBox(height: 20),
-                  DropdownButtonFormField<String>(
-                    value: _selectedHarvestEquipmentType,
-                    decoration: _inputDecoration('Harvesting Equipment Type', icon: Icons.agriculture_rounded),
-                    items: HarvestingData.equipmentTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedHarvestEquipmentType = val;
-                        _selectedHarvestCapacity = null;
-                      });
-                    },
+                  _buildEquipmentCapacitySection(
+                    categoryTitle: 'HARVESTER TYPES',
+                    subtitle: 'Add harvesters and their capacities:',
+                    dropdownLabel: 'Harvesting Equipment Type',
+                    dropdownItems: HarvestingData.presetChips,
+                    capacityLabel: 'Capacity (HP or Ft)',
+                    capacityHint: 'e.g. 75 HP or 14 Ft',
+                    defaultUnit: 'HP',
+                    icon: Icons.agriculture_rounded,
                   ),
-                  if (_selectedHarvestEquipmentType == 'Others') ...[
-                    const SizedBox(height: 20),
-                    _buildTextField('Custom Equipment Type', _customHarvestEquipmentTypeController, 'Specify equipment type...', icon: Icons.edit_note_rounded),
-                  ],
+               ] else if (serviceType == 'Drone Spraying' || _selectedServiceType == 'Drone Spraying' || widget.category == 'Drone Spraying') ...[
                   const SizedBox(height: 20),
-                  DropdownButtonFormField<String>(
-                    value: _selectedHarvestCapacity,
-                    decoration: _inputDecoration('Equipment Capacity / Specification', icon: Icons.straighten_rounded),
-                    items: HarvestingData.getCapacities(_selectedHarvestEquipmentType).map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedHarvestCapacity = val;
-                      });
-                    },
+                  _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
+                  const SizedBox(height: 20),
+                  _buildEquipmentCapacitySection(
+                    categoryTitle: 'SPRAYER TYPES',
+                    subtitle: 'Add sprayers and their capacities:',
+                    dropdownLabel: 'Sprayer Type',
+                    dropdownItems: SprayerData.sprayerTypes,
+                    capacityLabel: 'Capacity (Litres)',
+                    capacityHint: 'e.g. 150',
+                    defaultUnit: 'L',
+                    icon: Icons.water_drop_rounded,
                   ),
-                  if (_selectedHarvestCapacity == 'Custom / Other Specification') ...[
-                    const SizedBox(height: 20),
-                    _buildTextField('Custom Capacity / Specs', _customHarvestCapacityController, 'e.g. Track Type 14 Feet Cutter Bar', icon: Icons.tune_rounded),
-                  ],
-                  const SizedBox(height: 20),
-                  _buildTextField('Harvester Model / Brand (Optional)', _equipmentUsedController, 'e.g. Claas Dominator 130', icon: Icons.handyman_rounded),
                ] else ...[
                  const SizedBox(height: 20),
                  _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
@@ -1437,12 +1466,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             child: Column(
               children: [
                 _buildTextField(
-                  'Your Rate', 
+                  (_selectedServiceType == 'Ploughing' || widget.category == 'Ploughing') ? 'Your Rate (per Hour)' : 'Your Rate', 
                   _priceController, 
                   (_selectedServiceType == 'Electricians' || _selectedServiceType == 'Vet Care' || _selectedServiceType == 'Mechanics') 
                     ? 'e.g. ₹200 / visit' 
-                    : (_selectedServiceType == 'Harvesting' || _selectedServiceType == 'Drone Spraying' || widget.category == 'Harvesting')
-                      ? 'e.g. ₹2000 / hour'
+                    : (_selectedServiceType == 'Ploughing' || widget.category == 'Ploughing' || _selectedServiceType == 'Harvesting' || _selectedServiceType == 'Drone Spraying' || widget.category == 'Harvesting')
+                      ? 'e.g. ₹1500 / hour'
                       : 'e.g. ₹1200 / acre', 
                   errorKey: 'price',
                   icon: Icons.payments_rounded,
@@ -1460,7 +1489,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                     activeColor: const Color(0xFF00AA55),
                     contentPadding: EdgeInsets.zero,
                   ),
-                  if (_operatorIncludedService) ...[
+                  if (_operatorIncludedService && serviceType != 'Drone Spraying' && _selectedServiceType != 'Drone Spraying') ...[
                     const SizedBox(height: 12),
                     _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, icon: Icons.person_add_rounded),
                   ],
@@ -1512,49 +1541,75 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               _buildTextField('Owner / Business Name', _nameController, l10n.ownerNameHint, icon: Icons.person_rounded),
               const SizedBox(height: 20),
               
-              // MAKE SELECTION
-              if (makes.isNotEmpty) ...[
-                DropdownButtonFormField<String>(
-                  value: _selectedMake,
-                  decoration: _inputDecoration('Select Make', icon: Icons.branding_watermark_rounded),
-                  items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                  onChanged: (v) {
-                    setState(() {
-                      _selectedMake = v;
-                      _selectedModel = null;
-                      _brandModelController.clear();
-                    });
-                  },
+              if (_selectedEquipmentType == 'Harvesters' || widget.category == 'Harvesters' || widget.category == 'Harvesting') ...[
+                _buildEquipmentCapacitySection(
+                  categoryTitle: 'HARVESTER TYPES',
+                  subtitle: 'Add harvesters and their capacities:',
+                  dropdownLabel: 'Harvester Type',
+                  dropdownItems: HarvestingData.presetChips,
+                  capacityLabel: 'Capacity (HP or Ft)',
+                  capacityHint: 'e.g. 75 HP or 14 Ft',
+                  defaultUnit: 'HP',
+                  icon: Icons.agriculture_rounded,
                 ),
-                const SizedBox(height: 16),
-              ],
-
-              // MODEL SELECTION
-              if (models.isNotEmpty) ...[
-                DropdownButtonFormField<String>(
-                  value: _selectedModel,
-                  decoration: _inputDecoration('Select Model', icon: Icons.model_training_rounded),
-                  items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                  onChanged: (v) {
-                    setState(() {
-                      _selectedModel = v;
-                      if (v != 'Other') {
-                         _brandModelController.text = "${_selectedMake} $v"; 
-                      } else {
-                         _brandModelController.clear();
-                      }
-                    });
-                  },
+                const SizedBox(height: 20),
+              ] else if (_selectedEquipmentType == 'Sprayers' || widget.category == 'Sprayers' || widget.category == 'Drone Spraying') ...[
+                _buildEquipmentCapacitySection(
+                  categoryTitle: 'SPRAYER TYPES',
+                  subtitle: 'Add sprayers and their capacities:',
+                  dropdownLabel: 'Sprayer Type',
+                  dropdownItems: SprayerData.sprayerTypes,
+                  capacityLabel: 'Capacity (Litres)',
+                  capacityHint: 'e.g. 150',
+                  defaultUnit: 'L',
+                  icon: Icons.water_drop_rounded,
                 ),
-                 const SizedBox(height: 16),
-              ],
-              
-              // Manual Entry Fallback
-              if (showManualMake || showManualModel) 
-                 _buildTextField(l10n.brandModel, _brandModelController, 'e.g. John Deere 5310', icon: Icons.edit_note_rounded),
+                const SizedBox(height: 20),
+              ] else ...[
+                // MAKE SELECTION
+                if (makes.isNotEmpty) ...[
+                  DropdownButtonFormField<String>(
+                    value: _selectedMake,
+                    decoration: _inputDecoration('Select Make', icon: Icons.branding_watermark_rounded),
+                    items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        _selectedMake = v;
+                        _selectedModel = null;
+                        _brandModelController.clear();
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
-              if (showManualMake || showManualModel) 
-                 const SizedBox(height: 20),
+                // MODEL SELECTION
+                if (models.isNotEmpty) ...[
+                  DropdownButtonFormField<String>(
+                    value: _selectedModel,
+                    decoration: _inputDecoration('Select Model', icon: Icons.model_training_rounded),
+                    items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        _selectedModel = v;
+                        if (v != 'Other') {
+                           _brandModelController.text = "${_selectedMake} $v"; 
+                        } else {
+                           _brandModelController.clear();
+                        }
+                      });
+                    },
+                  ),
+                   const SizedBox(height: 16),
+                ],
+                
+                // Manual Entry Fallback
+                if (showManualMake || showManualModel) 
+                   _buildTextField(l10n.brandModel, _brandModelController, 'e.g. John Deere 5310', icon: Icons.edit_note_rounded),
+
+                if (showManualMake || showManualModel) 
+                   const SizedBox(height: 20),
+              ],
 
               _buildTextField(l10n.yearManufacture, _yearController, 'e.g. 2021', keyboardType: TextInputType.number, icon: Icons.calendar_today_rounded),
               const SizedBox(height: 20),
@@ -1978,6 +2033,271 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildEquipmentCapacitySection({
+    required String categoryTitle,
+    required String subtitle,
+    required String dropdownLabel,
+    required List<String> dropdownItems,
+    required String capacityLabel,
+    required String capacityHint,
+    required String defaultUnit,
+    required IconData icon,
+  }) {
+    final singularName = categoryTitle.replaceAll('TYPES', '').trim().toLowerCase();
+    final addedHeaderLabel = 'Added ${singularName[0].toUpperCase()}${singularName.substring(1)}s:';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE8F5E9), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: const Color(0xFF00AA55), size: 20),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                categoryTitle.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1B5E20),
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2C3E50),
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Dropdown
+          DropdownButtonFormField<String>(
+            value: dropdownItems.contains(_selectedEquipmentTypeForCap) ? _selectedEquipmentTypeForCap : null,
+            decoration: _inputDecoration(dropdownLabel, icon: icon),
+            items: dropdownItems.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+            onChanged: (val) {
+              setState(() {
+                _selectedEquipmentTypeForCap = val;
+              });
+            },
+          ),
+
+          if (_selectedEquipmentTypeForCap == 'Others') ...[
+            const SizedBox(height: 14),
+            _buildTextField(
+              'Custom Equipment Name',
+              _customEquipmentTypeController,
+              'Specify custom equipment name...',
+              icon: Icons.edit_note_rounded,
+            ),
+          ],
+
+          const SizedBox(height: 16),
+          Text(
+            capacityLabel,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2C3E50),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Capacity TextField + Green Add Button
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FBF9),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: const Color(0xFFE8F5E9)),
+                  ),
+                  child: TextField(
+                    controller: _capacityInputController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: Color(0xFF2C3E50),
+                    ),
+                    decoration: InputDecoration(
+                      hintText: capacityHint,
+                      hintStyle: TextStyle(
+                        color: Colors.grey[400],
+                        fontWeight: FontWeight.w500,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.waves_rounded,
+                        color: Color(0xFF00AA55),
+                        size: 20,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final rawType = _selectedEquipmentTypeForCap;
+                    final typeName = (rawType == 'Others' && _customEquipmentTypeController.text.trim().isNotEmpty)
+                        ? _customEquipmentTypeController.text.trim()
+                        : rawType;
+                    final capVal = _capacityInputController.text.trim();
+
+                    if (typeName == null || typeName.isEmpty) {
+                      UiUtils.showCenteredToast(
+                        context,
+                        'Please select an equipment type',
+                        isError: true,
+                      );
+                      return;
+                    }
+                    if (capVal.isEmpty) {
+                      UiUtils.showCenteredToast(
+                        context,
+                        'Please enter capacity value',
+                        isError: true,
+                      );
+                      return;
+                    }
+
+                    final capFormatted = "$capVal $defaultUnit";
+                    setState(() {
+                      if (_equipmentCapacityMap.containsKey(typeName)) {
+                        if (!_equipmentCapacityMap[typeName]!.contains(capFormatted)) {
+                          _equipmentCapacityMap[typeName]!.add(capFormatted);
+                        }
+                      } else {
+                        _equipmentCapacityMap[typeName] = [capFormatted];
+                      }
+                      _capacityInputController.clear();
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00AA55),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Add',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Added Equipment Section Chips
+          if (_equipmentCapacityMap.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(
+              addedHeaderLabel,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1B5E20),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 10,
+              children: _equipmentCapacityMap.entries.expand((entry) {
+                final eqType = entry.key;
+                return entry.value.map((capStr) {
+                  final displayLabel = "$eqType - $capStr";
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFC8E6C9)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          displayLabel,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1B5E20),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _equipmentCapacityMap[eqType]!.remove(capStr);
+                              if (_equipmentCapacityMap[eqType]!.isEmpty) {
+                                _equipmentCapacityMap.remove(eqType);
+                              }
+                            });
+                          },
+                          child: const Icon(
+                            Icons.cancel,
+                            size: 18,
+                            color: Color(0xFF00AA55),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                });
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

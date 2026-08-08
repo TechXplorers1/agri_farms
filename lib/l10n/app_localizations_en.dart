@@ -407,7 +407,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addPhotos => 'Add Photos';
 
   @override
-  String get locationLabel => 'Location (Village -> District)';
+  String get locationLabel => 'Location (Village -> Mandal -> District)';
 
   @override
   String get descriptionLabel => 'Description (Optional)';

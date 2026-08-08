@@ -204,7 +204,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           condition: e['condition'] ?? 'Good',
           price: '₹${e['pricePerHour']} / hr',
           operatorAvailable: e['operatorAvailable'] ?? false,
-          operatorPrice: (e['operatorPrice'] as num?)?.toDouble() ?? 0.0,
+          operatorPrice: (e['operatorPrice'] as num?)?.toDouble() ?? (double.tryParse(e['operatorPrice']?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '') ?? 0.0),
           image: e['imageUrl'],
           ownerProfileImage: e['ownerProfileImageUrl'],
           description: e['description'] ?? 'High quality agricultural machinery for hire.',
@@ -231,6 +231,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            equipmentUsed: s['equipmentUsed'] ?? 'Expert Tools',
            price: '₹${s['priceRate']} ${s['priceUnit'] ?? ""}',
            operatorIncluded: s['operatorIncluded'] ?? true,
+           operatorPrice: (s['operatorPrice'] as num?)?.toDouble() ?? (double.tryParse(s['operatorPrice']?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '') ?? 0.0),
            image: s['imageUrl'],
            ownerProfileImage: s['ownerProfileImageUrl'],
            description: s['description'] ?? 'Professional agricultural services by experienced operator.',
@@ -1014,6 +1015,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            serialNumber: provider.id.substring(0, 8).toUpperCase(),
            equipmentName: provider is ServiceListing ? provider.equipmentUsed : null,
            operatorIncluded: provider is ServiceListing ? provider.operatorIncluded : true,
+           operatorPrice: provider is ServiceListing ? provider.operatorPrice : 0.0,
          )));
       }
   }
@@ -1245,14 +1247,18 @@ class _AssetDetailModal extends StatelessWidget {
   }
 
   Widget _buildServiceDetails(BuildContext context, ServiceListing item) {
-    final bool isElectrOrVet = item.serviceName == 'Electricians' || item.serviceName == 'Vet Care';
+    final serviceLower = item.serviceName.toLowerCase();
+    final bool isElectrician = serviceLower.contains('electric');
+    final bool isElectrOrVet = isElectrician || serviceLower.contains('vet');
+    final String costLabel = isElectrician ? 'Visiting Cost' : 'Service Cost';
+
     return Column(children: [
       _detailRow(Icons.handyman_outlined, 'Tools', item.equipmentUsed),
       _detailRow(Icons.numbers_rounded, 'Service Reference Number', item.id.substring(0, 8).toUpperCase()),
       _detailRow(Icons.description_outlined, 'Description', item.description ?? (isElectrOrVet ? 'Professional agricultural services.' : 'Professional agricultural services by experienced operator.')),
       if (!isElectrOrVet)
-        _detailRow(Icons.person_outline_rounded, 'Expert', item.operatorIncluded ? 'Provided' : 'Machine Only'),
-      _detailRow(Icons.payments_outlined, 'Service Cost', item.price),
+        _detailRow(Icons.person_outline_rounded, 'Operator', item.operatorIncluded ? 'Available' : 'Machine Only'),
+      _detailRow(Icons.payments_outlined, costLabel, item.price),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
       _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
     ]);

@@ -55,11 +55,27 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   int _durationHours = 1;
   bool _includeOperator = false;
   DateTime? _selectedDate;
+  final Set<String> _selectedFarmerHarvestChips = {};
+  String? _selectedCropType;
+  final TextEditingController _customCropTypeController = TextEditingController();
+  final List<String> _cropOptions = [
+    'Paddy (Rice)',
+    'Wheat',
+    'Maize (Corn)',
+    'Sugarcane',
+    'Cotton',
+    'Groundnut',
+    'Pulses',
+    'Sunflower',
+    'Soybean',
+    'Others',
+  ];
 
   // Address Controllers
   final TextEditingController _houseNoController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
   final TextEditingController _villageController = TextEditingController();
+  final TextEditingController _mandalController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
   final TextEditingController _countryController = TextEditingController(text: 'India');
@@ -157,6 +173,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       _houseNoController.text = prefs.getString('user_houseNo') ?? '';
       _streetController.text = prefs.getString('user_street') ?? '';
       _villageController.text = prefs.getString('user_village') ?? '';
+      _mandalController.text = prefs.getString('user_mandal') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
       _stateController.text = prefs.getString('user_state') ?? '';
       _countryController.text = prefs.getString('user_country') ?? 'India';
@@ -432,11 +449,13 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     _houseNoController.dispose();
     _streetController.dispose();
     _villageController.dispose();
+    _mandalController.dispose();
     _districtController.dispose();
     _stateController.dispose();
     _countryController.dispose();
     _pincodeController.dispose();
     _notesController.dispose();
+    _customCropTypeController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -625,6 +644,8 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         'Duration': durationText,
         'Operator Required': _includeOperator ? 'Yes' : 'No',
         'slots_list': _selectedSlots,
+        if (_selectedFarmerHarvestChips.isNotEmpty) 'Selected Harvesting Equipment': _selectedFarmerHarvestChips.join(', '),
+        if (_selectedCropType != null) 'Crop Type': (_selectedCropType == 'Others' && _customCropTypeController.text.trim().isNotEmpty) ? _customCropTypeController.text.trim() : _selectedCropType,
         'Notes': _notesController.text,
       };
 
@@ -855,10 +876,10 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: _buildAddressInputField(
-                          controller: _districtController,
-                          label: 'District',
-                          hint: 'District name...',
-                          icon: Icons.location_city_rounded,
+                          controller: _mandalController,
+                          label: 'Mandal',
+                          hint: 'Mandal name...',
+                          icon: Icons.maps_home_work_rounded,
                         ),
                       ),
                     ],
@@ -868,13 +889,26 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                     children: [
                       Expanded(
                         child: _buildAddressInputField(
+                          controller: _districtController,
+                          label: 'District',
+                          hint: 'District name...',
+                          icon: Icons.location_city_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
                           controller: _stateController,
                           label: 'State',
                           hint: 'State name...',
                           icon: Icons.map_outlined,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
                       Expanded(
                         child: _buildAddressInputField(
                           controller: _pincodeController,
@@ -882,6 +916,16 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           hint: 'Pincode...',
                           icon: Icons.pin_drop_rounded,
                           keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _countryController,
+                          label: 'Country',
+                          hint: 'India',
+                          icon: Icons.public_rounded,
+                          enabled: false,
                         ),
                       ),
                     ],
@@ -967,6 +1011,72 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                 ],
               ),
             ),
+
+            if (widget.equipmentType.toLowerCase().contains('harvester') || widget.equipmentType.toLowerCase().contains('harvest')) ...[
+              _buildFarmerHarvestChipsCard(widget.description ?? widget.equipmentType),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFE8F5E9)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.grass_rounded, color: Color(0xFF00AA55), size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Select Crop to Harvest',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _selectedCropType,
+                      decoration: InputDecoration(
+                        hintText: 'Choose crop type',
+                        prefixIcon: const Icon(Icons.grass_rounded, color: Color(0xFF00AA55), size: 20),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        filled: true,
+                        fillColor: const Color(0xFFF9FBF9),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(color: Color(0xFFE8F5E9)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(color: Color(0xFF00AA55), width: 2),
+                        ),
+                      ),
+                      items: _cropOptions.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                      onChanged: (val) => setState(() => _selectedCropType = val),
+                    ),
+                    if (_selectedCropType == 'Others') ...[
+                      const SizedBox(height: 16),
+                      _buildAddressInputField(
+                        controller: _customCropTypeController,
+                        label: 'Specify Crop Name',
+                        hint: 'Enter your crop name...',
+                        icon: Icons.edit_note_rounded,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
 
             // Schedule Section
             _buildSectionCard(
@@ -1560,6 +1670,92 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           Text(
             description ?? 'High-quality agricultural listing details.',
             style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w600, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFarmerHarvestChipsCard(String rawEquipments) {
+    List<String> availableEquipments = [];
+    if (rawEquipments.isNotEmpty) {
+      availableEquipments = rawEquipments.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+    if (availableEquipments.isEmpty) {
+      availableEquipments = ['Combine Harvester', 'Paddy Harvester', 'Reaper Binder'];
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FBF9),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE8F5E9)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.agriculture_rounded, color: Color(0xFF00AA55), size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Harvesting Equipment Types',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Select harvesting equipment for your requirement:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 10,
+            children: availableEquipments.map((chipLabel) {
+              final isSelected = _selectedFarmerHarvestChips.contains(chipLabel);
+              return FilterChip(
+                showCheckmark: true,
+                checkmarkColor: const Color(0xFF00AA55),
+                selectedColor: const Color(0xFFE8F5E9),
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
+                    width: 1.5,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                label: Text(
+                  chipLabel,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    color: isSelected ? const Color(0xFF1B5E20) : const Color(0xFF4A6572),
+                  ),
+                ),
+                selected: isSelected,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      _selectedFarmerHarvestChips.add(chipLabel);
+                    } else {
+                      _selectedFarmerHarvestChips.remove(chipLabel);
+                    }
+                  });
+                },
+              );
+            }).toList(),
           ),
         ],
       ),

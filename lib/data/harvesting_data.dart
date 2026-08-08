@@ -1,4 +1,14 @@
 class HarvestingData {
+  static const List<String> presetChips = [
+    'Combine Harvester',
+    'Paddy Harvester',
+    'Maize Harvester',
+    'Sugarcane Harvester',
+    'Multi-Crop Harvester',
+    'Reaper Binder',
+    'Others',
+  ];
+
   static const List<String> equipmentTypes = [
     'Combine Harvester (Paddy/Wheat)',
     'Sugarcane Harvester',
@@ -62,5 +72,18 @@ class HarvestingData {
     'Multi-crop Heavy Duty',
     'Mini Combine Harvester',
     'Custom / Other Specification'
+  ];
+}
+
+class SprayerData {
+  static const List<String> sprayerTypes = [
+    'Handheld sprayers',
+    'Diesel sprayers',
+    'Machinery Sprayers',
+    'Knapsack (backpack) sprayers',
+    'Tractor Mounted Sprayers',
+    'Battery Sprayers',
+    'Drone Sprayers',
+    'Others',
   ];
 }
