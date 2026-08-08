@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
@@ -285,6 +286,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   String? _selectedVehicleMake; // New
   String? _selectedVehicleModel; // New
   final TextEditingController _capacityController = TextEditingController();
+  String _selectedCapacityUnit = 'Ton';
   final TextEditingController _vehicleNumberController = TextEditingController(); // New
   final TextEditingController _serviceAreaController = TextEditingController(); // New
   bool _driverIncluded = true;
@@ -1181,7 +1183,25 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               const SizedBox(height: 16),
               _buildTextField(l10n.vehicleNumber, _vehicleNumberController, 'e.g. MH 40 AB 1234', errorKey: 'number', icon: Icons.numbers_rounded),
               const SizedBox(height: 16),
-              _buildTextField(l10n.loadCapacity, _capacityController, 'e.g. 1.5 Ton', errorKey: 'capacity', icon: Icons.line_weight_rounded),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: _buildTextField(l10n.loadCapacity, _capacityController, 'e.g. 1.5', keyboardType: TextInputType.number, errorKey: 'capacity', icon: Icons.line_weight_rounded),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 1,
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedCapacityUnit,
+                      decoration: _inputDecoration('Unit'),
+                      items: ['Ton', 'kg'].map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                      onChanged: (v) => setState(() => _selectedCapacityUnit = v!),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               _buildTextField(l10n.serviceArea, _serviceAreaController, 'e.g. Within 50km', icon: Icons.map_rounded),
             ],
@@ -1306,7 +1326,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'ownerId': userId,
         'vehicleType': _selectedTransportType,
         'vehicleNumber': _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
-        'loadCapacity': _capacityController.text.isNotEmpty ? _capacityController.text : 'Unknown',
+        'loadCapacity': _capacityController.text.isNotEmpty ? '${_capacityController.text} $_selectedCapacityUnit' : 'Unknown',
         'pricePerKmOrTrip': parsedPrice,
         'pricePerKm': parsedPriceKm,
         'driverIncluded': _driverIncluded,
@@ -1323,6 +1343,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'pincode': _pincodeController.text,
         'latitude': _selectedLatitude,
         'longitude': _selectedLongitude,
+        'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
         'isAvailable': true,
         'rating': 5.0, // Default for new
         'approvalStatus': 'Pending',

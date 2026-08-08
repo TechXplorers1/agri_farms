@@ -270,11 +270,13 @@ class ProviderManager extends ChangeNotifier {
             driverIncluded: v.driverIncluded ?? true,
             operatorPrice: v.operatorPrice,
             vehicleNumber: v.vehicleNumber,
-            serviceArea: v.location,
+            serviceArea: v.serviceArea,
             location: v.location ?? '',
             isAvailable: v.isAvailable ?? true,
             jobsCompleted: v.jobsCompleted ?? 0,
             image: v.imageUrl,
+            description: v.description,
+            ownerProfileImage: v.ownerProfileImageUrl,
           ));
         }
       } catch (e) {

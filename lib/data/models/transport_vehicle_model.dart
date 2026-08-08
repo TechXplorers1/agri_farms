@@ -24,6 +24,9 @@ class TransportVehicle {
   final String? ownerBusinessName;
   final String? ownerName;
   final int? jobsCompleted;
+  final String? description;
+  final String? serviceArea;
+  final String? ownerProfileImageUrl;
 
   TransportVehicle({
     this.vehicleId,
@@ -51,6 +54,9 @@ class TransportVehicle {
     this.ownerBusinessName,
     this.ownerName,
     this.jobsCompleted,
+    this.description,
+    this.serviceArea,
+    this.ownerProfileImageUrl,
   });
 
   factory TransportVehicle.fromJson(Map<String, dynamic> json) {
@@ -80,6 +86,9 @@ class TransportVehicle {
       ownerBusinessName: json['ownerBusinessName'],
       ownerName: json['ownerName'],
       jobsCompleted: (json['jobsCompleted'] as num?)?.toInt(),
+      description: json['description'],
+      serviceArea: json['serviceArea'],
+      ownerProfileImageUrl: json['ownerProfileImageUrl'],
     );
   }
 
@@ -109,6 +118,10 @@ class TransportVehicle {
       'rating': rating,
       'ownerBusinessName': ownerBusinessName,
       'ownerName': ownerName,
+      'jobsCompleted': jobsCompleted,
+      'description': description,
+      'serviceArea': serviceArea,
+      'ownerProfileImageUrl': ownerProfileImageUrl,
     };
   }
 }
