@@ -23,6 +23,7 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _villageController = TextEditingController();
+  final TextEditingController _mandalController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -143,6 +144,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _houseNoController.text = houseNo ?? '';
         _streetController.text = street ?? '';
         _villageController.text = village ?? '';
+        _mandalController.text = ''; // Geocoding doesn't return mandal
         _districtController.text = district ?? '';
         _stateController.text = state ?? '';
         _countryController.text = country ?? '';
@@ -164,6 +166,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_houseNoController.text.isEmpty &&
         _streetController.text.isEmpty &&
         _villageController.text.isEmpty &&
+        _mandalController.text.isEmpty &&
         _districtController.text.isEmpty &&
         _stateController.text.isEmpty &&
         _pincodeController.text.isEmpty) {
@@ -173,7 +176,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     setState(() => _isGeocodingAddress = true);
     try {
-      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
+      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_mandalController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
       
       double? lat, lng;
       // 1. Try mobile native geocoding first
@@ -231,6 +234,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _userId = prefs.getString('user_id');
       _nameController.text = prefs.getString('user_name') ?? '';
       _villageController.text = prefs.getString('user_village') ?? '';
+      _mandalController.text = prefs.getString('user_mandal') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
       _phoneController.text = prefs.getString('user_phone') ?? '';
       _emailController.text = prefs.getString('user_email') ?? '';
@@ -255,6 +259,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             setState(() {
               _nameController.text = userData['fullName'] ?? _nameController.text;
               _villageController.text = userData['village'] ?? _villageController.text;
+              _mandalController.text = userData['mandal'] ?? _mandalController.text;
               _districtController.text = userData['district'] ?? _districtController.text;
               _phoneController.text = userData['phoneNumber'] ?? _phoneController.text;
               _emailController.text = userData['email'] ?? _emailController.text;
@@ -278,6 +283,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           await prefs.setString('user_phone', _phoneController.text);
           await prefs.setString('user_email', _emailController.text);
           await prefs.setString('user_village', _villageController.text);
+          await prefs.setString('user_mandal', _mandalController.text);
           await prefs.setString('user_district', _districtController.text);
           await prefs.setString('user_houseNo', _houseNoController.text);
           await prefs.setString('user_street', _streetController.text);
@@ -321,6 +327,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
     if (_villageController.text.trim().isEmpty) {
       _errors['village'] = 'Village is required';
+      hasErrors = true;
+    }
+    if (_mandalController.text.trim().isEmpty) {
+      _errors['mandal'] = 'Mandal is required';
       hasErrors = true;
     }
     if (_districtController.text.trim().isEmpty) {
@@ -400,7 +410,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         // Automatic Geocoding from Address
         double? lat, lng;
         try {
-          String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
+          String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_mandalController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
           
           try {
             final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
@@ -439,6 +449,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'phoneNumber': _phoneController.text,
           'email': _emailController.text,
           'village': _villageController.text,
+          'mandal': _mandalController.text,
           'houseNo': _houseNoController.text,
           'street': _streetController.text,
           'district': _districtController.text,
@@ -455,6 +466,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         await prefs.setString('user_phone', _phoneController.text);
         await prefs.setString('user_email', _emailController.text);
         await prefs.setString('user_village', _villageController.text);
+        await prefs.setString('user_mandal', _mandalController.text);
         await prefs.setString('user_district', _districtController.text);
         await prefs.setString('user_houseNo', _houseNoController.text);
         await prefs.setString('user_street', _streetController.text);
@@ -487,6 +499,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _villageController.dispose();
+    _mandalController.dispose();
     _districtController.dispose();
     _emailController.dispose();
     _houseNoController.dispose();
@@ -720,15 +733,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           children: [
                             Expanded(child: _buildTextField(_villageController, 'Village', 'Village name...', Icons.landscape_rounded, errorKey: 'village')),
                             const SizedBox(width: 16),
-                            Expanded(child: _buildTextField(_districtController, 'District', 'District name...', Icons.location_city_rounded, errorKey: 'district')),
+                            Expanded(child: _buildTextField(_mandalController, 'Mandal', 'Mandal name...', Icons.map_rounded, errorKey: 'mandal')),
                           ],
                         ),
                         const SizedBox(height: 20),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: _buildTextField(_stateController, 'State', 'State name...', Icons.map_outlined, errorKey: 'state')),
+                            Expanded(child: _buildTextField(_districtController, 'District', 'District name...', Icons.location_city_rounded, errorKey: 'district')),
                             const SizedBox(width: 16),
+                            Expanded(child: _buildTextField(_stateController, 'State', 'State name...', Icons.map_outlined, errorKey: 'state')),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Expanded(child: _buildTextField(_pincodeController, 'Pincode', 'Zip code...', Icons.pin_drop_rounded, errorKey: 'pincode')),
                           ],
                         ),

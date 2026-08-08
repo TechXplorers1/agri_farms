@@ -758,7 +758,10 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   Widget _buildEquipmentListingCard(BuildContext context, EquipmentListing provider) {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
-      provider: provider, subtitle: provider.brandModel,
+      provider: provider, 
+      subtitle: (provider.serviceName == 'Sprayers' && provider.attachedEquipments.isNotEmpty) 
+          ? '${provider.brandModel} • ${provider.attachedEquipments.join(', ')}' 
+          : provider.brandModel,
       onTap: () => _showAssetDetails(context, provider),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

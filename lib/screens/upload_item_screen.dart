@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
@@ -274,6 +275,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _houseNoController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
   final TextEditingController _villageController = TextEditingController();
+  final TextEditingController _mandalController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
   final TextEditingController _countryController = TextEditingController(text: 'India');
@@ -309,6 +311,22 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     'Chisel Plow',
     'Rotavator (Rotary Tiller)',
     'Disc Harrow',
+    'Other'
+  ];
+
+  // Sprayer Types
+  String? _currentSelectedSprayerType;
+  final TextEditingController _currentOtherSprayerTypeController = TextEditingController();
+  final TextEditingController _currentSprayerCapacityController = TextEditingController();
+  final Map<String, List<String>> _sprayerCapacitiesMap = {};
+  
+  final List<String> _availableSprayerTypes = [
+    'Handheld sprayers',
+    'Knapsack (backpack) sprayers',
+    'Foot and rocker sprayers',
+    'Portable power/HTP sprayers',
+    'Mist blowers/dusters',
+    'Knapsack power sprayers',
     'Other'
   ];
 
@@ -367,6 +385,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _yearController.dispose();
     _maleCountController.dispose();
     _femaleCountController.dispose();
+    _currentOtherSprayerTypeController.dispose();
+    _currentSprayerCapacityController.dispose();
     _malePriceController.dispose();
     _femalePriceController.dispose();
     _roleCountController.dispose();
@@ -427,6 +447,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _villageController.text = prefs.getString('user_village') ?? '';
+      _mandalController.text = prefs.getString('user_mandal') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
       _houseNoController.text = prefs.getString('user_houseNo') ?? '';
       _streetController.text = prefs.getString('user_street') ?? '';
@@ -444,7 +465,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   Future<void> _updateCoordinatesFromAddress() async {
     try {
-      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
+      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_mandalController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
       
       double? lat, lng;
       // Local geocoding
@@ -518,6 +539,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       _fieldErrors['roles'] = AppLocalizations.of(context)!.selectSkillError;
       hasError = true;
     }
+    if (_houseNoController.text.isEmpty) { _fieldErrors['houseNo'] = 'Required'; hasError = true; }
+    if (_streetController.text.isEmpty) { _fieldErrors['street'] = 'Required'; hasError = true; }
+    if (_villageController.text.isEmpty) { _fieldErrors['village'] = 'Required'; hasError = true; }
+    if (_mandalController.text.isEmpty) { _fieldErrors['mandal'] = 'Required'; hasError = true; }
+    if (_districtController.text.isEmpty) { _fieldErrors['district'] = 'Required'; hasError = true; }
+    if (_stateController.text.isEmpty) { _fieldErrors['state'] = 'Required'; hasError = true; }
+    if (_pincodeController.text.isEmpty) { _fieldErrors['pincode'] = 'Required'; hasError = true; }
 
     if (hasError) {
       _showError(AppLocalizations.of(context)!.fillRequiredFields);
@@ -570,6 +598,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'houseNo': _houseNoController.text,
         'street': _streetController.text,
         'village': _villageController.text,
+        'mandal': _mandalController.text,
         'district': _districtController.text,
         'state': _stateController.text,
         'country': _countryController.text,
@@ -619,18 +648,52 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     setState(() => _fieldErrors.clear());
     bool hasError = false;
 
+    if (_nameController.text.isEmpty) {
+      _fieldErrors['name'] = 'Enter business name';
+      hasError = true;
+    }
+    
     if (_selectedEquipmentType == null) {
       _fieldErrors['category'] = 'Select category';
       hasError = true;
+    }
+    if (_selectedEquipmentType != null) {
+      // Make selection is no longer mandatory
     }
     if (_brandModelController.text.isEmpty) {
       _fieldErrors['brandModel'] = 'Enter brand/model';
       hasError = true;
     }
+    if (_selectedEquipmentType == 'Sprayers') {
+      bool hasPendingSprayer = _currentSelectedSprayerType != null && _currentSprayerCapacityController.text.isNotEmpty;
+      if (_sprayerCapacitiesMap.isEmpty && !hasPendingSprayer) {
+        _fieldErrors['sprayerTypes'] = 'Add at least one sprayer type with capacity';
+        hasError = true;
+      } else {
+        bool missingCapacity = false;
+        for (var caps in _sprayerCapacitiesMap.values) {
+          if (caps.isEmpty) {
+            missingCapacity = true;
+            break;
+          }
+        }
+        if (missingCapacity) {
+          _fieldErrors['sprayerCapacity'] = 'Add at least one capacity for each sprayer';
+          hasError = true;
+        }
+      }
+    }
     if (_priceController.text.isEmpty) {
       _fieldErrors['price'] = 'Enter price';
       hasError = true;
     }
+    if (_houseNoController.text.isEmpty) { _fieldErrors['houseNo'] = 'Required'; hasError = true; }
+    if (_streetController.text.isEmpty) { _fieldErrors['street'] = 'Required'; hasError = true; }
+    if (_villageController.text.isEmpty) { _fieldErrors['village'] = 'Required'; hasError = true; }
+    if (_mandalController.text.isEmpty) { _fieldErrors['mandal'] = 'Required'; hasError = true; }
+    if (_districtController.text.isEmpty) { _fieldErrors['district'] = 'Required'; hasError = true; }
+    if (_stateController.text.isEmpty) { _fieldErrors['state'] = 'Required'; hasError = true; }
+    if (_pincodeController.text.isEmpty) { _fieldErrors['pincode'] = 'Required'; hasError = true; }
 
     if (hasError) {
       _showError(AppLocalizations.of(context)!.fillRequiredFields);
@@ -642,14 +705,16 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
       double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
 
+      String finalBrandModel = _brandModelController.text;
+      
       final Map<String, dynamic> equipmentData = {
         'ownerId': ownerId,
         'category': _selectedEquipmentType,
-        'brandModel': _brandModelController.text,
+        'brandModel': finalBrandModel,
         'ownerBusinessName': _nameController.text.isNotEmpty ? _nameController.text : null,
         'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
         'brand': _selectedMake ?? 'Other',
-        'model': (_selectedModel != null && _selectedModel != 'Other') ? _selectedModel : _brandModelController.text,
+        'model': (_selectedModel != null && _selectedModel != 'Other') ? _selectedModel : finalBrandModel,
         'conditionStatus': _condition,
         'pricePerHour': parsedPrice,
         'operatorAvailable': _operatorAvailable,
@@ -658,6 +723,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'houseNo': _houseNoController.text,
         'street': _streetController.text,
         'village': _villageController.text,
+        'mandal': _mandalController.text,
         'district': _districtController.text,
         'state': _stateController.text,
         'country': _countryController.text,
@@ -672,6 +738,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'attachedEquipments': _getFinalAttachedEquipments(),
       };
 
+      if (_selectedEquipmentType == 'Sprayers') {
+        equipmentData['sprayerTypes'] = _getFinalAttachedEquipmentsList();
+        // Send a flattened list of capacities for backward compatibility if needed
+        List<String> allCaps = [];
+        _sprayerCapacitiesMap.values.forEach((list) => allCaps.addAll(list));
+        equipmentData['sprayerCapacities'] = allCaps.toSet().toList();
+      }
+
       await ApiService().addEquipment(equipmentData);
 
       final newProvider = EquipmentListing(
@@ -682,7 +756,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         rating: 5.0,
         approvalStatus: 'Pending',
         location: _locationController.text,
-        brandModel: _brandModelController.text,
+        brandModel: finalBrandModel,
         price: _priceController.text,
         operatorAvailable: _operatorAvailable,
         condition: _condition,
@@ -706,13 +780,47 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   List<String> _getFinalAttachedEquipmentsList() {
-    if (_selectedEquipmentType != 'Tractors') return [];
-    List<String> finalEquipments = List.from(_selectedAttachedEquipments);
-    finalEquipments.remove('Other');
-    if (_isOtherAttachedEquipmentSelected && _otherAttachedEquipmentController.text.trim().isNotEmpty) {
-      finalEquipments.add(_otherAttachedEquipmentController.text.trim());
+    if (_selectedEquipmentType == 'Tractors') {
+      List<String> finalEquipments = List.from(_selectedAttachedEquipments);
+      finalEquipments.remove('Other');
+      if (_isOtherAttachedEquipmentSelected && _otherAttachedEquipmentController.text.trim().isNotEmpty) {
+        finalEquipments.add(_otherAttachedEquipmentController.text.trim());
+      }
+      return finalEquipments;
+    } else if (_selectedEquipmentType == 'Sprayers') {
+      List<String> finalEquipments = [];
+      for (var entry in _sprayerCapacitiesMap.entries) {
+        String type = entry.key;
+        List<String> caps = entry.value;
+        
+        // Check if there's a capacity pending in the input field matching this type
+        if (_currentSelectedSprayerType == type && _currentSprayerCapacityController.text.isNotEmpty) {
+           if (!caps.contains(_currentSprayerCapacityController.text.trim())) {
+             caps.add(_currentSprayerCapacityController.text.trim());
+           }
+        }
+        
+        if (caps.isNotEmpty) {
+          finalEquipments.add('$type (Capacities: ${caps.join(', ')}L)');
+        } else {
+          finalEquipments.add(type);
+        }
+      }
+      
+      // If there's a pending type that hasn't been added to the map yet
+      if (_currentSelectedSprayerType != null && _currentSprayerCapacityController.text.isNotEmpty) {
+         String pendingType = _currentSelectedSprayerType!;
+         if (pendingType == 'Other') {
+           pendingType = _currentOtherSprayerTypeController.text.trim();
+         }
+         if (pendingType.isNotEmpty && !_sprayerCapacitiesMap.containsKey(pendingType)) {
+             finalEquipments.add('$pendingType (Capacities: ${_currentSprayerCapacityController.text.trim()}L)');
+         }
+      }
+      
+      return finalEquipments;
     }
-    return finalEquipments;
+    return [];
   }
 
   void _completeSubmission() {
@@ -859,25 +967,31 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                       const SizedBox(height: 20),
                       Row(
                         children: [
-                          Expanded(child: _buildTextField('H.No', _houseNoController, 'e.g. 123', icon: Icons.home_rounded)),
+                          Expanded(child: _buildTextField('H.No', _houseNoController, 'e.g. 123', icon: Icons.home_rounded, errorKey: 'houseNo')),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildTextField('Street', _streetController, 'Street Name', icon: Icons.map_rounded)),
+                          Expanded(child: _buildTextField('Street', _streetController, 'Street Name', icon: Icons.map_rounded, errorKey: 'street')),
                         ],
                       ),
                       const SizedBox(height: 20),
                       Row(
                         children: [
-                          Expanded(child: _buildTextField('Village', _villageController, 'Village Name', icon: Icons.location_city_rounded)),
+                          Expanded(child: _buildTextField('Village', _villageController, 'Village Name', icon: Icons.location_city_rounded, errorKey: 'village')),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildTextField('District', _districtController, 'District Name')),
+                          Expanded(child: _buildTextField('Mandal', _mandalController, 'Mandal Name', icon: Icons.map_rounded, errorKey: 'mandal')),
                         ],
                       ),
                       const SizedBox(height: 20),
                       Row(
                         children: [
-                          Expanded(child: _buildTextField('State', _stateController, 'State Name')),
+                          Expanded(child: _buildTextField('District', _districtController, 'District Name', errorKey: 'district')),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildTextField('Pincode', _pincodeController, '6-digit code', keyboardType: TextInputType.number)),
+                          Expanded(child: _buildTextField('State', _stateController, 'State Name', errorKey: 'state')),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(child: _buildTextField('Pincode', _pincodeController, '6-digit code', keyboardType: TextInputType.number, errorKey: 'pincode')),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -1219,6 +1333,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'operatorPrice': _driverIncluded ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
         'serviceArea': _serviceAreaController.text.isNotEmpty ? _serviceAreaController.text : null,
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Unknown',
+        'houseNo': _houseNoController.text,
+        'street': _streetController.text,
+        'village': _villageController.text,
+        'mandal': _mandalController.text,
+        'district': _districtController.text,
+        'state': _stateController.text,
+        'country': _countryController.text,
+        'pincode': _pincodeController.text,
         'latitude': _selectedLatitude,
         'longitude': _selectedLongitude,
         'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
@@ -1289,6 +1411,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'operatorIncluded': hasOperator,
         'operatorPrice': hasOperator ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
         'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        'houseNo': _houseNoController.text,
+        'street': _streetController.text,
+        'village': _villageController.text,
+        'mandal': _mandalController.text,
+        'district': _districtController.text,
+        'state': _stateController.text,
+        'country': _countryController.text,
+        'pincode': _pincodeController.text,
         'latitude': _selectedLatitude,
         'longitude': _selectedLongitude,
         'isAvailable': true,
@@ -1527,7 +1657,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   Widget _buildEquipmentForm() {
     final l10n = AppLocalizations.of(context)!;
     List<String> makes = [];
-    if (_selectedEquipmentType != null) {
+    if (_selectedEquipmentType != null && _selectedEquipmentType != 'Sprayers') {
       makes = VehicleData.getMakes(_selectedEquipmentType!);
     }
 
@@ -1549,7 +1679,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             children: [
               DropdownButtonFormField<String>(
                 value: _selectedEquipmentType,
-                decoration: _inputDecoration('Category', icon: Icons.category_rounded),
+                decoration: _inputDecoration('Category', isError: _fieldErrors.containsKey('category'), icon: Icons.category_rounded),
                 items: _equipmentCategories.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                 onChanged: (v) {
                   setState(() {
@@ -1561,7 +1691,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              _buildTextField('Owner / Business Name', _nameController, l10n.ownerNameHint, icon: Icons.person_rounded),
+              _buildTextField('Owner / Business Name', _nameController, l10n.ownerNameHint, errorKey: 'name', icon: Icons.person_rounded),
               const SizedBox(height: 20),
               
               // MAKE SELECTION
@@ -1603,7 +1733,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               
               // Manual Entry Fallback
               if (showManualMake || showManualModel) 
-                 _buildTextField(l10n.brandModel, _brandModelController, 'e.g. John Deere 5310', icon: Icons.edit_note_rounded),
+                 _buildTextField(l10n.brandModel, _brandModelController, 'e.g. John Deere 5310', errorKey: 'brandModel', icon: Icons.edit_note_rounded),
 
               if (showManualMake || showManualModel) 
                  const SizedBox(height: 20),
@@ -1725,12 +1855,154 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             ),
           ),
 
+        if (_selectedEquipmentType == 'Sprayers')
+          _buildSectionCard(
+            title: 'Sprayer Types',
+            icon: Icons.water_drop_rounded,
+            isError: _fieldErrors.containsKey('sprayerTypes'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Add sprayers and their capacities:',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF2C3E50), fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _currentSelectedSprayerType,
+                  decoration: _inputDecoration('Sprayer Type', icon: Icons.grass_rounded),
+                  items: _availableSprayerTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                  onChanged: (v) => setState(() => _currentSelectedSprayerType = v),
+                ),
+                if (_currentSelectedSprayerType == 'Other') ...[
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    'Custom Sprayer Name',
+                    _currentOtherSprayerTypeController,
+                    'e.g. Special Sprayer',
+                    icon: Icons.edit_rounded,
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        'Capacity (Litres)',
+                        _currentSprayerCapacityController,
+                        'e.g. 150',
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        icon: Icons.water_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2.0),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (_currentSelectedSprayerType == null) return;
+                          
+                          String type = _currentSelectedSprayerType!;
+                          if (type == 'Other') {
+                            final customType = _currentOtherSprayerTypeController.text.trim();
+                            if (customType.isEmpty) return;
+                            type = customType;
+                            
+                            // Optionally add to available types
+                            if (!_availableSprayerTypes.contains(type)) {
+                              setState(() {
+                                _availableSprayerTypes.insert(_availableSprayerTypes.length - 1, type);
+                              });
+                            }
+                          }
+                          
+                          final capText = _currentSprayerCapacityController.text.trim();
+                          if (capText.isNotEmpty) {
+                            setState(() {
+                              if (!_sprayerCapacitiesMap.containsKey(type)) {
+                                _sprayerCapacitiesMap[type] = [];
+                              }
+                              if (!_sprayerCapacitiesMap[type]!.contains(capText)) {
+                                _sprayerCapacitiesMap[type]!.add(capText);
+                              }
+                              
+                              // Reset inputs
+                              _currentSprayerCapacityController.clear();
+                              _currentOtherSprayerTypeController.clear();
+                              _currentSelectedSprayerType = null;
+                            });
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00AA55),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          minimumSize: const Size(0, 54),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        ),
+                        child: const Text('Add', style: TextStyle(fontWeight: FontWeight.w800)),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_sprayerCapacitiesMap.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Text('Added Sprayers:', style: TextStyle(fontSize: 13, color: Color(0xFF1B5E20), fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8.0,
+                    runSpacing: 8.0,
+                    children: _sprayerCapacitiesMap.entries.expand((entry) {
+                      if (entry.value.isEmpty) {
+                        return [
+                          Chip(
+                            label: Text(entry.key),
+                            deleteIconColor: const Color(0xFF00AA55),
+                            backgroundColor: const Color(0xFFE8F5E9),
+                            onDeleted: () {
+                              setState(() {
+                                _sprayerCapacitiesMap.remove(entry.key);
+                              });
+                            },
+                          )
+                        ];
+                      }
+                      return entry.value.map((capacity) {
+                        return Chip(
+                          label: Text('${entry.key} - $capacity L'),
+                          deleteIconColor: const Color(0xFF00AA55),
+                          backgroundColor: const Color(0xFFE8F5E9),
+                          onDeleted: () {
+                            setState(() {
+                              _sprayerCapacitiesMap[entry.key]!.remove(capacity);
+                              if (_sprayerCapacitiesMap[entry.key]!.isEmpty) {
+                                _sprayerCapacitiesMap.remove(entry.key);
+                              }
+                            });
+                          },
+                        );
+                      });
+                    }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
         _buildSectionCard(
           title: 'Rental Terms & Condition',
           icon: Icons.fact_check_rounded,
           child: Column(
             children: [
-              _buildTextField(l10n.rentalPrice, _priceController, 'e.g. ₹500 / hour', icon: Icons.payments_rounded),
+              _buildTextField(
+                l10n.rentalPrice, 
+                _priceController, 
+                _selectedEquipmentType == 'Sprayers' ? 'e.g. ₹50 / litre' : 'e.g. ₹500 / hour', 
+                errorKey: 'price', 
+                icon: Icons.payments_rounded,
+              ),
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 value: _condition,
@@ -1763,13 +2035,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   // --- HELPERS ---
 
-  Widget _buildSectionCard({required String title, required IconData icon, required Widget child, Widget? trailing}) {
+  Widget _buildSectionCard({required String title, required IconData icon, required Widget child, Widget? trailing, bool isError = false}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
+        border: isError ? Border.all(color: Colors.red.withOpacity(0.5), width: 1.5) : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -1811,7 +2084,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey, Widget? suffixIcon, IconData? icon, bool enabled = true}) {
+  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey, Widget? suffixIcon, IconData? icon, bool enabled = true, List<TextInputFormatter>? inputFormatters}) {
     bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
     final errorText = hasError ? _fieldErrors[errorKey] : null;
 
@@ -1840,7 +2113,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               enabled: enabled,
               maxLines: maxLines,
               keyboardType: keyboardType,
-              inputFormatters: keyboardType == TextInputType.number ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))] : null,
+              inputFormatters: inputFormatters,
               onChanged: (_) {
                 if (hasError) setState(() => _fieldErrors.remove(errorKey));
               },
@@ -1873,7 +2146,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+        borderSide: BorderSide(color: isError ? Colors.red : const Color(0xFF00AA55), width: 1.5),
       ),
       filled: true,
       fillColor: const Color(0xFFF9FBF9),

@@ -62,6 +62,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   final TextEditingController _houseNoController = TextEditingController();
   final TextEditingController _streetController = TextEditingController();
   final TextEditingController _villageController = TextEditingController();
+  final TextEditingController _mandalController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
   final TextEditingController _countryController = TextEditingController(text: 'India');
@@ -80,6 +81,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   final GlobalKey _timeSectionKey = GlobalKey();
 
   List<String> _selectedEquipments = [];
+  String? _selectedCapacity;
+  List<String> _displaySprayerTypes = [];
+  Map<String, List<String>> _availableSprayerCapacities = {};
 
   List<BookingDTO> _existingBookings = [];
   bool _isLoadingBookings = false;
@@ -133,6 +137,24 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     _includeOperator = widget.operatorAvailable;
     _loadAddress();
     _fetchAssetBookings();
+    
+    if (widget.equipmentType.contains('Sprayer') && widget.attachedEquipments != null) {
+      for (var eq in widget.attachedEquipments!) {
+        String typeName = eq.trim();
+        List<String> caps = [];
+        final match = RegExp(r'\(Capacities:(.*?)\)').firstMatch(typeName);
+        if (match != null) {
+           typeName = typeName.split('(Capacities:').first.trim();
+           if (match.group(1) != null) {
+              caps = match.group(1)!.split(',').map((e) => e.replaceAll('L', '').trim()).where((e) => e.isNotEmpty).toList();
+           }
+        }
+        _displaySprayerTypes.add(typeName);
+        if (caps.isNotEmpty) {
+           _availableSprayerCapacities[typeName] = caps;
+        }
+      }
+    }
   }
 
   Future<void> _fetchAssetBookings() async {
@@ -162,6 +184,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       _houseNoController.text = prefs.getString('user_houseNo') ?? '';
       _streetController.text = prefs.getString('user_street') ?? '';
       _villageController.text = prefs.getString('user_village') ?? '';
+      _mandalController.text = prefs.getString('user_mandal') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
       _stateController.text = prefs.getString('user_state') ?? '';
       _countryController.text = prefs.getString('user_country') ?? 'India';
@@ -557,8 +580,19 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
     setState(() {
       if (_selectedSlots.contains(hour)) {
+        if (hour != _selectedSlots.first && hour != _selectedSlots.last) {
+           UiUtils.showCustomAlert(context, 'Cannot remove a middle slot. If you want to book a split time, you need to make a new booking.', isError: true);
+           return;
+        }
         _selectedSlots.remove(hour);
       } else {
+        if (_selectedSlots.isNotEmpty) {
+           _selectedSlots.sort();
+           if (hour != _selectedSlots.first - 1 && hour != _selectedSlots.last + 1) {
+              UiUtils.showCustomAlert(context, 'If you want to book a split time, you need to make a new booking.', isError: true);
+              return;
+           }
+        }
         _selectedSlots.add(hour);
         _selectedSlots.sort();
       }
@@ -582,10 +616,40 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   }
 
   void _confirmBooking() async {
+    setState(() {
+      _fieldErrors.clear();
+    });
+    bool hasError = false;
+
+    if (_houseNoController.text.isEmpty) { _fieldErrors['houseNo'] = 'Required'; hasError = true; }
+    if (_streetController.text.isEmpty) { _fieldErrors['street'] = 'Required'; hasError = true; }
+    if (_villageController.text.isEmpty) { _fieldErrors['village'] = 'Required'; hasError = true; }
+    if (_mandalController.text.isEmpty) { _fieldErrors['mandal'] = 'Required'; hasError = true; }
+    if (_districtController.text.isEmpty) { _fieldErrors['district'] = 'Required'; hasError = true; }
+    if (_stateController.text.isEmpty) { _fieldErrors['state'] = 'Required'; hasError = true; }
+    if (_pincodeController.text.isEmpty) { _fieldErrors['pincode'] = 'Required'; hasError = true; }
+
+    if (_selectedDate == null) { _fieldErrors['date'] = 'Required'; hasError = true; }
+    if (_selectedSlots.isEmpty) { _fieldErrors['slots'] = 'Required'; hasError = true; }
+
+    if (widget.equipmentType.contains('Sprayer') && _selectedEquipments.isEmpty) {
+      _fieldErrors['sprayerTypes'] = 'Required';
+      hasError = true;
+      UiUtils.showCenteredToast(context, 'Please select at least one sprayer type', isError: true);
+    }
+
+    if (hasError) {
+      if (!widget.equipmentType.contains('Sprayer') || _selectedEquipments.isNotEmpty) {
+        UiUtils.showCenteredToast(context, 'Please fill all required fields', isError: true);
+      }
+      return;
+    }
+
     final String fullAddress = [
       _houseNoController.text,
       _streetController.text,
       _villageController.text,
+      _mandalController.text,
       _districtController.text,
       _stateController.text,
       _countryController.text,
@@ -682,9 +746,13 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       }
       setState(() {
         _fieldErrors.clear();
-        if (fullAddress.isEmpty) {
-          _fieldErrors['address'] = 'Please enter delivery address';
-        }
+        if (_houseNoController.text.isEmpty) _fieldErrors['houseNo'] = 'Required';
+        if (_streetController.text.isEmpty) _fieldErrors['street'] = 'Required';
+        if (_villageController.text.isEmpty) _fieldErrors['village'] = 'Required';
+        if (_mandalController.text.isEmpty) _fieldErrors['mandal'] = 'Required';
+        if (_districtController.text.isEmpty) _fieldErrors['district'] = 'Required';
+        if (_stateController.text.isEmpty) _fieldErrors['state'] = 'Required';
+        if (_pincodeController.text.isEmpty) _fieldErrors['pincode'] = 'Required';
         if (_selectedDate == null) {
           _fieldErrors['date'] = 'Select a start date';
         }
@@ -694,7 +762,8 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       });
 
       // Scroll to first error
-      if (_fieldErrors.containsKey('address')) {
+      final addressFields = ['houseNo', 'street', 'village', 'mandal', 'district', 'state', 'pincode'];
+      if (addressFields.any((f) => _fieldErrors.containsKey(f))) {
         _scrollToField(_addressSectionKey);
       } else if (_fieldErrors.containsKey('date')) {
         _scrollToField(_dateSectionKey);
@@ -779,7 +848,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                              borderRadius: BorderRadius.circular(8),
                            ),
                            child: Text(
-                             '₹${widget.rate.toStringAsFixed(0)} / hr',
+                             '₹${widget.rate.toStringAsFixed(0)} / ${widget.equipmentType.contains('Sprayer') ? 'litre' : 'hr'}',
                              style: const TextStyle(color: Color(0xFF00AA55), fontSize: 12, fontWeight: FontWeight.w800),
                            ),
                          ),
@@ -790,21 +859,22 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
               ),
             ),
             _buildListingDetailsCard(widget.description, widget.serialNumber, widget.equipmentType),
-            if (widget.equipmentType.contains('Tractor')) ...[
+            if (widget.equipmentType.contains('Tractor') || widget.equipmentType.contains('Sprayer')) ...[
               const SizedBox(height: 24),
               _buildSectionCard(
-              title: 'Attached Equipments',
-              icon: Icons.agriculture_rounded,
+              title: widget.equipmentType.contains('Sprayer') ? 'Sprayer Types' : 'Attached Equipments',
+              icon: widget.equipmentType.contains('Sprayer') ? Icons.water_drop_rounded : Icons.agriculture_rounded,
+              isError: widget.equipmentType.contains('Sprayer') ? _fieldErrors.containsKey('sprayerTypes') : false,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (widget.attachedEquipments != null && widget.attachedEquipments!.isNotEmpty) ...[
-                    const Text('Select the included equipments you need:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    Text(widget.equipmentType.contains('Sprayer') ? 'Select the sprayer types you need:' : 'Select the included equipments you need:', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                     const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 12,
-                      children: widget.attachedEquipments!.map((eq) {
+                      children: (widget.equipmentType.contains('Sprayer') ? _displaySprayerTypes : widget.attachedEquipments!).map((eq) {
                         final isSelected = _selectedEquipments.contains(eq);
                         return FilterChip(
                           label: Text(eq),
@@ -815,6 +885,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                                 _selectedEquipments.add(eq);
                               } else {
                                 _selectedEquipments.remove(eq);
+                                if (_selectedEquipments.isEmpty) {
+                                  _selectedCapacity = null;
+                                }
                               }
                             });
                           },
@@ -834,6 +907,70 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                         );
                       }).toList(),
                     ),
+                    Builder(
+                      builder: (context) {
+                        if (!widget.equipmentType.contains('Sprayer') || _selectedEquipments.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        
+                        Set<String> allCaps = {};
+                        for (var selected in _selectedEquipments) {
+                          if (_availableSprayerCapacities.containsKey(selected)) {
+                            allCaps.addAll(_availableSprayerCapacities[selected]!);
+                          }
+                        }
+                        
+                        if (allCaps.isEmpty) return const SizedBox.shrink();
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 16),
+                            const Text('Available Capacities for selected sprayers:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20))),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: () {
+                                if (_selectedCapacity != null && allCaps.contains(_selectedCapacity)) {
+                                  return [
+                                    InputChip(
+                                      label: Text('$_selectedCapacity L'),
+                                      onDeleted: () {
+                                        setState(() {
+                                          _selectedCapacity = null;
+                                        });
+                                      },
+                                      deleteIconColor: const Color(0xFF00AA55),
+                                      backgroundColor: const Color(0xFFE8F5E9),
+                                      labelStyle: const TextStyle(fontSize: 12, color: Color(0xFF1B5E20), fontWeight: FontWeight.w700),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        side: const BorderSide(color: Color(0xFF00AA55)),
+                                      ),
+                                    )
+                                  ];
+                                } else {
+                                  return allCaps.map((cap) => ActionChip(
+                                    label: Text('$cap L', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                                    onPressed: () {
+                                      setState(() {
+                                        _selectedCapacity = cap;
+                                      });
+                                    },
+                                    backgroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      side: BorderSide(color: Colors.grey[300]!),
+                                    ),
+                                  )).toList();
+                                }
+                              }(),
+                            ),
+                          ],
+                        );
+                      }
+                    ),
                   ] else ...[
                     const Text('No attached equipments offered by this provider.', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey)),
                   ]
@@ -847,7 +984,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
               key: _addressSectionKey,
               title: 'Lush Delivery Location',
               icon: Icons.location_on_rounded,
-              isError: _fieldErrors.containsKey('address'),
+              isError: ['houseNo', 'street', 'village', 'mandal', 'district', 'state', 'pincode'].any((f) => _fieldErrors.containsKey(f)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -885,6 +1022,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           label: 'House No / Door No',
                           hint: 'e.g. 123',
                           icon: Icons.home_outlined,
+                          errorKey: 'houseNo',
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -894,6 +1032,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           label: 'Street / Area Name',
                           hint: 'Street details...',
                           icon: Icons.add_road_rounded,
+                          errorKey: 'street',
                         ),
                       ),
                     ],
@@ -907,15 +1046,17 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           label: 'Village / Suburb',
                           hint: 'Village name...',
                           icon: Icons.landscape_rounded,
+                          errorKey: 'village',
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: _buildAddressInputField(
-                          controller: _districtController,
-                          label: 'District',
-                          hint: 'District name...',
-                          icon: Icons.location_city_rounded,
+                          controller: _mandalController,
+                          label: 'Mandal',
+                          hint: 'Mandal name...',
+                          icon: Icons.map_rounded,
+                          errorKey: 'mandal',
                         ),
                       ),
                     ],
@@ -925,13 +1066,28 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                     children: [
                       Expanded(
                         child: _buildAddressInputField(
+                          controller: _districtController,
+                          label: 'District',
+                          hint: 'District name...',
+                          icon: Icons.location_city_rounded,
+                          errorKey: 'district',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
                           controller: _stateController,
                           label: 'State',
                           hint: 'State name...',
                           icon: Icons.map_outlined,
+                          errorKey: 'state',
                         ),
                       ),
-                      const SizedBox(width: 16),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
                       Expanded(
                         child: _buildAddressInputField(
                           controller: _pincodeController,
@@ -939,6 +1095,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           hint: 'Pincode...',
                           icon: Icons.pin_drop_rounded,
                           keyboardType: TextInputType.number,
+                          errorKey: 'pincode',
                         ),
                       ),
                     ],
@@ -1323,9 +1480,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(l10n.totalEstimate, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF546E7A))),
+                      Text(widget.equipmentType.contains('Sprayer') ? 'Price (per litre)' : l10n.totalEstimate, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF546E7A))),
                       Text(
-                        '₹${_totalPrice.toStringAsFixed(0)}',
+                        widget.equipmentType.contains('Sprayer') ? '₹${widget.rate.toStringAsFixed(0)}' : '₹${_totalPrice.toStringAsFixed(0)}',
                         style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                       ),
                     ],
@@ -1477,35 +1634,49 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     bool enabled = true,
+    String? errorKey,
   }) {
+    final bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
+    final String? errorText = hasError ? _fieldErrors[errorKey] : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: hasError ? Colors.red : const Color(0xFF2C3E50)),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: enabled ? const Color(0xFFF9FBF9) : Colors.grey[100],
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: enabled ? const Color(0xFFE8F5E9) : Colors.grey[300]!),
+            border: Border.all(color: hasError ? Colors.red : (enabled ? const Color(0xFFE8F5E9) : Colors.grey[300]!)),
           ),
           child: TextField(
             controller: controller,
             enabled: enabled,
             keyboardType: keyboardType,
+            onChanged: (_) {
+              if (hasError && errorKey != null) {
+                setState(() => _fieldErrors.remove(errorKey));
+              }
+            },
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: enabled ? const Color(0xFF2C3E50) : Colors.grey[700]),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500, fontSize: 13),
-              prefixIcon: Icon(icon, color: enabled ? const Color(0xFF00AA55) : Colors.grey[500], size: 18),
+              prefixIcon: Icon(icon, color: hasError ? Colors.red : (enabled ? const Color(0xFF00AA55) : Colors.grey[500]), size: 18),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
           ),
         ),
+        if (hasError && errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0, left: 4),
+            child: Text(errorText, style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w500)),
+          ),
       ],
     );
   }

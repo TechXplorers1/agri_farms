@@ -4,9 +4,10 @@ class ApiConfig {
   // Switches environment based on compile-time ENV variable (defaults to dev)
   static const Environment env = Environment.dev;
 
-  // Development base API endpoint (Using local IP on port 8083)
-  // Note: Change to 8081 if you run the backend using Maven (mvn spring-boot:run) directly on host
-  static const String devBaseUrl = 'http://192.168.29.83:8081';
+  // Development base API endpoint
+  // Use localhost when running Flutter on Chrome (web) - same machine as backend
+  // Use your machine's local IP (e.g. http://192.168.29.237:8081) for physical Android/iOS devices
+  static const String devBaseUrl = 'http://192.168.29.237:8081';
 
   // Production base API endpoint (AWS ECS Load Balancer / Custom Domain)
   // Override at build time using: --dart-define=API_URL=https://your-load-balancer-url

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
@@ -57,6 +58,16 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   List<String> _selectedAttachedEquipments = [];
   final TextEditingController _otherAttachedEquipmentController = TextEditingController();
 
+  final List<String> _defaultSprayerTypes = [
+    'Handheld sprayers', 'Knapsack (backpack) sprayers', 'Foot and rocker sprayers',
+    'Portable power/HTP sprayers', 'Mist blowers/dusters', 'Knapsack power sprayers', 'Other'
+  ];
+  List<String> _availableSprayerTypes = [];
+  String? _currentSelectedSprayerType;
+  late TextEditingController _currentOtherSprayerTypeController;
+  late TextEditingController _currentSprayerCapacityController;
+  final Map<String, List<String>> _sprayerCapacitiesMap = {};
+
   XFile? _imageFile;
   String? _imageUrl;
 
@@ -78,7 +89,8 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _serviceAreaController = TextEditingController(text: widget.itemData['serviceArea']?.toString() ?? '');
     _imageUrl = widget.itemData['imageUrl']?.toString();
     _operatorPriceController = TextEditingController(text: widget.itemData['operatorPrice']?.toString() ?? '');
-
+    _currentOtherSprayerTypeController = TextEditingController();
+    _currentSprayerCapacityController = TextEditingController();
     if (widget.category == 'Vehicle') {
       _selectedVehicleType = widget.itemData['vehicleType']?.toString();
       _nameController.text = widget.itemData['vehicleNumber']?.toString() ?? '';
@@ -104,8 +116,47 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
       _condition = widget.itemData['conditionStatus']?.toString() ?? 'Good';
       
       final attachedStr = widget.itemData['attachedEquipments']?.toString();
-      if (attachedStr != null && attachedStr.isNotEmpty) {
-        _selectedAttachedEquipments = attachedStr.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      
+      if (_secondaryController.text == 'Sprayers') {
+        _availableSprayerTypes = List.from(_defaultSprayerTypes);
+        if (attachedStr != null && attachedStr.isNotEmpty) {
+          dynamic attachedData = widget.itemData['attachedEquipments'];
+          List<String> attachedList = [];
+          if (attachedData is List) {
+            attachedList = attachedData.map((e) => e.toString()).toList();
+          } else if (attachedData is String) {
+            String clean = attachedData.replaceAll(RegExp(r'^\[|\]$'), '');
+            // Split by comma ignoring commas inside parentheses
+            attachedList = clean.split(RegExp(r',\s*(?![^()]*\))')).where((e) => e.isNotEmpty).toList();
+          }
+          
+          for (var item in attachedList) {
+             item = item.trim();
+             String typeName = item;
+             List<String> caps = [];
+             final match = RegExp(r'\(Capacities:(.*?)\)').firstMatch(item);
+             if (match != null) {
+                typeName = item.split('(Capacities:').first.trim();
+                if (match.group(1) != null) {
+                   // Remove 'L' and trim
+                   caps = match.group(1)!.split(',').map((e) => e.replaceAll('L', '').trim()).where((e) => e.isNotEmpty).toList();
+                }
+             }
+             if (caps.isNotEmpty) {
+               _sprayerCapacitiesMap[typeName] = caps;
+             } else {
+               _sprayerCapacitiesMap[typeName] = [];
+             }
+             if (!_availableSprayerTypes.contains(typeName)) {
+                 _availableSprayerTypes.insert(_availableSprayerTypes.length - 1, typeName);
+             }
+          }
+        }
+        _nameController.text = widget.itemData['brandModel']?.toString() ?? '';
+        // Remove global capacity parsing logic
+        if (attachedStr != null && attachedStr.isNotEmpty) {
+          _selectedAttachedEquipments = attachedStr.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        }
       }
     } else if (widget.category == 'Service') {
       _nameController.text = widget.itemData['businessName']?.toString() ?? '';
@@ -132,6 +183,8 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _serviceAreaController.dispose();
     _operatorPriceController.dispose();
     _otherAttachedEquipmentController.dispose();
+    _currentOtherSprayerTypeController.dispose();
+    _currentSprayerCapacityController.dispose();
     super.dispose();
   }
 
@@ -237,17 +290,70 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['location'] = _locationController.text;
         await _apiService.updateVehicle(widget.itemData['vehicleId'], updatedData);
       } else if (widget.category == 'Equipment') {
-        updatedData['brandModel'] = _nameController.text;
+        if (_secondaryController.text == 'Sprayers') {
+          updatedData['brandModel'] = _nameController.text.trim();
+          
+          List<String> finalEquipments = [];
+          List<String> allCaps = [];
+          
+          for (var entry in _sprayerCapacitiesMap.entries) {
+            String type = entry.key;
+            List<String> caps = entry.value;
+            
+            if (_currentSelectedSprayerType == type && _currentSprayerCapacityController.text.isNotEmpty) {
+               if (!caps.contains(_currentSprayerCapacityController.text.trim())) {
+                 caps.add(_currentSprayerCapacityController.text.trim());
+               }
+            }
+            
+            if (caps.isNotEmpty) {
+              finalEquipments.add('$type (Capacities: ${caps.join(', ')}L)');
+              allCaps.addAll(caps);
+            } else {
+              finalEquipments.add(type);
+            }
+          }
+          
+          if (_currentSelectedSprayerType != null && _currentSprayerCapacityController.text.isNotEmpty) {
+             String pendingType = _currentSelectedSprayerType!;
+             if (pendingType == 'Other') {
+               pendingType = _currentOtherSprayerTypeController.text.trim();
+             }
+             if (pendingType.isNotEmpty && !_sprayerCapacitiesMap.containsKey(pendingType)) {
+                 finalEquipments.add('$pendingType (Capacities: ${_currentSprayerCapacityController.text.trim()}L)');
+                 allCaps.add(_currentSprayerCapacityController.text.trim());
+             }
+          }
+          
+          updatedData['attachedEquipments'] = finalEquipments.join(', ');
+          updatedData['sprayerTypes'] = finalEquipments;
+          updatedData['sprayerCapacities'] = allCaps.toSet().toList();
+        } else {
+          updatedData['brandModel'] = _nameController.text;
+          
+          List<String> finalAttached = List.from(_selectedAttachedEquipments);
+          finalAttached.remove('Other');
+          if (finalAttached.isNotEmpty) {
+            updatedData['attachedEquipments'] = finalAttached.join(', ');
+          } else {
+            updatedData['attachedEquipments'] = '';
+          }
+        }
+
         updatedData['ownerBusinessName'] = _ownerBusinessNameController.text.isNotEmpty ? _ownerBusinessNameController.text : null;
         updatedData['description'] = _descriptionController.text.isNotEmpty ? _descriptionController.text : null;
         
         final parts = _nameController.text.trim().split(' ');
         if (parts.length > 1) {
           updatedData['brand'] = parts[0];
-          updatedData['model'] = parts.sublist(1).join(' ');
+          if (_secondaryController.text == 'Sprayers') {
+             updatedData['model'] = updatedData['brandModel']?.toString().replaceFirst(parts[0], '').trim() ?? '';
+          } else {
+             updatedData['model'] = parts.sublist(1).join(' ');
+          }
         } else {
           updatedData['brand'] = _nameController.text;
-          updatedData['model'] = '';
+          updatedData['model'] = _secondaryController.text == 'Sprayers' ? updatedData['brandModel'] : '';
         }
 
         updatedData['pricePerHour'] = double.tryParse(_priceController.text) ?? 0.0;
@@ -256,14 +362,6 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['operatorPrice'] = _boolFlag ? (double.tryParse(_operatorPriceController.text) ?? 0.0) : 0.0;
         updatedData['conditionStatus'] = _condition;
         updatedData['location'] = _locationController.text;
-
-        List<String> finalAttached = List.from(_selectedAttachedEquipments);
-        finalAttached.remove('Other');
-        if (finalAttached.isNotEmpty) {
-          updatedData['attachedEquipments'] = finalAttached.join(', ');
-        } else {
-          updatedData['attachedEquipments'] = '';
-        }
 
         await _apiService.updateEquipment(widget.itemData['equipmentId'], updatedData);
       } else if (widget.category == 'Service') {
@@ -726,6 +824,141 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                 ),
               ),
 
+            if (widget.category == 'Equipment' && _secondaryController.text == 'Sprayers')
+              _buildSectionCard(
+                title: 'Sprayer Types',
+                icon: Icons.water_drop_rounded,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Add sprayers and their capacities:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _currentSelectedSprayerType,
+                      decoration: InputDecoration(
+                        labelText: 'Sprayer Type',
+                        labelStyle: const TextStyle(fontSize: 13, color: Color(0xFF2C3E50)),
+                        prefixIcon: const Icon(Icons.grass_rounded, color: Color(0xFF00AA55)),
+                        filled: true,
+                        fillColor: Colors.white,
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey[300]!)),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Color(0xFF00AA55))),
+                      ),
+                      items: _availableSprayerTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      onChanged: (v) => setState(() => _currentSelectedSprayerType = v),
+                    ),
+                    if (_currentSelectedSprayerType == 'Other') ...[
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        'Custom Sprayer Name',
+                        _currentOtherSprayerTypeController,
+                        Icons.edit_rounded,
+                        hint: 'e.g. Special Sprayer',
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            'Capacity (Litres)',
+                            _currentSprayerCapacityController,
+                            Icons.water_rounded,
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            hint: 'e.g. 150',
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            if (_currentSelectedSprayerType == null) return;
+                            
+                            String type = _currentSelectedSprayerType!;
+                            if (type == 'Other') {
+                              final customType = _currentOtherSprayerTypeController.text.trim();
+                              if (customType.isEmpty) return;
+                              type = customType;
+                              
+                              if (!_availableSprayerTypes.contains(type)) {
+                                setState(() {
+                                  _availableSprayerTypes.insert(_availableSprayerTypes.length - 1, type);
+                                });
+                              }
+                            }
+                            
+                            final capText = _currentSprayerCapacityController.text.trim();
+                            if (capText.isNotEmpty) {
+                              setState(() {
+                                if (!_sprayerCapacitiesMap.containsKey(type)) {
+                                  _sprayerCapacitiesMap[type] = [];
+                                }
+                                if (!_sprayerCapacitiesMap[type]!.contains(capText)) {
+                                  _sprayerCapacitiesMap[type]!.add(capText);
+                                }
+                                
+                                _currentSprayerCapacityController.clear();
+                                _currentOtherSprayerTypeController.clear();
+                                _currentSelectedSprayerType = null;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AA55),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            minimumSize: const Size(0, 54),
+                          ),
+                          child: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    if (_sprayerCapacitiesMap.isNotEmpty) ...[
+                      const SizedBox(height: 24),
+                      const Text('Added Sprayers:', style: TextStyle(fontSize: 13, color: Color(0xFF1B5E20), fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: _sprayerCapacitiesMap.entries.expand((entry) {
+                          if (entry.value.isEmpty) {
+                            return [
+                              Chip(
+                                label: Text(entry.key),
+                                deleteIconColor: const Color(0xFF00AA55),
+                                backgroundColor: const Color(0xFFE8F5E9),
+                                onDeleted: () {
+                                  setState(() {
+                                    _sprayerCapacitiesMap.remove(entry.key);
+                                  });
+                                },
+                              )
+                            ];
+                          }
+                          return entry.value.map((capacity) {
+                            return Chip(
+                              label: Text('${entry.key} - $capacity L'),
+                              deleteIconColor: const Color(0xFF00AA55),
+                              backgroundColor: const Color(0xFFE8F5E9),
+                              onDeleted: () {
+                                setState(() {
+                                  _sprayerCapacitiesMap[entry.key]!.remove(capacity);
+                                  if (_sprayerCapacitiesMap[entry.key]!.isEmpty) {
+                                    _sprayerCapacitiesMap.remove(entry.key);
+                                  }
+                                });
+                              },
+                            );
+                          });
+                        }).toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
             _buildSectionCard(
               title: 'Lush Location',
               icon: Icons.location_on_outlined,
@@ -840,7 +1073,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType keyboardType = TextInputType.text, Widget? suffixIcon, String? hint, int maxLines = 1}) {
+  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType keyboardType = TextInputType.text, Widget? suffixIcon, String? hint, int maxLines = 1, List<TextInputFormatter>? inputFormatters}) {
     final displayHint = hint ?? '';
     return TranslationBuilder(
       texts: [label, displayHint],
@@ -862,6 +1095,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
               child: TextField(
                 controller: controller,
                 keyboardType: keyboardType,
+                inputFormatters: inputFormatters,
                 maxLines: maxLines,
                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
                 decoration: InputDecoration(
