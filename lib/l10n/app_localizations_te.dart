@@ -15,16 +15,20 @@ class AppLocalizationsTe extends AppLocalizations {
   String get namaste => 'à°¨à°®à°¸à±à°•à°¾à°°à°‚';
 
   @override
-  String get searchHint => 'à°µà°¿à°¤à±à°¤à°¨à°¾à°²à±, à°Ÿà±à°°à°¾à°•à±à°Ÿà°°à±, à°¸à±à°ªà±à°°à±‡à°¯à°¿à°‚à°—à± à°µà±†à°¤à°•à°‚à°¡à°¿...';
+  String get searchHint =>
+      'à°µà°¿à°¤à±à°¤à°¨à°¾à°²à±, à°Ÿà±à°°à°¾à°•à±à°Ÿà°°à±, à°¸à±à°ªà±à°°à±‡à°¯à°¿à°‚à°—à± à°µà±†à°¤à°•à°‚à°¡à°¿...';
 
   @override
-  String get bookServices => 'à°¸à±‡à°µà°²à°¨à± à°¬à±à°•à± à°šà±‡à°¯à°‚à°¡à°¿';
+  String get bookServices =>
+      'à°¸à±‡à°µà°²à°¨à± à°¬à±à°•à± à°šà±‡à°¯à°‚à°¡à°¿';
 
   @override
-  String get bookTransport => 'à°°à°µà°¾à°£à°¾à°¨à± à°¬à±à°•à± à°šà±‡à°¯à°‚à°¡à°¿';
+  String get bookTransport =>
+      'à°°à°µà°¾à°£à°¾à°¨à± à°¬à±à°•à± à°šà±‡à°¯à°‚à°¡à°¿';
 
   @override
-  String get rentEquipment => 'à°ªà°°à°¿à°•à°°à°¾à°²à°¨à± à°…à°¦à±à°¦à±†à°•à± à°¤à±€à°¸à±à°•à±‹à°‚à°¡à°¿';
+  String get rentEquipment =>
+      'à°ªà°°à°¿à°•à°°à°¾à°²à°¨à± à°…à°¦à±à°¦à±†à°•à± à°¤à±€à°¸à±à°•à±‹à°‚à°¡à°¿';
 
   @override
   String get tools => 'à°ªà°¨à°¿à°®à±à°Ÿà±à°²à±';
@@ -60,7 +64,8 @@ class AppLocalizationsTe extends AppLocalizations {
   String get adminPanel => 'à°…à°¡à±à°®à°¿à°¨à± à°ªà±à°¯à°¾à°¨à±†à°²à±';
 
   @override
-  String get editProfile => 'à°ªà±à°°à±Šà°«à±ˆà°²à± à°¸à°µà°°à°¿à°‚à°šà°‚à°¡à°¿';
+  String get editProfile =>
+      'à°ªà±à°°à±Šà°«à±ˆà°²à± à°¸à°µà°°à°¿à°‚à°šà°‚à°¡à°¿';
 
   @override
   String get serviceRequests => 'à°¸à±‡à°µ à°…à°­à±à°¯à°°à±à°¥à°¨à°²à±';
@@ -99,7 +104,8 @@ class AppLocalizationsTe extends AppLocalizations {
   String get farmWorkers => 'à°µà±à°¯à°µà°¸à°¾à°¯ à°•à±‚à°²à±€à°²à±';
 
   @override
-  String get droneSpraying => 'à°¡à±à°°à±‹à°¨à± à°¸à±à°ªà±à°°à±‡à°¯à°¿à°‚à°—à±';
+  String get droneSpraying =>
+      'à°¡à±à°°à±‹à°¨à± à°¸à±à°ªà±à°°à±‡à°¯à°¿à°‚à°—à±';
 
   @override
   String get irrigation => 'à°¨à±€à°Ÿà°¿ à°ªà°¾à°°à±à°¦à°²';
@@ -147,31 +153,38 @@ class AppLocalizationsTe extends AppLocalizations {
   String get cropAdvisory => 'à°ªà°‚à°Ÿ à°¸à°²à°¹à°¾';
 
   @override
-  String get fertilizerCalculator => 'à°Žà°°à±à°µà±à°² à°•à±à°¯à°¾à°²à°¿à°•à±à°¯à±à°²à±‡à°Ÿà°°à±';
+  String get fertilizerCalculator =>
+      'à°Žà°°à±à°µà±à°² à°•à±à°¯à°¾à°²à°¿à°•à±à°¯à±à°²à±‡à°Ÿà°°à±';
 
   @override
-  String get pesticideCalculator => 'à°ªà±à°°à±à°—à±à°®à°‚à°¦à±à°² à°•à±à°¯à°¾à°²à°¿à°•à±à°¯à±à°²à±‡à°Ÿà°°à±';
+  String get pesticideCalculator =>
+      'à°ªà±à°°à±à°—à±à°®à°‚à°¦à±à°² à°•à±à°¯à°¾à°²à°¿à°•à±à°¯à±à°²à±‡à°Ÿà°°à±';
 
   @override
-  String get farmingCalculator => 'à°µà±à°¯à°µà°¸à°¾à°¯ à°•à±à°¯à°¾à°²à°¿à°•à±à°¯à±à°²à±‡à°Ÿà°°à±';
+  String get farmingCalculator =>
+      'à°µà±à°¯à°µà°¸à°¾à°¯ à°•à±à°¯à°¾à°²à°¿à°•à±à°¯à±à°²à±‡à°Ÿà°°à±';
 
   @override
-  String get freeSoilTesting => 'à°‰à°šà°¿à°¤ à°®à°Ÿà±à°Ÿà°¿ à°ªà°°à±€à°•à±à°·';
+  String get freeSoilTesting =>
+      'à°‰à°šà°¿à°¤ à°®à°Ÿà±à°Ÿà°¿ à°ªà°°à±€à°•à±à°·';
 
   @override
   String get bookNow => 'Book Now';
 
   @override
-  String get newTractorsAvailable => 'à°•à±Šà°¤à±à°¤ à°Ÿà±à°°à°¾à°•à±à°Ÿà°°à±à°²à± à°…à°‚à°¦à±à°¬à°¾à°Ÿà±à°²à±‹ à°‰à°¨à±à°¨à°¾à°¯à°¿';
+  String get newTractorsAvailable =>
+      'à°•à±Šà°¤à±à°¤ à°Ÿà±à°°à°¾à°•à±à°Ÿà°°à±à°²à± à°…à°‚à°¦à±à°¬à°¾à°Ÿà±à°²à±‹ à°‰à°¨à±à°¨à°¾à°¯à°¿';
 
   @override
-  String get lowRentalRates => 'à°¤à°•à±à°•à±à°µ à°…à°¦à±à°¦à±† à°§à°°à°²à±';
+  String get lowRentalRates =>
+      'à°¤à°•à±à°•à±à°µ à°…à°¦à±à°¦à±† à°§à°°à°²à±';
 
   @override
   String get mandiPrices => 'à°®à°‚à°¡à°¿ à°§à°°à°²à±';
 
   @override
-  String get checkTodaysRates => 'à°ˆà°¨à°¾à°Ÿà°¿ à°°à±‡à°Ÿà±à°²à± à°¤à°¨à°¿à°–à±€ à°šà±‡à°¯à°‚à°¡à°¿';
+  String get checkTodaysRates =>
+      'à°ˆà°¨à°¾à°Ÿà°¿ à°°à±‡à°Ÿà±à°²à± à°¤à°¨à°¿à°–à±€ à°šà±‡à°¯à°‚à°¡à°¿';
 
   @override
   String get viewPrices => 'à°§à°°à°²à± à°šà±‚à°¡à°‚à°¡à°¿';
@@ -183,16 +196,19 @@ class AppLocalizationsTe extends AppLocalizations {
   String get sevenDayForecast => '7 à°°à±‹à°œà±à°² à°¸à±‚à°šà°¨';
 
   @override
-  String get communityQuestions => 'à°•à°®à±à°¯à±‚à°¨à°¿à°Ÿà±€ à°ªà±à°°à°¶à±à°¨à°²à±';
+  String get communityQuestions =>
+      'à°•à°®à±à°¯à±‚à°¨à°¿à°Ÿà±€ à°ªà±à°°à°¶à±à°¨à°²à±';
 
   @override
   String get equipmentRentals => 'à°ªà°°à°¿à°•à°°à°¾à°² à°…à°¦à±à°¦à±†à°²à±';
 
   @override
-  String get browseEquipment => 'à°ªà°°à°¿à°•à°°à°¾à°²à°¨à± à°šà±‚à°¡à°‚à°¡à°¿';
+  String get browseEquipment =>
+      'à°ªà°°à°¿à°•à°°à°¾à°²à°¨à± à°šà±‚à°¡à°‚à°¡à°¿';
 
   @override
-  String get nearbyEquipment => 'à°¦à°—à±à°—à°°à°²à±‹ à°‰à°¨à±à°¨ à°ªà°°à°¿à°•à°°à°¾à°²à±';
+  String get nearbyEquipment =>
+      'à°¦à°—à±à°—à°°à°²à±‹ à°‰à°¨à±à°¨ à°ªà°°à°¿à°•à°°à°¾à°²à±';
 
   @override
   String get buySell => 'à°•à±Šà°¨à±à°—à±‹à°²à± & à°…à°®à±à°®à°•à°‚';
@@ -206,7 +222,8 @@ class AppLocalizationsTe extends AppLocalizations {
       'à°Ÿà±à°°à°¾à°•à±à°Ÿà°°à±à°²à±, à°¹à°¾à°°à±à°µà±†à°¸à±à°Ÿà°°à±à°²à±, à°¸à±à°ªà±à°°à±‡à°¯à°°à±à°²à± à°®à°°à°¿à°¯à± à°®à°°à°¿à°¨à±à°¨à°¿ à°ªà±Šà°‚à°¦à°‚à°¡à°¿. à°…à°¦à°¨à°ªà± à°†à°¦à°¾à°¯à°¾à°¨à±à°¨à°¿ à°¸à°‚à°ªà°¾à°¦à°¿à°‚à°šà°¡à°¾à°¨à°¿à°•à°¿ à°ªà°°à°¿à°•à°°à°¾à°²à°¨à± à°…à°¦à±à°¦à±†à°•à± à°¤à±€à°¸à±à°•à±‹à°‚à°¡à°¿ à°²à±‡à°¦à°¾ à°®à±€ à°¸à±à°µà°‚à°¤ à°µà°¾à°Ÿà°¿à°¨à°¿ à°œà°¾à°¬à°¿à°¤à°¾ à°šà±‡à°¯à°‚à°¡à°¿.';
 
   @override
-  String get bookServicesLogistics => 'à°¸à±‡à°µà°²à± & à°°à°µà°¾à°£à°¾à°¨à± à°¬à±à°•à± à°šà±‡à°¯à°‚à°¡à°¿';
+  String get bookServicesLogistics =>
+      'à°¸à±‡à°µà°²à± & à°°à°µà°¾à°£à°¾à°¨à± à°¬à±à°•à± à°šà±‡à°¯à°‚à°¡à°¿';
 
   @override
   String get bookServicesLogisticsDesc =>
@@ -222,22 +239,26 @@ class AppLocalizationsTe extends AppLocalizations {
   String get getStarted => 'à°ªà±à°°à°¾à°°à°‚à°­à°¿à°‚à°šà°‚à°¡à°¿';
 
   @override
-  String get welcomeTitle => 'à°…à°—à±à°°à°¿ à°«à°¾à°°à±à°®à±à°¸à±â€Œà°•à± à°¸à±à°µà°¾à°—à°¤à°‚';
+  String get welcomeTitle =>
+      'à°…à°—à±à°°à°¿ à°«à°¾à°°à±à°®à±à°¸à±â€Œà°•à± à°¸à±à°µà°¾à°—à°¤à°‚';
 
   @override
-  String get enterMobile => 'à°•à±Šà°¨à°¸à°¾à°—à°¿à°‚à°šà°¡à°¾à°¨à°¿à°•à°¿ à°®à±€ à°®à±Šà°¬à±ˆà°²à± à°¨à°‚à°¬à°°à±â€Œà°¨à± à°¨à°®à±‹à°¦à± à°šà±‡à°¯à°‚à°¡à°¿';
+  String get enterMobile =>
+      'à°•à±Šà°¨à°¸à°¾à°—à°¿à°‚à°šà°¡à°¾à°¨à°¿à°•à°¿ à°®à±€ à°®à±Šà°¬à±ˆà°²à± à°¨à°‚à°¬à°°à±â€Œà°¨à± à°¨à°®à±‹à°¦à± à°šà±‡à°¯à°‚à°¡à°¿';
 
   @override
   String get fullName => 'à°ªà±‚à°°à±à°¤à°¿ à°ªà±‡à°°à±';
 
   @override
-  String get fullNameHint => 'à°®à±€ à°ªà±‚à°°à±à°¤à°¿ à°ªà±‡à°°à± à°¨à°®à±‹à°¦à± à°šà±‡à°¯à°‚à°¡à°¿';
+  String get fullNameHint =>
+      'à°®à±€ à°ªà±‚à°°à±à°¤à°¿ à°ªà±‡à°°à± à°¨à°®à±‹à°¦à± à°šà±‡à°¯à°‚à°¡à°¿';
 
   @override
   String get chooseRole => 'à°ªà°¾à°¤à±à°°à°¨à± à°Žà°‚à°šà±à°•à±‹à°‚à°¡à°¿';
 
   @override
-  String get selectRole => 'à°®à±€ à°ªà°¾à°¤à±à°°à°¨à± à°Žà°‚à°šà±à°•à±‹à°‚à°¡à°¿';
+  String get selectRole =>
+      'à°®à±€ à°ªà°¾à°¤à±à°°à°¨à± à°Žà°‚à°šà±à°•à±‹à°‚à°¡à°¿';
 
   @override
   String get mobileNumber => 'à°®à±Šà°¬à±ˆà°²à± à°¨à°‚à°¬à°°à±';
@@ -256,13 +277,16 @@ class AppLocalizationsTe extends AppLocalizations {
   String get farmer => 'à°¯à°œà°®à°¾à°¨à°¿';
 
   @override
-  String get listYourAssets => 'à°®à±€ à°†à°¸à±à°¤à±à°²à°¨à± à°œà°¾à°¬à°¿à°¤à°¾ à°šà±‡à°¯à°‚à°¡à°¿';
+  String get listYourAssets =>
+      'à°®à±€ à°†à°¸à±à°¤à±à°²à°¨à± à°œà°¾à°¬à°¿à°¤à°¾ à°šà±‡à°¯à°‚à°¡à°¿';
 
   @override
-  String get listTransport => 'à°µà°¾à°¹à°¨à°¾à°¨à±à°¨à°¿ à°œà±‹à°¡à°¿à°‚à°šà°‚à°¡à°¿';
+  String get listTransport =>
+      'à°µà°¾à°¹à°¨à°¾à°¨à±à°¨à°¿ à°œà±‹à°¡à°¿à°‚à°šà°‚à°¡à°¿';
 
   @override
-  String get listEquipment => 'à°ªà°°à°¿à°•à°°à°¾à°²à°¨à± à°œà±‹à°¡à°¿à°‚à°šà°‚à°¡à°¿';
+  String get listEquipment =>
+      'à°ªà°°à°¿à°•à°°à°¾à°²à°¨à± à°œà±‹à°¡à°¿à°‚à°šà°‚à°¡à°¿';
 
   @override
   String get navHome => 'à°¹à±‹à°®à±';
@@ -280,7 +304,8 @@ class AppLocalizationsTe extends AppLocalizations {
   String get navProfile => 'à°ªà±à°°à±Šà°«à±ˆà°²à±';
 
   @override
-  String get noMatchFound => 'à°®à±€ à°¶à±‹à°§à°¨à°•à± à°«à°²à°¿à°¤à°¾à°²à± à°•à°¨à±à°—à±Šà°¨à°¬à°¡à°²à±‡à°¦à±';
+  String get noMatchFound =>
+      'à°®à±€ à°¶à±‹à°§à°¨à°•à± à°«à°²à°¿à°¤à°¾à°²à± à°•à°¨à±à°—à±Šà°¨à°¬à°¡à°²à±‡à°¦à±';
 
   @override
   String get available => 'Available';
