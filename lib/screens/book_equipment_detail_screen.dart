@@ -479,7 +479,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   }
 
   double get _totalPrice {
-    if (widget.equipmentType.contains('Trolley')) {
+    if (widget.equipmentType.contains('Trolley') || widget.equipmentType.contains('Sprayer')) {
       double base = _isTrolleyHalfDay ? (widget.pricePerHalfDay ?? 0.0) : widget.rate;
       double opPrice = widget.operatorPrice ?? 200.0;
       double operatorCost = _includeOperator ? opPrice : 0; 
@@ -637,7 +637,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
     if (_selectedDate == null) { _fieldErrors['date'] = 'Required'; hasError = true; }
     
-    final bool isDailyTrolley = widget.equipmentType.contains('Trolley') && !_isTrolleyHalfDay;
+    final bool isDailyTrolley = (widget.equipmentType.contains('Trolley') || widget.equipmentType.contains('Sprayer')) && !_isTrolleyHalfDay;
     if (_selectedSlots.isEmpty && !isDailyTrolley) { _fieldErrors['slots'] = 'Required'; hasError = true; }
 
     if (widget.equipmentType.contains('Sprayer') && _selectedEquipments.isEmpty) {
@@ -748,7 +748,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           _isSubmitting = false;
         });
 
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => BookingConfirmationScreen(
@@ -873,7 +873,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                              borderRadius: BorderRadius.circular(8),
                            ),
                            child: Text(
-                             '₹${widget.rate.toStringAsFixed(0)} / ${widget.equipmentType.contains('Sprayer') ? 'litre' : 'hr'}',
+                             '₹${widget.rate.toStringAsFixed(0)} / ${(widget.equipmentType.contains('Trolley') || widget.equipmentType.contains('Sprayer')) ? 'day' : 'hr'}',
                              style: const TextStyle(color: Color(0xFF00AA55), fontSize: 12, fontWeight: FontWeight.w800),
                            ),
                          ),
@@ -884,7 +884,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
               ),
             ),
             _buildListingDetailsCard(widget.description, widget.serialNumber, widget.equipmentType),
-            if (widget.equipmentType.contains('Trolley')) ...[
+            if (widget.equipmentType.contains('Trolley') || widget.equipmentType.contains('Sprayer')) ...[
               const SizedBox(height: 24),
               _buildSectionCard(
                 title: 'Pricing Mode',
@@ -1302,7 +1302,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                       padding: const EdgeInsets.only(top: 8),
                       child: TranslatedText('Select a date first to view availability', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
                     )
-                  else if (widget.equipmentType.contains('Trolley') && !_isTrolleyHalfDay)
+                  else if ((widget.equipmentType.contains('Trolley') || widget.equipmentType.contains('Sprayer')) && !_isTrolleyHalfDay)
                     Padding(
                       padding: const EdgeInsets.only(top: 16),
                       child: Container(
@@ -1327,7 +1327,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                       ),
                     )
                   else ...[
-                    if (widget.equipmentType.contains('Trolley') && _isTrolleyHalfDay)
+                    if ((widget.equipmentType.contains('Trolley') || widget.equipmentType.contains('Sprayer')) && _isTrolleyHalfDay)
                       Padding(
                         padding: const EdgeInsets.only(top: 16),
                         child: Container(
@@ -1409,7 +1409,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                       ),
                   ],
 
-                  if (_selectedSlots.isNotEmpty && !(widget.equipmentType.contains('Trolley') && !_isTrolleyHalfDay)) ...[
+                  if (_selectedSlots.isNotEmpty && !((widget.equipmentType.contains('Trolley') || widget.equipmentType.contains('Sprayer')) && !_isTrolleyHalfDay)) ...[
                     const SizedBox(height: 24),
                     TranslatedText('Selected Slots Details', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                     const SizedBox(height: 12),
@@ -1568,9 +1568,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(widget.equipmentType.contains('Sprayer') ? 'Price (per litre)' : l10n.totalEstimate, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF546E7A))),
+                      Text(l10n.totalEstimate, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF546E7A))),
                       Text(
-                        widget.equipmentType.contains('Sprayer') ? '₹${widget.rate.toStringAsFixed(0)}' : '₹${_totalPrice.toStringAsFixed(0)}',
+                        '₹${_totalPrice.toStringAsFixed(0)}',
                         style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                       ),
                     ],

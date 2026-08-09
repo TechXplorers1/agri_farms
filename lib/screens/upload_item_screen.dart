@@ -705,7 +705,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       _fieldErrors['price'] = 'Enter price';
       hasError = true;
     }
-    if (_selectedEquipmentType == 'Trolleys' && _equipmentHalfDayPriceController.text.isEmpty) {
+    if ((_selectedEquipmentType == 'Trolleys' || _selectedEquipmentType == 'Sprayers') && _equipmentHalfDayPriceController.text.isEmpty) {
       _fieldErrors['price_halfday'] = 'Enter half day price';
       hasError = true;
     }
@@ -731,7 +731,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
       double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
       double parsedPriceHalfDay = 0.0;
-      if (_selectedEquipmentType == 'Trolleys') {
+      if (_selectedEquipmentType == 'Trolleys' || _selectedEquipmentType == 'Sprayers') {
         parsedPriceHalfDay = double.tryParse(_equipmentHalfDayPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
       }
 
@@ -1155,8 +1155,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             children: [
               DropdownButtonFormField<String>(
                 value: _selectedTransportType,
+                isExpanded: true,
                 decoration: _inputDecoration(l10n.vehicleType, icon: Icons.category_rounded),
-                items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                 onChanged: (v) {
                   setState(() {
                     _selectedTransportType = v;
@@ -1185,8 +1186,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                        if (makes.isNotEmpty) ...[
                           DropdownButtonFormField<String>(
                             value: _selectedVehicleMake,
+                            isExpanded: true,
                             decoration: _inputDecoration('Select Make', icon: Icons.branding_watermark_rounded),
-                            items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                            items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                             onChanged: (v) {
                               setState(() {
                                 _selectedVehicleMake = v;
@@ -1199,8 +1201,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                        if (models.isNotEmpty) ...[
                           DropdownButtonFormField<String>(
                             value: _selectedVehicleModel,
+                            isExpanded: true,
                             decoration: _inputDecoration('Select Model', icon: Icons.model_training_rounded),
-                            items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                            items: models.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                             onChanged: (v) {
                               setState(() {
                                 _selectedVehicleModel = v;
@@ -1233,8 +1236,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                     flex: 1,
                     child: DropdownButtonFormField<String>(
                       value: _selectedCapacityUnit,
+                      isExpanded: true,
                       decoration: _inputDecoration('Unit'),
-                      items: ['Ton', 'kg'].map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                      items: ['Ton', 'kg'].map((u) => DropdownMenuItem(value: u, child: Text(u, overflow: TextOverflow.ellipsis))).toList(),
                       onChanged: (v) => setState(() => _selectedCapacityUnit = v!),
                     ),
                   ),
@@ -1426,7 +1430,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
       double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
       double parsedPriceHalfDay = 0.0;
-      if (widget.category == 'Equipment' && _selectedEquipmentType == 'Trolleys') {
+      if (widget.category == 'Equipment' && (_selectedEquipmentType == 'Trolleys' || _selectedEquipmentType == 'Sprayers')) {
         parsedPriceHalfDay = double.tryParse(_equipmentHalfDayPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
       }
 
@@ -1561,13 +1565,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               // If category is generic 'Services', show dropdown
               if (widget.category == 'Services') 
                  DropdownButtonFormField<String>(
-                   value: _selectedServiceType, 
-                   decoration: _inputDecoration('Select Service Type', icon: Icons.category_rounded),
-                   items: _serviceCategories.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                   onChanged: (val) {
-                      setState(() => _selectedServiceType = val);
-                   },
-                 )
+                    value: _selectedServiceType, 
+                    isExpanded: true,
+                    decoration: _inputDecoration('Select Service Type', icon: Icons.category_rounded),
+                    items: _serviceCategories.map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
+                    onChanged: (val) {
+                       setState(() => _selectedServiceType = val);
+                    },
+                  )
               else
                  Row(
                    children: [
@@ -1587,8 +1592,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   const SizedBox(height: 20),
                   DropdownButtonFormField<String>(
                     value: _selectedPloughEquipmentType,
+                    isExpanded: true,
                     decoration: _inputDecoration('Ploughing Equipment Type', icon: Icons.agriculture_rounded),
-                    items: PloughingData.equipmentTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                    items: PloughingData.equipmentTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (val) {
                       setState(() {
                         _selectedPloughEquipmentType = val;
@@ -1603,8 +1609,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   const SizedBox(height: 20),
                   DropdownButtonFormField<String>(
                     value: _selectedPloughCapacity,
+                    isExpanded: true,
                     decoration: _inputDecoration('Equipment Capacity / Specification', icon: Icons.straighten_rounded),
-                    items: PloughingData.getCapacities(_selectedPloughEquipmentType).map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    items: PloughingData.getCapacities(_selectedPloughEquipmentType).map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (val) {
                       setState(() {
                         _selectedPloughCapacity = val;
@@ -1623,8 +1630,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   const SizedBox(height: 20),
                   DropdownButtonFormField<String>(
                     value: _selectedHarvestEquipmentType,
+                    isExpanded: true,
                     decoration: _inputDecoration('Harvesting Equipment Type', icon: Icons.agriculture_rounded),
-                    items: HarvestingData.equipmentTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                    items: HarvestingData.equipmentTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (val) {
                       setState(() {
                         _selectedHarvestEquipmentType = val;
@@ -1639,8 +1647,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   const SizedBox(height: 20),
                   DropdownButtonFormField<String>(
                     value: _selectedHarvestCapacity,
+                    isExpanded: true,
                     decoration: _inputDecoration('Equipment Capacity / Specification', icon: Icons.straighten_rounded),
-                    items: HarvestingData.getCapacities(_selectedHarvestEquipmentType).map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    items: HarvestingData.getCapacities(_selectedHarvestEquipmentType).map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (val) {
                       setState(() {
                         _selectedHarvestCapacity = val;
@@ -1730,8 +1739,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             children: [
               DropdownButtonFormField<String>(
                 value: _selectedEquipmentType,
+                isExpanded: true,
                 decoration: _inputDecoration('Category', isError: _fieldErrors.containsKey('category'), icon: Icons.category_rounded),
-                items: _equipmentCategories.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                items: _equipmentCategories.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                 onChanged: (v) {
                   setState(() {
                     _selectedEquipmentType = v;
@@ -1749,8 +1759,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               if (makes.isNotEmpty) ...[
                 DropdownButtonFormField<String>(
                   value: _selectedMake,
+                  isExpanded: true,
                   decoration: _inputDecoration('Select Make', icon: Icons.branding_watermark_rounded),
-                  items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                  items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                   onChanged: (v) {
                     setState(() {
                       _selectedMake = v;
@@ -1766,8 +1777,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               if (models.isNotEmpty) ...[
                 DropdownButtonFormField<String>(
                   value: _selectedModel,
+                  isExpanded: true,
                   decoration: _inputDecoration('Select Model', icon: Icons.model_training_rounded),
-                  items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                  items: models.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                   onChanged: (v) {
                     setState(() {
                       _selectedModel = v;
@@ -1790,8 +1802,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                  const SizedBox(height: 20),
 
               _buildTextField(l10n.yearManufacture, _yearController, 'e.g. 2021', keyboardType: TextInputType.number, icon: Icons.calendar_today_rounded),
-              const SizedBox(height: 20),
-              _buildTextField(l10n.vehicleNumber, _vehicleNumberController, 'e.g. TN 37 BY 1234 (Optional)', icon: Icons.numbers_rounded),
+              if (_selectedEquipmentType != 'Sprayers') ...[
+                const SizedBox(height: 20),
+                _buildTextField(l10n.vehicleNumber, _vehicleNumberController, 'e.g. TN 37 BY 1234 (Optional)', icon: Icons.numbers_rounded),
+              ],
             ],
           ),
         ),
@@ -2031,8 +2045,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: _currentSelectedSprayerType,
+                  isExpanded: true,
                   decoration: _inputDecoration('Sprayer Type', icon: Icons.grass_rounded),
-                  items: _availableSprayerTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                  items: _availableSprayerTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                   onChanged: (v) => setState(() => _currentSelectedSprayerType = v),
                 ),
                 if (_currentSelectedSprayerType == 'Other') ...[
@@ -2157,7 +2172,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           icon: Icons.fact_check_rounded,
           child: Column(
             children: [
-              if (_selectedEquipmentType == 'Trolleys') ...[
+              if (_selectedEquipmentType == 'Trolleys' || _selectedEquipmentType == 'Sprayers') ...[
                 _buildTextField('Full Day Price', _priceController, 'e.g. 1500', errorKey: 'price', icon: Icons.wb_sunny_rounded, keyboardType: TextInputType.number),
                 const SizedBox(height: 20),
                 _buildTextField('Half Day Price', _equipmentHalfDayPriceController, 'e.g. 800', errorKey: 'price_halfday', icon: Icons.wb_twilight_rounded, keyboardType: TextInputType.number),
@@ -2174,8 +2189,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 value: _condition,
+                isExpanded: true,
                 decoration: _inputDecoration(l10n.condition, icon: Icons.info_outline_rounded),
-                items: _conditions.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                items: _conditions.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                 onChanged: (v) => setState(() => _condition = v!),
               ),
               const SizedBox(height: 12),
@@ -2466,11 +2482,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: _roleGender,
+                    isExpanded: true,
                     decoration: _inputDecoration(''),
                     items: ['Male', 'Female']
                         .map((t) => DropdownMenuItem(
                             value: t,
-                            child: Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))))
+                            child: Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)))
                         .toList(),
                     onChanged: (v) => setState(() => _roleGender = v!),
                   ),

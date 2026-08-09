@@ -9,7 +9,6 @@ import 'dart:convert';
 import '../models/booking_dto.dart';
 import '../services/api_service.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import '../utils/location_helper.dart';
 import '../utils/translated_text.dart';
 
@@ -141,7 +140,14 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   final int _startHour = 6;
   final int _endHour = 20;
 
-  final TextEditingController _addressController = TextEditingController(); // Add controller
+  final TextEditingController _houseNoController = TextEditingController();
+  final TextEditingController _streetController = TextEditingController();
+  final TextEditingController _villageController = TextEditingController();
+  final TextEditingController _mandalController = TextEditingController();
+  final TextEditingController _districtController = TextEditingController();
+  final TextEditingController _stateController = TextEditingController();
+  final TextEditingController _countryController = TextEditingController(text: 'India');
+  final TextEditingController _pincodeController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final Map<String, String?> _fieldErrors = {};
   
@@ -247,17 +253,25 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     Map<String, int> occupied = _getOccupiedCountsForHour(hour);
     if (widget.roleDistribution.isNotEmpty) {
         bool allRolesFull = true;
+        int totalMax = 0;
+        int totalOccupied = 0;
         for (var r in widget.roleDistribution) {
-            if (_getMaxCountForRole(r) - (occupied[r] ?? 0) > 0) {
+            int maxR = _getMaxCountForRole(r);
+            int occR = occupied[r] ?? 0;
+            totalMax += maxR;
+            totalOccupied += occR;
+            if (maxR > 0 && maxR - occR > 0) {
                allRolesFull = false;
-               break;
             }
         }
+        if (totalMax > 0 && totalMax - totalOccupied <= 0) return true;
         return allRolesFull;
     } else {
-        bool maleFull = (widget.maxMale - occupied['male']!) <= 0;
-        bool femaleFull = (widget.maxFemale - occupied['female']!) <= 0;
-        return maleFull && femaleFull; // Only block if BOTH are entirely full
+        int availMale = widget.maxMale - (occupied['male'] ?? 0);
+        int availFemale = widget.maxFemale - (occupied['female'] ?? 0);
+        bool maleFull = widget.maxMale <= 0 || availMale <= 0;
+        bool femaleFull = widget.maxFemale <= 0 || availFemale <= 0;
+        return maleFull && femaleFull;
     }
   }
 
@@ -351,7 +365,13 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
           if (isOccupiedInThisSlot) {
              if (widget.roleDistribution.isNotEmpty) {
                 for (var r in widget.roleDistribution) {
-                   runningRoles[r] = runningRoles[r]! + _getRoleCount(notes, r);
+                   int rCount = _getRoleCount(notes, r);
+                   runningRoles[r] = (runningRoles[r] ?? 0) + rCount;
+                   if (_getGenderForRole(r) == 'Male') {
+                      runningMale += rCount;
+                   } else {
+                      runningFemale += rCount;
+                   }
                 }
              } else {
                 runningMale += _getDetailsCount(notes, 'Male');
@@ -454,8 +474,19 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     }
     setState(() {
       if (_selectedSlots.contains(hour)) {
+        if (hour != _selectedSlots.first && hour != _selectedSlots.last) {
+           UiUtils.showCustomAlert(context, 'Cannot remove a middle slot. If you want to book a split time, you need to make a new booking.', isError: true);
+           return;
+        }
         _selectedSlots.remove(hour);
       } else {
+        if (_selectedSlots.isNotEmpty) {
+           _selectedSlots.sort();
+           if (hour != _selectedSlots.first - 1 && hour != _selectedSlots.last + 1) {
+              UiUtils.showCustomAlert(context, 'If you want to book a split time, you need to make a new booking.', isError: true);
+              return;
+           }
+        }
         _selectedSlots.add(hour);
         _selectedSlots.sort();
       }
@@ -472,10 +503,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
   }
 
   Future<void> _loadAddress() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _addressController.text = prefs.getString('user_address') ?? '';
-    });
+    await _useProfileAddress();
   }
 
   Future<void> _fetchCurrentLocation() async {
@@ -503,16 +531,27 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       
       // Use helper for cross-platform reverse geocoding
       final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
-      final String village = addressData['village']!;
-      final String district = addressData['district']!;
-      final String address = "$village, $district";
+      final String village = addressData['village'] ?? '';
+      final String district = addressData['district'] ?? '';
+      final String fullAddr = addressData['address'] ?? '';
 
       if (mounted) {
-        setState(() => _addressController.text = address);
-        // Save to prefs if needed (check file context)
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_address', address);
-        if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
+        setState(() {
+          _villageController.text = village;
+          _districtController.text = district;
+          if (fullAddr.isNotEmpty) {
+            final parts = fullAddr.split(',').map((e) => e.trim()).toList();
+            if (parts.length > 2) _streetController.text = parts[0];
+            if (parts.isNotEmpty) {
+              final lastPart = parts.last;
+              if (RegExp(r'^\d{6}$').hasMatch(lastPart)) {
+                _pincodeController.text = lastPart;
+              }
+            }
+          }
+          _clearAddressErrors();
+        });
+        UiUtils.showCenteredToast(context, 'Current location loaded');
       }
     } catch (e) {
       if (mounted) UiUtils.showCenteredToast(context, 'Could not fetch location. Try again.', isError: true);
@@ -521,17 +560,77 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     }
   }
 
-  Future<void> _pasteFromClipboard(TextEditingController controller, String errorKey) async {
+  void _clearAddressErrors() {
+    _fieldErrors.remove('houseNo');
+    _fieldErrors.remove('street');
+    _fieldErrors.remove('village');
+    _fieldErrors.remove('mandal');
+    _fieldErrors.remove('district');
+    _fieldErrors.remove('state');
+    _fieldErrors.remove('pincode');
+    _fieldErrors.remove('address');
+  }
+
+  String _buildFullAddress() {
+    List<String> parts = [];
+    if (_houseNoController.text.trim().isNotEmpty) parts.add(_houseNoController.text.trim());
+    if (_streetController.text.trim().isNotEmpty) parts.add(_streetController.text.trim());
+    if (_villageController.text.trim().isNotEmpty) parts.add(_villageController.text.trim());
+    if (_mandalController.text.trim().isNotEmpty) parts.add(_mandalController.text.trim());
+    if (_districtController.text.trim().isNotEmpty) parts.add(_districtController.text.trim());
+    if (_stateController.text.trim().isNotEmpty) parts.add(_stateController.text.trim());
+    if (_pincodeController.text.trim().isNotEmpty) parts.add(_pincodeController.text.trim());
+    if (_countryController.text.trim().isNotEmpty) parts.add(_countryController.text.trim());
+    return parts.join(', ');
+  }
+
+  Future<void> _pasteAddressFromClipboard() async {
     try {
       final data = await Clipboard.getData(Clipboard.kTextPlain);
       if (data != null && data.text != null && data.text!.isNotEmpty) {
+        final addressText = data.text!;
+        final parts = addressText.split(',').map((e) => e.trim()).toList();
+        
         setState(() {
-          controller.text = data.text!;
-          if (_fieldErrors.containsKey(errorKey)) {
-            _fieldErrors.remove(errorKey);
+          if (parts.length >= 7) {
+            _houseNoController.text = parts[0];
+            _streetController.text = parts[1];
+            _villageController.text = parts[2];
+            _mandalController.text = parts[3];
+            _districtController.text = parts[4];
+            _stateController.text = parts[5];
+            _pincodeController.text = parts[6];
+          } else if (parts.length == 6) {
+            _houseNoController.text = parts[0];
+            _streetController.text = parts[1];
+            _villageController.text = parts[2];
+            _districtController.text = parts[3];
+            _stateController.text = parts[4];
+            _pincodeController.text = parts[5];
+          } else if (parts.length == 5) {
+            _houseNoController.text = '';
+            _streetController.text = parts[0];
+            _villageController.text = parts[1];
+            _districtController.text = parts[2];
+            _stateController.text = parts[3];
+            _pincodeController.text = parts[4];
+          } else if (parts.length == 4) {
+            _houseNoController.text = '';
+            _streetController.text = '';
+            _villageController.text = parts[0];
+            _districtController.text = parts[1];
+            _stateController.text = parts[2];
+            _pincodeController.text = parts[3];
+          } else {
+            _houseNoController.text = '';
+            _streetController.text = '';
+            _villageController.text = parts[0];
+            if (parts.length > 1) _districtController.text = parts[1];
+            if (parts.length > 2) _stateController.text = parts[2];
           }
+          _clearAddressErrors();
         });
-        UiUtils.showCenteredToast(context, 'Address pasted successfully');
+        UiUtils.showCenteredToast(context, 'Address pasted and filled successfully');
       } else {
         UiUtils.showCenteredToast(context, 'Clipboard is empty or contains non-text content', isError: true);
       }
@@ -545,31 +644,85 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     final houseNo = prefs.getString('user_houseNo') ?? '';
     final street = prefs.getString('user_street') ?? '';
     final village = prefs.getString('user_village') ?? '';
+    final mandal = prefs.getString('user_mandal') ?? '';
     final district = prefs.getString('user_district') ?? '';
     final state = prefs.getString('user_state') ?? '';
-    final country = prefs.getString('user_country') ?? '';
+    final country = prefs.getString('user_country') ?? 'India';
     final pincode = prefs.getString('user_pincode') ?? '';
 
-    final parts = [houseNo, street, village, district, state, country, pincode]
-        .where((part) => part.isNotEmpty)
-        .join(', ');
-
-    if (parts.isNotEmpty) {
+    if (houseNo.isNotEmpty || street.isNotEmpty || village.isNotEmpty || district.isNotEmpty || state.isNotEmpty || pincode.isNotEmpty) {
       setState(() {
-        _addressController.text = parts;
-        if (_fieldErrors.containsKey('address')) {
-          _fieldErrors.remove('address');
-        }
+        _houseNoController.text = houseNo;
+        _streetController.text = street;
+        _villageController.text = village;
+        _mandalController.text = mandal;
+        _districtController.text = district;
+        _stateController.text = state;
+        _countryController.text = country;
+        _pincodeController.text = pincode;
+        _clearAddressErrors();
       });
       UiUtils.showCenteredToast(context, 'Profile address loaded');
     } else {
-      UiUtils.showCenteredToast(context, 'No profile address saved. Please update in profile page.', isError: true);
+      final userAddress = prefs.getString('user_address') ?? '';
+      if (userAddress.isNotEmpty) {
+        final parts = userAddress.split(',').map((e) => e.trim()).toList();
+        setState(() {
+          if (parts.length >= 7) {
+            _houseNoController.text = parts[0];
+            _streetController.text = parts[1];
+            _villageController.text = parts[2];
+            _mandalController.text = parts[3];
+            _districtController.text = parts[4];
+            _stateController.text = parts[5];
+            _pincodeController.text = parts[6];
+          } else if (parts.length == 6) {
+            _houseNoController.text = parts[0];
+            _streetController.text = parts[1];
+            _villageController.text = parts[2];
+            _districtController.text = parts[3];
+            _stateController.text = parts[4];
+            _pincodeController.text = parts[5];
+          } else if (parts.length == 5) {
+            _houseNoController.text = '';
+            _streetController.text = parts[0];
+            _villageController.text = parts[1];
+            _districtController.text = parts[2];
+            _stateController.text = parts[3];
+            _pincodeController.text = parts[4];
+          } else if (parts.length == 4) {
+            _houseNoController.text = '';
+            _streetController.text = '';
+            _villageController.text = parts[0];
+            _districtController.text = parts[1];
+            _stateController.text = parts[2];
+            _pincodeController.text = parts[3];
+          } else {
+            _houseNoController.text = '';
+            _streetController.text = '';
+            _villageController.text = parts[0];
+            if (parts.length > 1) _districtController.text = parts[1];
+            if (parts.length > 2) _stateController.text = parts[2];
+          }
+          _clearAddressErrors();
+        });
+        UiUtils.showCenteredToast(context, 'Profile address loaded');
+      } else {
+        UiUtils.showCenteredToast(context, 'No profile address saved. Please update in profile page.', isError: true);
+      }
     }
   }
 
   @override
   void dispose() {
-    _addressController.dispose();
+    _houseNoController.dispose();
+    _streetController.dispose();
+    _villageController.dispose();
+    _mandalController.dispose();
+    _districtController.dispose();
+    _stateController.dispose();
+    _countryController.dispose();
+    _pincodeController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -652,15 +805,77 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         : (_maleCount > 0 || _femaleCount > 0);
     bool hasValidTime = _bookingMode == 'Daily' ? _selectedStartTime != null : _selectedSlots.isNotEmpty;
     bool hasValidPrice = _totalPrice > 0;
+    
+    bool addressValid = true;
+    if (_houseNoController.text.trim().isEmpty) { _fieldErrors['houseNo'] = 'Required'; addressValid = false; }
+    if (_streetController.text.trim().isEmpty) { _fieldErrors['street'] = 'Required'; addressValid = false; }
+    if (_villageController.text.trim().isEmpty) { _fieldErrors['village'] = 'Required'; addressValid = false; }
+    if (_mandalController.text.trim().isEmpty) { _fieldErrors['mandal'] = 'Required'; addressValid = false; }
+    if (_districtController.text.trim().isEmpty) { _fieldErrors['district'] = 'Required'; addressValid = false; }
+    if (_stateController.text.trim().isEmpty) { _fieldErrors['state'] = 'Required'; addressValid = false; }
+    if (_pincodeController.text.trim().isEmpty) { _fieldErrors['pincode'] = 'Required'; addressValid = false; }
+    final String fullAddress = _buildFullAddress();
 
-    if (hasWorkers && hasValidTime && _selectedDate != null && _addressController.text.isNotEmpty && hasValidPrice) {
+    if (hasWorkers && hasValidTime && _selectedDate != null && addressValid && hasValidPrice) {
+      // Validate worker capacity against selected slots
+      if (_bookingMode == 'Hourly' && _selectedSlots.isNotEmpty) {
+        for (int h in _selectedSlots) {
+          final occupied = _getOccupiedCountsForHour(h);
+          if (widget.roleDistribution.isNotEmpty) {
+            for (var r in widget.roleDistribution) {
+              int selectedRole = _selectedRoleCounts[r] ?? 0;
+              int maxR = _getMaxCountForRole(r);
+              int availRole = maxR - (occupied[r] ?? 0);
+              if (availRole < 0) availRole = 0;
+              if (selectedRole > availRole) {
+                UiUtils.showCustomAlert(
+                  context,
+                  'Only $availRole worker(s) available for "${_getSkillForRole(r)}" in slot ${_formatTime(h)}-${_formatTime(h + 1)}.',
+                  isError: true,
+                );
+                return;
+              }
+            }
+          } else {
+            int availM = widget.maxMale - (occupied['male'] ?? 0);
+            int availF = widget.maxFemale - (occupied['female'] ?? 0);
+            if (availM < 0) availM = 0;
+            if (availF < 0) availF = 0;
+
+            if (_maleCount > availM) {
+              UiUtils.showCustomAlert(
+                context,
+                'Only $availM male worker(s) available in slot ${_formatTime(h)}-${_formatTime(h + 1)}.',
+                isError: true,
+              );
+              return;
+            }
+            if (_femaleCount > availF) {
+              UiUtils.showCustomAlert(
+                context,
+                'Only $availF female worker(s) available in slot ${_formatTime(h)}-${_formatTime(h + 1)}.',
+                isError: true,
+              );
+              return;
+            }
+          }
+        }
+      }
+
       setState(() {
         _isSubmitting = true;
       });
 
-      // Save address
+      // Save address to prefs
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_address', _addressController.text);
+      await prefs.setString('user_houseNo', _houseNoController.text);
+      await prefs.setString('user_street', _streetController.text);
+      await prefs.setString('user_village', _villageController.text);
+      await prefs.setString('user_mandal', _mandalController.text);
+      await prefs.setString('user_district', _districtController.text);
+      await prefs.setString('user_state', _stateController.text);
+      await prefs.setString('user_pincode', _pincodeController.text);
+      await prefs.setString('user_address', fullAddress);
 
       final String? userId = prefs.getString('user_id');
       final String? userName = prefs.getString('user_name');
@@ -706,7 +921,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         'Mode': _bookingMode,
         'Details': detailsStr,
         'Duration': durationText,
-        'Location': _addressController.text,
+        'Location': fullAddress,
         'Slots': _bookingMode == 'Daily' ? 'Full Day' : _selectedSlots.map((h) => _formatTime(h)).join(', '),
         'slots_list': _bookingMode == 'Daily' ? [] : _selectedSlots,
         'male_count': _maleCount,
@@ -738,7 +953,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         scheduledEndTime: end,
         status: 'PENDING',
         totalAmount: _totalPrice.toDouble(),
-        addressText: _addressController.text,
+        addressText: fullAddress,
         notes: jsonEncode(notesMap),
       );
       
@@ -750,7 +965,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
           _isSubmitting = false;
         });
 
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => BookingConfirmationScreen(
@@ -767,7 +982,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
       }
     } else {
-      if (hasWorkers && hasValidTime && _selectedDate != null && _addressController.text.isNotEmpty && !hasValidPrice) {
+      if (hasWorkers && hasValidTime && _selectedDate != null && addressValid && !hasValidPrice) {
         UiUtils.showCenteredToast(context, 'Total price cannot be zero. Cannot book without cost info.', isError: true);
         return;
       }
@@ -776,9 +991,13 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         if (!hasWorkers) {
           _fieldErrors['workers'] = AppLocalizations.of(context)!.selectAtLeastOneWorker;
         }
-        if (_addressController.text.isEmpty) {
-          _fieldErrors['address'] = 'Please enter work location address';
-        }
+        if (_houseNoController.text.trim().isEmpty) _fieldErrors['houseNo'] = 'Required';
+        if (_streetController.text.trim().isEmpty) _fieldErrors['street'] = 'Required';
+        if (_villageController.text.trim().isEmpty) _fieldErrors['village'] = 'Required';
+        if (_mandalController.text.trim().isEmpty) _fieldErrors['mandal'] = 'Required';
+        if (_districtController.text.trim().isEmpty) _fieldErrors['district'] = 'Required';
+        if (_stateController.text.trim().isEmpty) _fieldErrors['state'] = 'Required';
+        if (_pincodeController.text.trim().isEmpty) _fieldErrors['pincode'] = 'Required';
         if (_selectedDate == null) {
           _fieldErrors['date'] = AppLocalizations.of(context)!.selectDateError;
         }
@@ -793,7 +1012,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       // Scroll to first error
       if (_fieldErrors.containsKey('workers')) {
         _scrollToField(_workerSectionKey);
-      } else if (_fieldErrors.containsKey('address')) {
+      } else if (!addressValid) {
         _scrollToField(_addressSectionKey);
       } else if (_fieldErrors.containsKey('date')) {
         _scrollToField(_dateSectionKey);
@@ -1003,34 +1222,131 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               key: _addressSectionKey,
               title: 'Work Location',
               icon: Icons.location_on_rounded,
-              isError: _fieldErrors.containsKey('address'),
-              child: _buildTextField(
-                controller: _addressController,
-                label: 'Service Address',
-                hint: 'Enter farm address...',
-                maxLines: 3,
-                errorKey: 'address',
-                icon: Icons.map_rounded,
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.home_rounded, color: Color(0xFF00AA55)),
-                      onPressed: _useProfileAddress,
-                      tooltip: 'Use profile address',
-                    ),
-                    _isFetchingLocation
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
-                          onPressed: _fetchCurrentLocation,
-                          tooltip: 'Get current location',
+              isError: _fieldErrors.keys.any((k) => ['houseNo', 'street', 'village', 'mandal', 'district', 'state', 'pincode', 'address'].contains(k)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: TextButton.icon(
+                          onPressed: _useProfileAddress,
+                          icon: const Icon(Icons.home_rounded, size: 16, color: Color(0xFF00AA55)),
+                          label: const Text('Profile Address', style: TextStyle(color: Color(0xFF00AA55), fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                         ),
-                  ],
-                ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: _isFetchingLocation
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
+                            )
+                          : TextButton.icon(
+                              onPressed: _fetchCurrentLocation,
+                              icon: const Icon(Icons.my_location_rounded, size: 16, color: Color(0xFF00AA55)),
+                              label: const Text('Current Location', style: TextStyle(color: Color(0xFF00AA55), fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _houseNoController,
+                          label: 'House No / Door No',
+                          hint: 'e.g. 123',
+                          icon: Icons.home_outlined,
+                          errorKey: 'houseNo',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _streetController,
+                          label: 'Street / Area Name',
+                          hint: 'Street details...',
+                          icon: Icons.add_road_rounded,
+                          errorKey: 'street',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _villageController,
+                          label: 'Village / Suburb',
+                          hint: 'Village name...',
+                          icon: Icons.landscape_rounded,
+                          errorKey: 'village',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _mandalController,
+                          label: 'Mandal',
+                          hint: 'Mandal name...',
+                          icon: Icons.map_rounded,
+                          errorKey: 'mandal',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _districtController,
+                          label: 'District',
+                          hint: 'District name...',
+                          icon: Icons.location_city_rounded,
+                          errorKey: 'district',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _stateController,
+                          label: 'State',
+                          hint: 'State name...',
+                          icon: Icons.map_outlined,
+                          errorKey: 'state',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _pincodeController,
+                          label: 'Pincode',
+                          hint: 'Pincode...',
+                          icon: Icons.pin_drop_rounded,
+                          keyboardType: TextInputType.number,
+                          errorKey: 'pincode',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildAddressInputField(
+                    controller: _countryController,
+                    label: 'Country',
+                    hint: 'India',
+                    icon: Icons.public_rounded,
+                    enabled: false,
+                  ),
+                ],
               ),
             ),
 
@@ -1637,6 +1953,60 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         const SizedBox(height: 12),
         ...summaryItems,
         const Divider(height: 30),
+      ],
+    );
+  }
+
+  Widget _buildAddressInputField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    bool enabled = true,
+    String? errorKey,
+  }) {
+    final bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
+    final String? errorText = hasError ? _fieldErrors[errorKey] : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: hasError ? Colors.red : const Color(0xFF2C3E50)),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: enabled ? const Color(0xFFF9FBF9) : Colors.grey[100],
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: hasError ? Colors.red : (enabled ? const Color(0xFFE8F5E9) : Colors.grey[300]!)),
+          ),
+          child: TextField(
+            controller: controller,
+            enabled: enabled,
+            keyboardType: keyboardType,
+            onChanged: (_) {
+              if (hasError && errorKey != null) {
+                setState(() => _fieldErrors.remove(errorKey));
+              }
+            },
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: enabled ? const Color(0xFF2C3E50) : Colors.grey[700]),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500, fontSize: 13),
+              prefixIcon: Icon(icon, color: hasError ? Colors.red : (enabled ? const Color(0xFF00AA55) : Colors.grey[500]), size: 18),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+        ),
+        if (hasError && errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0, left: 4),
+            child: Text(errorText, style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w500)),
+          ),
       ],
     );
   }

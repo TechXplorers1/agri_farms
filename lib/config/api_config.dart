@@ -41,8 +41,7 @@ class ApiConfig {
   // MSG91 Widget configuration for OTP
   static const String msg91WidgetId = '6a6470ebe285710a1e0ead72';
   // Replace this with your actual MSG91 Auth Token from the 'Tokens' section of the MSG91 dashboard
-  static const String msg91AuthToken =
-      '551740AvEkrLHO5I6a63711bP1'; // using the one from application.yml
+  static const String msg91AuthToken = '551740AvEkrLHO5I6a63711bP1'; // using the one from application.yml
 
   static String getFullImageUrl(String? path) {
     if (path == null || path.isEmpty) return '';

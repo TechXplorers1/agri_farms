@@ -60,6 +60,15 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
         _particles.add(ConfettiParticle(_random));
     }
 
+    Future.delayed(const Duration(seconds: 5), () {
+      if (mounted) {
+        _confettiController.stop();
+        setState(() {
+          _particles.clear();
+        });
+      }
+    });
+
     _appearController.forward();
   }
 

@@ -10,7 +10,6 @@ import '../models/booking_dto.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import '../utils/location_helper.dart';
 import '../utils/translated_text.dart';
 
@@ -59,7 +58,14 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   final TextEditingController _kmController = TextEditingController();
 
   DateTime? _selectedDate;
-  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _houseNoController = TextEditingController();
+  final TextEditingController _streetController = TextEditingController();
+  final TextEditingController _villageController = TextEditingController();
+  final TextEditingController _mandalController = TextEditingController();
+  final TextEditingController _districtController = TextEditingController();
+  final TextEditingController _stateController = TextEditingController();
+  final TextEditingController _countryController = TextEditingController(text: 'India');
+  final TextEditingController _pincodeController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final Map<String, String?> _fieldErrors = {};
   
@@ -182,14 +188,25 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
     setState(() {
       if (_selectedSlots.contains(hour)) {
-        _selectedSlots.clear();
+        if (hour != _selectedSlots.first && hour != _selectedSlots.last) {
+           UiUtils.showCustomAlert(context, 'Cannot remove a middle slot. If you want to book a split time, you need to make a new booking.', isError: true);
+           return;
+        }
+        _selectedSlots.remove(hour);
       } else {
-        _selectedSlots.clear();
+        if (_selectedSlots.isNotEmpty) {
+           _selectedSlots.sort();
+           if (hour != _selectedSlots.first - 1 && hour != _selectedSlots.last + 1) {
+              UiUtils.showCustomAlert(context, 'If you want to book a split time, you need to make a new booking.', isError: true);
+              return;
+           }
+        }
         _selectedSlots.add(hour);
+        _selectedSlots.sort();
       }
       if (_selectedSlots.isNotEmpty) {
         _selectedStartHour = _selectedSlots.first;
-        _durationHours = 1;
+        _durationHours = _selectedSlots.length;
       } else {
         _selectedStartHour = null;
         _durationHours = 1;
@@ -255,11 +272,32 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     }
   }
 
+  void _clearAddressErrors() {
+    _fieldErrors.remove('houseNo');
+    _fieldErrors.remove('street');
+    _fieldErrors.remove('village');
+    _fieldErrors.remove('mandal');
+    _fieldErrors.remove('district');
+    _fieldErrors.remove('state');
+    _fieldErrors.remove('pincode');
+    _fieldErrors.remove('address');
+  }
+
+  String _buildFullAddress() {
+    List<String> parts = [];
+    if (_houseNoController.text.trim().isNotEmpty) parts.add(_houseNoController.text.trim());
+    if (_streetController.text.trim().isNotEmpty) parts.add(_streetController.text.trim());
+    if (_villageController.text.trim().isNotEmpty) parts.add(_villageController.text.trim());
+    if (_mandalController.text.trim().isNotEmpty) parts.add(_mandalController.text.trim());
+    if (_districtController.text.trim().isNotEmpty) parts.add(_districtController.text.trim());
+    if (_stateController.text.trim().isNotEmpty) parts.add(_stateController.text.trim());
+    if (_pincodeController.text.trim().isNotEmpty) parts.add(_pincodeController.text.trim());
+    if (_countryController.text.trim().isNotEmpty) parts.add(_countryController.text.trim());
+    return parts.join(', ');
+  }
+
   Future<void> _loadAddress() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _addressController.text = prefs.getString('user_address') ?? '';
-    });
+    await _useProfileAddress();
   }
 
   Future<void> _fetchCurrentLocation() async {
@@ -285,18 +323,31 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       
       final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       
-      // Use helper for cross-platform reverse geocoding
       final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
-      final String village = addressData['village']!;
-      final String district = addressData['district']!;
-      final String address = "$village, $district";
+      final String village = addressData['village'] ?? '';
+      final String district = addressData['district'] ?? '';
+      final String fullAddr = addressData['address'] ?? '';
 
       if (mounted) {
-        setState(() => _addressController.text = address);
-        // Save to prefs if needed (check file context)
+        setState(() {
+          _villageController.text = village;
+          _districtController.text = district;
+          if (fullAddr.isNotEmpty) {
+            final parts = fullAddr.split(',').map((e) => e.trim()).toList();
+            if (parts.length > 2) _streetController.text = parts[0];
+            if (parts.isNotEmpty) {
+              final lastPart = parts.last;
+              if (RegExp(r'^\d{6}$').hasMatch(lastPart)) {
+                _pincodeController.text = lastPart;
+              }
+            }
+          }
+          _clearAddressErrors();
+        });
+        
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('user_address', address);
-        if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
+        await prefs.setString('user_address', _buildFullAddress());
+        UiUtils.showCenteredToast(context, 'Current location loaded');
       }
     } catch (e) {
       if (mounted) UiUtils.showCenteredToast(context, 'Could not fetch location. Try again.', isError: true);
@@ -305,17 +356,53 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     }
   }
 
-  Future<void> _pasteFromClipboard(TextEditingController controller, String errorKey) async {
+  Future<void> _pasteAddressFromClipboard() async {
     try {
       final data = await Clipboard.getData(Clipboard.kTextPlain);
       if (data != null && data.text != null && data.text!.isNotEmpty) {
+        final addressText = data.text!;
+        final parts = addressText.split(',').map((e) => e.trim()).toList();
+        
         setState(() {
-          controller.text = data.text!;
-          if (_fieldErrors.containsKey(errorKey)) {
-            _fieldErrors.remove(errorKey);
+          if (parts.length >= 7) {
+            _houseNoController.text = parts[0];
+            _streetController.text = parts[1];
+            _villageController.text = parts[2];
+            _mandalController.text = parts[3];
+            _districtController.text = parts[4];
+            _stateController.text = parts[5];
+            _pincodeController.text = parts[6];
+          } else if (parts.length == 6) {
+            _houseNoController.text = parts[0];
+            _streetController.text = parts[1];
+            _villageController.text = parts[2];
+            _districtController.text = parts[3];
+            _stateController.text = parts[4];
+            _pincodeController.text = parts[5];
+          } else if (parts.length == 5) {
+            _houseNoController.text = '';
+            _streetController.text = parts[0];
+            _villageController.text = parts[1];
+            _districtController.text = parts[2];
+            _stateController.text = parts[3];
+            _pincodeController.text = parts[4];
+          } else if (parts.length == 4) {
+            _houseNoController.text = '';
+            _streetController.text = '';
+            _villageController.text = parts[0];
+            _districtController.text = parts[1];
+            _stateController.text = parts[2];
+            _pincodeController.text = parts[3];
+          } else {
+            _houseNoController.text = '';
+            _streetController.text = '';
+            _villageController.text = parts[0];
+            if (parts.length > 1) _districtController.text = parts[1];
+            if (parts.length > 2) _stateController.text = parts[2];
           }
+          _clearAddressErrors();
         });
-        UiUtils.showCenteredToast(context, 'Address pasted successfully');
+        UiUtils.showCenteredToast(context, 'Address pasted and filled successfully');
       } else {
         UiUtils.showCenteredToast(context, 'Clipboard is empty or contains non-text content', isError: true);
       }
@@ -329,31 +416,85 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     final houseNo = prefs.getString('user_houseNo') ?? '';
     final street = prefs.getString('user_street') ?? '';
     final village = prefs.getString('user_village') ?? '';
+    final mandal = prefs.getString('user_mandal') ?? '';
     final district = prefs.getString('user_district') ?? '';
     final state = prefs.getString('user_state') ?? '';
-    final country = prefs.getString('user_country') ?? '';
+    final country = prefs.getString('user_country') ?? 'India';
     final pincode = prefs.getString('user_pincode') ?? '';
 
-    final parts = [houseNo, street, village, district, state, country, pincode]
-        .where((part) => part.isNotEmpty)
-        .join(', ');
-
-    if (parts.isNotEmpty) {
+    if (houseNo.isNotEmpty || street.isNotEmpty || village.isNotEmpty || district.isNotEmpty || state.isNotEmpty || pincode.isNotEmpty) {
       setState(() {
-        _addressController.text = parts;
-        if (_fieldErrors.containsKey('address')) {
-          _fieldErrors.remove('address');
-        }
+        _houseNoController.text = houseNo;
+        _streetController.text = street;
+        _villageController.text = village;
+        _mandalController.text = mandal;
+        _districtController.text = district;
+        _stateController.text = state;
+        _countryController.text = country;
+        _pincodeController.text = pincode;
+        _clearAddressErrors();
       });
       UiUtils.showCenteredToast(context, 'Profile address loaded');
     } else {
-      UiUtils.showCenteredToast(context, 'No profile address saved. Please update in profile page.', isError: true);
+      final userAddress = prefs.getString('user_address') ?? '';
+      if (userAddress.isNotEmpty) {
+        final parts = userAddress.split(',').map((e) => e.trim()).toList();
+        setState(() {
+          if (parts.length >= 7) {
+            _houseNoController.text = parts[0];
+            _streetController.text = parts[1];
+            _villageController.text = parts[2];
+            _mandalController.text = parts[3];
+            _districtController.text = parts[4];
+            _stateController.text = parts[5];
+            _pincodeController.text = parts[6];
+          } else if (parts.length == 6) {
+            _houseNoController.text = parts[0];
+            _streetController.text = parts[1];
+            _villageController.text = parts[2];
+            _districtController.text = parts[3];
+            _stateController.text = parts[4];
+            _pincodeController.text = parts[5];
+          } else if (parts.length == 5) {
+            _houseNoController.text = '';
+            _streetController.text = parts[0];
+            _villageController.text = parts[1];
+            _districtController.text = parts[2];
+            _stateController.text = parts[3];
+            _pincodeController.text = parts[4];
+          } else if (parts.length == 4) {
+            _houseNoController.text = '';
+            _streetController.text = '';
+            _villageController.text = parts[0];
+            _districtController.text = parts[1];
+            _stateController.text = parts[2];
+            _pincodeController.text = parts[3];
+          } else {
+            _houseNoController.text = '';
+            _streetController.text = '';
+            _villageController.text = parts[0];
+            if (parts.length > 1) _districtController.text = parts[1];
+            if (parts.length > 2) _stateController.text = parts[2];
+          }
+          _clearAddressErrors();
+        });
+        UiUtils.showCenteredToast(context, 'Profile address loaded');
+      } else {
+        UiUtils.showCenteredToast(context, 'No profile address saved. Please update in profile page.', isError: true);
+      }
     }
   }
 
   @override
   void dispose() {
-    _addressController.dispose();
+    _houseNoController.dispose();
+    _streetController.dispose();
+    _villageController.dispose();
+    _mandalController.dispose();
+    _districtController.dispose();
+    _stateController.dispose();
+    _countryController.dispose();
+    _pincodeController.dispose();
     _kmController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -450,8 +591,17 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       return;
     }
 
-    if (_addressController.text.trim().isEmpty) {
-      setState(() => _fieldErrors['address'] = 'Please enter delivery location');
+    bool addressValid = true;
+    if (_houseNoController.text.trim().isEmpty) { _fieldErrors['houseNo'] = 'Required'; addressValid = false; }
+    if (_streetController.text.trim().isEmpty) { _fieldErrors['street'] = 'Required'; addressValid = false; }
+    if (_villageController.text.trim().isEmpty) { _fieldErrors['village'] = 'Required'; addressValid = false; }
+    if (_mandalController.text.trim().isEmpty) { _fieldErrors['mandal'] = 'Required'; addressValid = false; }
+    if (_districtController.text.trim().isEmpty) { _fieldErrors['district'] = 'Required'; addressValid = false; }
+    if (_stateController.text.trim().isEmpty) { _fieldErrors['state'] = 'Required'; addressValid = false; }
+    if (_pincodeController.text.trim().isEmpty) { _fieldErrors['pincode'] = 'Required'; addressValid = false; }
+    final String fullAddress = _buildFullAddress();
+
+    if (!addressValid) {
       _scrollToField(_addressSectionKey);
       return;
     }
@@ -475,7 +625,14 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     });
       // Save address
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_address', _addressController.text);
+      await prefs.setString('user_houseNo', _houseNoController.text);
+      await prefs.setString('user_street', _streetController.text);
+      await prefs.setString('user_village', _villageController.text);
+      await prefs.setString('user_mandal', _mandalController.text);
+      await prefs.setString('user_district', _districtController.text);
+      await prefs.setString('user_state', _stateController.text);
+      await prefs.setString('user_pincode', _pincodeController.text);
+      await prefs.setString('user_address', fullAddress);
       final String? userId = prefs.getString('user_id');
       final String? userName = prefs.getString('user_name');
 
@@ -497,7 +654,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         'Booked By': userName ?? 'Unknown User',
         'Provider': widget.providerName,
         'Vehicle Type': widget.vehicleType,
-        'Location': _addressController.text,
+        'Location': fullAddress,
         'Goods Type': _selectedGoodsType,
         'Time': formattedTime,
         'Booking Mode': _isKmWise ? 'KM-wise' : (isDailyTrolley ? 'Daily Mode' : 'Hourly Mode'),
@@ -523,7 +680,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         scheduledEndTime: end,
         status: 'PENDING',
         totalAmount: _totalPrice,
-        addressText: _addressController.text,
+        addressText: fullAddress,
         notes: jsonEncode(notesMap),
       );
       
@@ -535,7 +692,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
           _isSubmitting = false;
         });
 
-        Navigator.push(
+        Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => BookingConfirmationScreen(
@@ -938,36 +1095,133 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             // Location Section
             _buildSectionCard(
               key: _addressSectionKey,
-              title: 'Lush Pickup/Drop Location',
+              title: 'Pickup / Drop Location',
               icon: Icons.location_on_rounded,
-              isError: _fieldErrors.containsKey('address'),
-              child: _buildTextField(
-                controller: _addressController,
-                label: 'Location Address',
-                hint: 'Enter pickup/drop location...',
-                maxLines: 2,
-                errorKey: 'address',
-                icon: Icons.map_rounded,
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.home_rounded, color: Color(0xFF00AA55)),
-                      onPressed: _useProfileAddress,
-                      tooltip: 'Use profile address',
-                    ),
-                    _isFetchingLocation
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
-                          onPressed: _fetchCurrentLocation,
-                          tooltip: 'Get current location',
+              isError: _fieldErrors.keys.any((k) => ['houseNo', 'street', 'village', 'mandal', 'district', 'state', 'pincode', 'address'].contains(k)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: TextButton.icon(
+                          onPressed: _useProfileAddress,
+                          icon: const Icon(Icons.home_rounded, size: 16, color: Color(0xFF00AA55)),
+                          label: const Text('Profile Address', style: TextStyle(color: Color(0xFF00AA55), fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                         ),
-                  ],
-                ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: _isFetchingLocation
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 12),
+                              child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))),
+                            )
+                          : TextButton.icon(
+                              onPressed: _fetchCurrentLocation,
+                              icon: const Icon(Icons.my_location_rounded, size: 16, color: Color(0xFF00AA55)),
+                              label: const Text('Current Location', style: TextStyle(color: Color(0xFF00AA55), fontSize: 12, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                            ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _houseNoController,
+                          label: 'House No / Door No',
+                          hint: 'e.g. 123',
+                          icon: Icons.home_outlined,
+                          errorKey: 'houseNo',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _streetController,
+                          label: 'Street / Area Name',
+                          hint: 'Street details...',
+                          icon: Icons.add_road_rounded,
+                          errorKey: 'street',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _villageController,
+                          label: 'Village / Suburb',
+                          hint: 'Village name...',
+                          icon: Icons.landscape_rounded,
+                          errorKey: 'village',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _mandalController,
+                          label: 'Mandal',
+                          hint: 'Mandal name...',
+                          icon: Icons.map_rounded,
+                          errorKey: 'mandal',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _districtController,
+                          label: 'District',
+                          hint: 'District name...',
+                          icon: Icons.location_city_rounded,
+                          errorKey: 'district',
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _stateController,
+                          label: 'State',
+                          hint: 'State name...',
+                          icon: Icons.map_outlined,
+                          errorKey: 'state',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildAddressInputField(
+                          controller: _pincodeController,
+                          label: 'Pincode',
+                          hint: 'Pincode...',
+                          icon: Icons.pin_drop_rounded,
+                          keyboardType: TextInputType.number,
+                          errorKey: 'pincode',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildAddressInputField(
+                    controller: _countryController,
+                    label: 'Country',
+                    hint: 'India',
+                    icon: Icons.public_rounded,
+                    enabled: false,
+                  ),
+                ],
               ),
             ),
 
@@ -1530,6 +1784,60 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAddressInputField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    bool enabled = true,
+    String? errorKey,
+  }) {
+    final bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
+    final String? errorText = hasError ? _fieldErrors[errorKey] : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: hasError ? Colors.red : const Color(0xFF2C3E50)),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: enabled ? const Color(0xFFF9FBF9) : Colors.grey[100],
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: hasError ? Colors.red : (enabled ? const Color(0xFFE8F5E9) : Colors.grey[300]!)),
+          ),
+          child: TextField(
+            controller: controller,
+            enabled: enabled,
+            keyboardType: keyboardType,
+            onChanged: (_) {
+              if (hasError && errorKey != null) {
+                setState(() => _fieldErrors.remove(errorKey));
+              }
+            },
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: enabled ? const Color(0xFF2C3E50) : Colors.grey[700]),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500, fontSize: 13),
+              prefixIcon: Icon(icon, color: hasError ? Colors.red : (enabled ? const Color(0xFF00AA55) : Colors.grey[500]), size: 18),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+        ),
+        if (hasError && errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0, left: 4),
+            child: Text(errorText, style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w500)),
+          ),
+      ],
     );
   }
 }

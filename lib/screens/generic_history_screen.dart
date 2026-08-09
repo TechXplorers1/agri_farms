@@ -446,27 +446,33 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
       final displayMessage = _filterDate != null
           ? 'No bookings found on ${_filterDate!.day} ${_getMonthName(_filterDate!.month)}'
           : emptyMessage;
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                color: Colors.white, 
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20)],
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: Colors.white, 
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20)],
+                ),
+                child: Icon(emptyIcon, size: 54, color: Colors.grey[200]),
               ),
-              child: Icon(emptyIcon, size: 54, color: Colors.grey[200]),
-            ),
-            const SizedBox(height: 24),
-            Text(displayMessage, style: TextStyle(color: Colors.grey[400], fontSize: 16, fontWeight: FontWeight.w700)),
-          ],
+              const SizedBox(height: 24),
+              Text(displayMessage, style: TextStyle(color: Colors.grey[400], fontSize: 16, fontWeight: FontWeight.w700)),
+            ],
+          ),
         ),
       );
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       itemCount: filtered.length,
       itemBuilder: (context, index) {

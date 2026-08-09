@@ -45,11 +45,19 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   double? _selectedDistance;
   late Future<List<ServiceProvider>> _providersFuture;
   Locale? _lastLocale;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     // Initial fetch will be handled by didChangeDependencies or standard flow
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -172,7 +180,9 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           jobsCompleted: parseJobsCompleted(e, 'equipmentId'),
           brandModel: e['brandModel'] ?? 'Standard',
           condition: e['condition'] ?? 'Good',
-          price: '₹${e['pricePerHour']} / hr',
+          price: (['trolleys', 'sprayers'].contains(e['category']?.toString().toLowerCase().trim()) || ['trolleys', 'sprayers'].contains(widget.serviceKey.toLowerCase().trim())) 
+              ? '₹${e['pricePerHour']} / day' 
+              : '₹${e['pricePerHour']} / hr',
           pricePerHalfDay: (e['pricePerHalfDay'] as num?)?.toDouble(),
           operatorAvailable: e['operatorAvailable'] ?? false,
           operatorPrice: (e['operatorPrice'] as num?)?.toDouble() ?? 0.0,
@@ -546,7 +556,46 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                 matchesLocation = provider.location == _selectedLocation;
               }
             }
-            return matchesMake && matchesLocation && matchesDistance;
+
+            bool matchesSearch = true;
+            if (_searchQuery.isNotEmpty) {
+              final query = _searchQuery.toLowerCase();
+              final name = provider.name.toLowerCase();
+              final ownerName = (provider.ownerName ?? '').toLowerCase();
+              final business = (provider.businessName ?? '').toLowerCase();
+              final service = provider.serviceName.toLowerCase();
+              final desc = (provider.description ?? '').toLowerCase();
+              final loc = provider.location.toLowerCase();
+
+              bool matched = name.contains(query) ||
+                             ownerName.contains(query) ||
+                             business.contains(query) ||
+                             service.contains(query) ||
+                             desc.contains(query) ||
+                             loc.contains(query);
+
+              if (provider is FarmWorkerListing) {
+                final groupName = (provider.groupName ?? '').toLowerCase();
+                final skills = provider.skills.toLowerCase();
+                final roles = provider.roleDistribution.join(' ').toLowerCase();
+                matched = matched || groupName.contains(query) || skills.contains(query) || roles.contains(query);
+              } else if (provider is EquipmentListing) {
+                final brandModel = provider.brandModel.toLowerCase();
+                final attached = provider.attachedEquipments.join(' ').toLowerCase();
+                matched = matched || brandModel.contains(query) || attached.contains(query);
+              } else if (provider is TransportListing) {
+                final vType = provider.vehicleType.toLowerCase();
+                final vNum = (provider.vehicleNumber ?? '').toLowerCase();
+                matched = matched || vType.contains(query) || vNum.contains(query);
+              } else if (provider is ServiceListing) {
+                final equip = provider.equipmentUsed.toLowerCase();
+                matched = matched || equip.contains(query);
+              }
+
+              matchesSearch = matched;
+            }
+
+            return matchesMake && matchesLocation && matchesDistance && matchesSearch;
           }).toList();
 
           return Column(
@@ -580,33 +629,78 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE)))),
-      child: Row(
+      child: Column(
         children: [
-          if (makes.isNotEmpty && makes.length > 1) ...[
-            Builder(builder: (context) {
-              String filterHint = AppTranslations.translate(context, 'chooseMake');
-              if (widget.serviceKey == 'Mini Truck' || widget.serviceKey == 'Truck') {
-                filterHint = 'Load Capacity';
-              } else if (widget.serviceKey == 'Ploughing' || widget.serviceKey == 'Harvesting') {
-                filterHint = 'Equipment Type';
-              }
-              return Expanded(
-                child: _buildFilterDropdown(
-                  hint: filterHint,
-                  value: _selectedMake,
-                  items: ['All', ...makes],
-                  onChanged: (v) => setState(() => _selectedMake = v == 'All' ? null : v),
+          // Search Input Bar (ONLY for Farm Workers)
+          if (widget.serviceKey == 'Farm Workers') ...[
+            Container(
+              height: 46,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F6F4),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE0E6E0)),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val.trim();
+                  });
+                },
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
+                decoration: InputDecoration(
+                  hintText: 'Search harvesters, field workers, cultivators...',
+                  hintStyle: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400),
+                  prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF00AA55), size: 20),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, color: Colors.grey, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() {
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-              );
-            }),
-            const SizedBox(width: 12),
-          ],
-          Expanded(
-            child: _buildFilterDropdown(
-              hint: AppTranslations.translate(context, 'selectLocation'), value: _selectedLocation, items: ['All', ...['5 km', '10 km', '15 km', '20 km', '25 km', '30 km', '35 km', '40 km', '45 km', '50 km', '55 km', '60 km']],
-              onChanged: (v) => setState(() => _selectedLocation = v == 'All' ? null : v),
-              isLocation: true,
+              ),
             ),
+            const SizedBox(height: 10),
+          ],
+          Row(
+            children: [
+              if (makes.isNotEmpty && makes.length > 1) ...[
+                Builder(builder: (context) {
+                  String filterHint = AppTranslations.translate(context, 'chooseMake');
+                  if (widget.serviceKey == 'Mini Truck' || widget.serviceKey == 'Truck') {
+                    filterHint = 'Load Capacity';
+                  } else if (widget.serviceKey == 'Ploughing' || widget.serviceKey == 'Harvesting') {
+                    filterHint = 'Equipment Type';
+                  }
+                  return Expanded(
+                    child: _buildFilterDropdown(
+                      hint: filterHint,
+                      value: _selectedMake,
+                      items: ['All', ...makes],
+                      onChanged: (v) => setState(() => _selectedMake = v == 'All' ? null : v),
+                    ),
+                  );
+                }),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: _buildFilterDropdown(
+                  hint: AppTranslations.translate(context, 'selectLocation'),
+                  value: _selectedLocation,
+                  items: ['All', ...['5 km', '10 km', '15 km', '20 km', '25 km', '30 km', '35 km', '40 km', '45 km', '50 km', '55 km', '60 km']],
+                  onChanged: (v) => setState(() => _selectedLocation = v == 'All' ? null : v),
+                  isLocation: true,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -629,12 +723,17 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       child: Container(
         height: MediaQuery.of(context).size.height * 0.6,
         alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.search_off_rounded, size: 64, color: Colors.grey[300]),
             const SizedBox(height: 16),
-            Text(l10n.noMatchFound, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600)),
+            Text(
+              _searchQuery.isNotEmpty ? 'No providers found matching "$_searchQuery"' : l10n.noMatchFound,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600, fontSize: 14),
+            ),
           ],
         ),
       ),

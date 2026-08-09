@@ -54,7 +54,7 @@ class AgriServicesScreen extends StatelessWidget {
                  _buildServiceCard(context, 'Harvesting', l10n.harvesting, 'assets/images/harvester_card.webp', AppTranslations.translate(context, 'premiumCropYield')),
                  _buildServiceCard(context, 'Farm Workers', l10n.farmWorkers, 'assets/images/farm_workers_card.webp', AppTranslations.translate(context, 'skilledDailyHelp')),
                  _buildServiceCard(context, 'Drone Spraying', l10n.droneSpraying, 'assets/images/drone_spraying_card.webp', AppTranslations.translate(context, 'modernTechSpray')),
-                 _buildServiceCard(context, 'Vet Care', l10n.vetCare, 'assets/images/vet_care_card.webp', AppTranslations.translate(context, 'animalWellness')),
+                 _buildServiceCard(context, 'Vet Care', l10n.vetCare, 'assets/images/vet_care_card.webp', AppTranslations.translate(context, 'animalWellness'), isComingSoon: true),
                  _buildServiceCard(context, 'Mechanics', AppTranslations.translate(context, 'mechanics'), 'assets/images/mechanic_card.webp', AppTranslations.translate(context, 'vehicleRepair'), isComingSoon: true),
                  _buildServiceCard(context, 'Irrigation', l10n.irrigation, 'assets/images/irrigation_card.webp', AppTranslations.translate(context, 'waterSolutions'), isComingSoon: true),
                  _buildServiceCard(context, 'Soil Testing', l10n.soilTesting, 'assets/images/soil_testing_card.webp', AppTranslations.translate(context, 'precisionAnalysis'), isComingSoon: true),

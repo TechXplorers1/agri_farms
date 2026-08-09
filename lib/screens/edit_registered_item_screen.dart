@@ -323,7 +323,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
       UiUtils.showCenteredToast(context, 'Please enter a price', isError: true);
       return;
     }
-    if (_secondaryController.text == 'Trolleys' && _equipmentHalfDayPriceController.text.isEmpty) {
+    if ((_secondaryController.text == 'Trolleys' || _secondaryController.text == 'Sprayers') && _equipmentHalfDayPriceController.text.isEmpty) {
       UiUtils.showCenteredToast(context, 'Please enter a half day price', isError: true);
       return;
     }
@@ -439,7 +439,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         }
 
         updatedData['pricePerHour'] = double.tryParse(_priceController.text) ?? 0.0;
-        if (_secondaryController.text == 'Trolleys') {
+        if (_secondaryController.text == 'Trolleys' || _secondaryController.text == 'Sprayers') {
           updatedData['pricePerHalfDay'] = double.tryParse(_equipmentHalfDayPriceController.text) ?? 0.0;
         }
         updatedData['category'] = _secondaryController.text;
@@ -459,25 +459,23 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         updatedData['location'] = _locationController.text;
         await _apiService.updateService(widget.itemData['serviceId'], updatedData);
       } else if (widget.category == 'WorkerGroup') {
-        updatedData['groupName'] = _nameController.text;
-        updatedData['maleCount'] = int.tryParse(_maleCountController.text) ?? 0;
-        updatedData['femaleCount'] = int.tryParse(_femaleCountController.text) ?? 0;
-        updatedData['pricePerMale'] = double.tryParse(_priceController.text) ?? 0.0;
-        updatedData['pricePerFemale'] = double.tryParse(_secondaryController.text) ?? 0.0;
-        updatedData['pricePerMaleHourly'] = double.tryParse(_malePriceHourlyController.text) ?? 0.0;
-        updatedData['pricePerFemaleHourly'] = double.tryParse(_femalePriceHourlyController.text) ?? 0.0;
-        updatedData['location'] = _locationController.text;
-        
         List<Map<String, dynamic>> rolesPayload = [];
+        int totalMale = 0;
+        int totalFemale = 0;
+        
         for (String roleStr in _roleDistributions) {
           final parts = roleStr.split('-');
-          if (parts.length == 2) {
+          if (parts.length >= 2) {
             final countAndGender = parts[0].trim().split(' ');
-            final tasks = parts[1].trim();
+            final tasks = parts.sublist(1).join('-').trim();
             
             if (countAndGender.length >= 2) {
               int count = int.tryParse(countAndGender[0]) ?? 0;
               String gender = countAndGender[1];
+              
+              if (gender == 'Male') totalMale += count;
+              if (gender == 'Female') totalFemale += count;
+              
               rolesPayload.add({
                 'gender': gender,
                 'count': count,
@@ -486,6 +484,15 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
             }
           }
         }
+        
+        updatedData['groupName'] = _nameController.text;
+        updatedData['maleCount'] = totalMale;
+        updatedData['femaleCount'] = totalFemale;
+        updatedData['pricePerMale'] = double.tryParse(_priceController.text) ?? 0.0;
+        updatedData['pricePerFemale'] = double.tryParse(_secondaryController.text) ?? 0.0;
+        updatedData['pricePerMaleHourly'] = double.tryParse(_malePriceHourlyController.text) ?? 0.0;
+        updatedData['pricePerFemaleHourly'] = double.tryParse(_femalePriceHourlyController.text) ?? 0.0;
+        updatedData['location'] = _locationController.text;
         updatedData['roles'] = rolesPayload;
 
         await _apiService.updateWorkerGroup(widget.itemData['groupId'], updatedData);
@@ -672,7 +679,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                               isExpanded: true,
                               hint: const Text('Select Vehicle Type'),
                               icon: const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
-                              items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontWeight: FontWeight.w600)))).toList(),
+                              items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis))).toList(),
                               onChanged: (v) => setState(() {
                                 _selectedVehicleType = v;
                                 // Reset prices when type changes
@@ -738,7 +745,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                                   child: DropdownButton<String>(
                                     value: _selectedCapacityUnit,
                                     isExpanded: true,
-                                    items: ['Ton', 'kg'].map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontWeight: FontWeight.w600)))).toList(),
+                                    items: ['Ton', 'kg'].map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis))).toList(),
                                     onChanged: (v) => setState(() => _selectedCapacityUnit = v!),
                                   ),
                                 ),
@@ -775,7 +782,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                     const SizedBox(height: 12),
                     _buildTextField('Description', _descriptionController, Icons.description_rounded, hint: 'Any extra info about this vehicle...', maxLines: 3),
                   ] else if (widget.category == 'Equipment') ...[
-                    if (widget.itemData['category'] == 'Trolleys') ...[
+                    if (widget.itemData['category'] == 'Trolleys' || widget.itemData['category'] == 'Sprayers') ...[
                       _buildTextField('Full Day Price', _priceController, Icons.wb_sunny_rounded, keyboardType: TextInputType.number),
                       const SizedBox(height: 20),
                       _buildTextField('Half Day Price', _equipmentHalfDayPriceController, Icons.wb_twilight_rounded, keyboardType: TextInputType.number),
@@ -798,9 +805,10 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                           child: DropdownButtonHideUnderline(
                             child: DropdownButtonFormField<String>(
                               value: _condition,
+                              isExpanded: true,
                               decoration: const InputDecoration(border: InputBorder.none),
                               icon: const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
-                              items: ['New', 'Good', 'Average', 'Poor'].map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontWeight: FontWeight.w600)))).toList(),
+                              items: ['New', 'Good', 'Average', 'Poor'].map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis))).toList(),
                               onChanged: (v) => setState(() => _condition = v),
                             ),
                           ),
@@ -1064,6 +1072,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       value: _currentSelectedSprayerType,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: 'Sprayer Type',
                         labelStyle: const TextStyle(fontSize: 13, color: Color(0xFF2C3E50)),
@@ -1073,7 +1082,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.grey[300]!)),
                         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: const BorderSide(color: Color(0xFF00AA55))),
                       ),
-                      items: _availableSprayerTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      items: _availableSprayerTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis))).toList(),
                       onChanged: (v) => setState(() => _currentSelectedSprayerType = v),
                     ),
                     if (_currentSelectedSprayerType == 'Other') ...[
@@ -1376,26 +1385,6 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         return;
       }
       
-      int currentAllocated = 0;
-      for (String roleStr in _roleDistributions) {
-        final parts = roleStr.split('-');
-        if (parts.length == 2) {
-          final countAndGender = parts[0].trim().split(' ');
-          if (countAndGender.length >= 2 && countAndGender[1] == _roleGender) {
-            currentAllocated += int.tryParse(countAndGender[0]) ?? 0;
-          }
-        }
-      }
-
-      int maxAllowed = _roleGender == 'Male' 
-          ? (int.tryParse(_maleCountController.text) ?? 0)
-          : (int.tryParse(_femaleCountController.text) ?? 0);
-
-      if (currentAllocated + newCount > maxAllowed) {
-        UiUtils.showCenteredToast(context, 'Cannot allocate $newCount $_roleGender workers. Max allowed is $maxAllowed, already allocated is $currentAllocated.', isError: true);
-        return;
-      }
-
       setState(() {
         _roleDistributions.add('$count $_roleGender - ${_selectedRoleSkills.join(", ")}');
         _roleCountController.clear();
@@ -1580,16 +1569,13 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                               final count = dialogCountController.text.trim();
                               if (count.isEmpty || dialogSkills.isEmpty) { ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(content: Text('Enter count and select at least one skill'), backgroundColor: Colors.red)); return; }
                               final newCount = int.tryParse(count) ?? 0;
-                              if (newCount <= 0) { ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(content: Text('Count must be greater than 0'), backgroundColor: Colors.red)); return; }
-                              int currentAllocated = 0;
-                              for (int i = 0; i < _roleDistributions.length; i++) {
-                                if (i == index) continue;
-                                final p = _roleDistributions[i].split('-');
-                                if (p.length >= 2) { final cg = p[0].trim().split(' '); if (cg.length >= 2 && cg[1] == dialogGender) currentAllocated += int.tryParse(cg[0]) ?? 0; }
+                              if (newCount <= 0) {
+                                ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(content: Text('Invalid count'), backgroundColor: Colors.red));
+                                return;
                               }
-                              final maxAllowed = dialogGender == 'Male' ? (int.tryParse(_maleCountController.text) ?? 0) : (int.tryParse(_femaleCountController.text) ?? 0);
-                              if (currentAllocated + newCount > maxAllowed) { ScaffoldMessenger.of(dCtx).showSnackBar(SnackBar(content: Text('Max $dialogGender: $maxAllowed, already used: $currentAllocated'), backgroundColor: Colors.red)); return; }
-                              setState(() { _roleDistributions[index] = '$count $dialogGender - ${dialogSkills.join(", ")}'; });
+                              setState(() { 
+                                _roleDistributions[index] = '$count $dialogGender - ${dialogSkills.join(", ")}'; 
+                              });
                               Navigator.pop(dCtx);
                             },
                             icon: const Icon(Icons.check_rounded, size: 18, color: Colors.white),
@@ -1713,6 +1699,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: _roleGender,
+                    isExpanded: true,
                     decoration: InputDecoration(
                       hintText: '',
                       border: OutlineInputBorder(
@@ -1734,7 +1721,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                     items: ['Male', 'Female']
                         .map((t) => DropdownMenuItem(
                             value: t,
-                            child: Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))))
+                            child: Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)))
                         .toList(),
                     onChanged: (v) => setState(() => _roleGender = v!),
                   ),
