@@ -182,7 +182,7 @@
   "addGroup": "Add Group",
   "addService": "Add Service",
   "addPhotos": "Add Photos",
-  "locationLabel": "Location (Village -> District)",
+  "locationLabel": "Location (Village -> Mandal -> District)",
   "descriptionLabel": "Description (Optional)",
   "submitListing": "Submit Listing",
   "groupDetails": "Group Details",

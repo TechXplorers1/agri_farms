@@ -119,7 +119,19 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       }
 
       int parseJobsCompleted(Map<String, dynamic> item, String assetIdKey) {
-        return (item['jobsCompleted'] as num?)?.toInt() ?? 0;
+        final val = item['jobsCompleted'] ??
+            item['jobs_completed'] ??
+            item['completedJobs'] ??
+            item['completed_jobs'] ??
+            item['completedJobsCount'] ??
+            item['jobsCompletedCount'] ??
+            item['totalCompletedJobs'] ??
+            item['totalBookings'] ??
+            item['completedCount'];
+        if (val != null) {
+          return int.tryParse(val.toString()) ?? 0;
+        }
+        return 0;
       }
 
       List<ServiceProvider> providers = [];
@@ -185,7 +197,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
               : '₹${e['pricePerHour']} / hr',
           pricePerHalfDay: (e['pricePerHalfDay'] as num?)?.toDouble(),
           operatorAvailable: e['operatorAvailable'] ?? false,
-          operatorPrice: (e['operatorPrice'] as num?)?.toDouble() ?? 0.0,
+          operatorPrice: (e['operatorPrice'] as num?)?.toDouble() ?? (double.tryParse(e['operatorPrice']?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '') ?? 0.0),
           image: e['imageUrl'],
           ownerProfileImage: e['ownerProfileImageUrl'],
           description: e['description'] ?? 'High quality agricultural machinery for hire.',
@@ -215,6 +227,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            equipmentUsed: s['equipmentUsed'] ?? 'Expert Tools',
            price: '₹${s['priceRate']} ${s['priceUnit'] ?? ""}',
            operatorIncluded: s['operatorIncluded'] ?? true,
+           operatorPrice: (s['operatorPrice'] as num?)?.toDouble() ?? (double.tryParse(s['operatorPrice']?.toString().replaceAll(RegExp(r'[^0-9.]'), '') ?? '') ?? 0.0),
            image: s['imageUrl'],
            ownerProfileImage: s['ownerProfileImageUrl'],
            description: s['description'] ?? 'Professional agricultural services by experienced operator.',
@@ -1055,12 +1068,14 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            description: provider.description,
            vehicleNumber: provider.vehicleNumber,
            serviceArea: provider.serviceArea,
+           jobsCompleted: provider.jobsCompleted,
          )));
       } else if (provider is FarmWorkerListing) {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
            providerName: displayName, providerId: actualProviderId, assetId: provider.id,
            maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
            priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
+           jobsCompleted: provider.jobsCompleted,
          )));
       } else if (provider is EquipmentListing) {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookEquipmentDetailScreen(
@@ -1076,6 +1091,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            description: provider.description,
            serialNumber: (provider.vehicleNumber != null && provider.vehicleNumber!.trim().isNotEmpty) ? provider.vehicleNumber! : null,
            attachedEquipments: provider.attachedEquipments,
+           jobsCompleted: provider.jobsCompleted,
          )));
       } else {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookServiceDetailScreen(
@@ -1089,6 +1105,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            serialNumber: null,
            equipmentName: provider is ServiceListing ? provider.equipmentUsed : null,
            operatorIncluded: provider is ServiceListing ? provider.operatorIncluded : true,
+           operatorPrice: provider is ServiceListing ? provider.operatorPrice : 0.0,
+           jobsCompleted: provider.jobsCompleted,
          )));
       }
   }
@@ -1125,14 +1143,46 @@ void _showFullImage(BuildContext context, String? imageUrl, String title) {
   ])));
 }
 
-class _AssetDetailModal extends StatelessWidget {
+class _AssetDetailModal extends StatefulWidget {
   final ServiceProvider provider;
   final VoidCallback onBookNow;
   const _AssetDetailModal({required this.provider, required this.onBookNow});
 
   @override
+  State<_AssetDetailModal> createState() => _AssetDetailModalState();
+}
+
+class _AssetDetailModalState extends State<_AssetDetailModal> {
+  late int _jobsCompleted;
+
+  @override
+  void initState() {
+    super.initState();
+    _jobsCompleted = widget.provider.jobsCompleted;
+    _fetchCompletedCount();
+  }
+
+  Future<void> _fetchCompletedCount() async {
+    try {
+      final response = await ApiService().getAssetBookings(widget.provider.id);
+      if (response is List) {
+        int count = response.where((b) {
+          final st = (b['status'] ?? '').toString().toUpperCase();
+          return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+        }).length;
+        if (mounted && count > _jobsCompleted) {
+          setState(() {
+            _jobsCompleted = count;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     var l10n = AppLocalizations.of(context)!;
+    final provider = widget.provider;
     return Container(
       decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1170,7 +1220,7 @@ class _AssetDetailModal extends StatelessWidget {
           if (provider is FarmWorkerListing) _buildWorkerDetails(context, provider as FarmWorkerListing),
           if (provider is ServiceListing) _buildServiceDetails(context, provider as ServiceListing),
           const SizedBox(height: 32),
-          SizedBox(width: double.infinity, height: 54, child: ElevatedButton(onPressed: onBookNow, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
+          SizedBox(width: double.infinity, height: 54, child: ElevatedButton(onPressed: widget.onBookNow, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
             child: Text(l10n.bookNow, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)))),
         ]))),
       ]),
@@ -1190,7 +1240,7 @@ class _AssetDetailModal extends StatelessWidget {
       _detailRow(Icons.person_outline_rounded, 'Operator', item.operatorAvailable ? AppTranslations.translate(context, 'available') : 'Not Provided'),
       _detailRow(Icons.payments_outlined, 'Price Rate', item.price),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
-      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
+      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '$_jobsCompleted'),
     ]);
   }
 
@@ -1305,7 +1355,7 @@ class _AssetDetailModal extends StatelessWidget {
       _detailRow(Icons.person_pin_circle_outlined, 'Driver', item.driverIncluded ? 'Included' : 'Self-Drive'),
       pricingWidget,
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
-      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
+      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '$_jobsCompleted'),
     ]);
   }
 
@@ -1316,7 +1366,7 @@ class _AssetDetailModal extends StatelessWidget {
       _detailRow(Icons.description_outlined, 'Description', item.description ?? 'Experienced agricultural worker team.'),
       _detailRow(Icons.psychology_outlined, 'Expertise', item.skills),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
-      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
+      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '$_jobsCompleted'),
       const SizedBox(height: 16),
       Container(
         padding: const EdgeInsets.all(12),
@@ -1402,15 +1452,19 @@ class _AssetDetailModal extends StatelessWidget {
   }
 
   Widget _buildServiceDetails(BuildContext context, ServiceListing item) {
-    final bool isElectrOrVet = item.serviceName == 'Electricians' || item.serviceName == 'Vet Care';
+    final serviceLower = item.serviceName.toLowerCase();
+    final bool isElectrician = serviceLower.contains('electric');
+    final bool isElectrOrVet = isElectrician || serviceLower.contains('vet');
+    final String costLabel = isElectrician ? 'Visiting Cost' : 'Service Cost';
+
     return Column(children: [
       _detailRow(Icons.handyman_outlined, 'Tools', item.equipmentUsed),
       _detailRow(Icons.description_outlined, 'Description', item.description ?? (isElectrOrVet ? 'Professional agricultural services.' : 'Professional agricultural services by experienced operator.')),
       if (!isElectrOrVet)
-        _detailRow(Icons.person_outline_rounded, 'Expert', item.operatorIncluded ? 'Provided' : 'Machine Only'),
-      _detailRow(Icons.payments_outlined, 'Service Cost', item.price),
+        _detailRow(Icons.person_outline_rounded, 'Operator', item.operatorIncluded ? 'Available' : 'Machine Only'),
+      _detailRow(Icons.payments_outlined, costLabel, item.price),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
-      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
+      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '$_jobsCompleted'),
     ]);
   }
 

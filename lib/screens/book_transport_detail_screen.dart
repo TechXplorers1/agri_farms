@@ -27,6 +27,7 @@ class BookTransportDetailScreen extends StatefulWidget {
   final String? description;
   final String? vehicleNumber;
   final String? serviceArea;
+  final int? jobsCompleted;
 
   const BookTransportDetailScreen({
     super.key,
@@ -43,6 +44,7 @@ class BookTransportDetailScreen extends StatefulWidget {
     this.description,
     this.vehicleNumber,
     this.serviceArea,
+    this.jobsCompleted,
   });
 
   @override
@@ -237,6 +239,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   void initState() {
     super.initState();
     _includeDriver = widget.driverIncluded != false;
+    _liveJobsCompleted = widget.jobsCompleted ?? 0;
     // Default to Daily-wise if available, otherwise KM-wise
     if (widget.vehicleType == 'Mini Truck' || widget.vehicleType == 'Truck' || widget.rate <= 0) {
       _isKmWise = true;
@@ -251,6 +254,8 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     _kmController.addListener(() => setState(() {}));
   }
 
+  int _liveJobsCompleted = 0;
+
   Future<void> _fetchAssetBookings() async {
     setState(() {
       _isLoadingBookings = true;
@@ -258,8 +263,17 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     try {
       final response = await ApiService().getAssetBookings(widget.assetId);
       final List<dynamic> data = response as List<dynamic>;
+      int completedCount = data.where((b) {
+        final st = (b['status'] ?? '').toString().toUpperCase();
+        return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+      }).length;
       setState(() {
         _existingBookings = data.map((json) => BookingDTO.fromJson(json)).toList();
+        if (completedCount > _liveJobsCompleted || _liveJobsCompleted == 0) {
+          _liveJobsCompleted = (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
+              ? widget.jobsCompleted!
+              : completedCount;
+        }
       });
     } catch (e) {
       debugPrint("Error fetching bookings: $e");
@@ -827,6 +841,18 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                                   ),
                                 ),
                               ],
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF3E5F5),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$_liveJobsCompleted Jobs Done',
+                                  style: const TextStyle(color: Colors.purple, fontSize: 11, fontWeight: FontWeight.w800),
+                                ),
+                              ),
                             ],
                           ),
                        ],
