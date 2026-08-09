@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
@@ -1607,7 +1607,6 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         );
       },
     );
-    dialogCountController.dispose();
   }
 
     Future<void> _showMultiSelectDialog() async {
