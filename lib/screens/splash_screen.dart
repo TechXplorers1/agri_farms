@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'language_selection_screen.dart';
 import 'home_screen.dart';
+import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -33,12 +34,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('user_id');
     final userRole = prefs.getString('user_role');
+    final termsAccepted = prefs.getBool('terms_accepted') ?? false;
 
     Timer(const Duration(seconds: 3), () {
       if (mounted) {
         if (userId != null && userRole != null && userId.isNotEmpty && userRole.isNotEmpty) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => HomeScreen(userRole: userRole)),
+          );
+        } else if (termsAccepted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const AuthScreen()),
           );
         } else {
           Navigator.of(context).pushReplacement(

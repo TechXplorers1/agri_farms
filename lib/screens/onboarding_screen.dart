@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
 import 'login_screen.dart';
-
+import 'terms_privacy_screen.dart';
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -43,7 +43,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _onSkip() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const AuthScreen()),
+      MaterialPageRoute(builder: (context) => const TermsPrivacyScreen(isAcceptanceMode: true)),
     );
   }
 

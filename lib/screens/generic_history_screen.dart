@@ -229,7 +229,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
   Widget build(BuildContext context) {
     final isFarmer = _userRole.toLowerCase() == 'farmer';
     return DefaultTabController(
-      length: isFarmer ? 2 : 3,
+      length: 2,
       initialIndex: widget.initialTabIndex,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7F2),
@@ -311,16 +311,10 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                 labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.3),
                 unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 indicatorSize: TabBarIndicatorSize.label,
-                tabs: isFarmer
-                    ? const [
-                        Tab(text: 'Active'),
-                        Tab(text: 'History'),
-                      ]
-                    : const [
-                        Tab(text: 'Requests'),
-                        Tab(text: 'Active'),
-                        Tab(text: 'History'),
-                      ],
+                tabs: const [
+                  Tab(text: 'Active'),
+                  Tab(text: 'History'),
+                ],
               ),
             ),
           ),
@@ -392,16 +386,10 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                     onRefresh: _loadBookings,
                     color: const Color(0xFF00AA55),
                     child: TabBarView(
-                      children: isFarmer
-                          ? [
-                              _buildBookingList(allBookings, ['pending', 'requested', 'confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings', Icons.event_available_rounded),
-                              _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past history', Icons.history_rounded),
-                            ]
-                          : [
-                              _buildBookingList(allBookings, ['pending', 'requested'], 'No pending requests', Icons.hourglass_empty_rounded),
-                              _buildBookingList(allBookings, ['confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings', Icons.event_available_rounded),
-                              _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past history', Icons.history_rounded),
-                            ],
+                      children: [
+                        _buildBookingList(allBookings, ['pending', 'requested', 'confirmed', 'scheduled', 'accepted', 'active', 'approve', 'approved'], 'No active bookings', Icons.event_available_rounded),
+                        _buildBookingList(allBookings, ['completed', 'finished', 'rejected', 'cancelled'], 'No past history', Icons.history_rounded),
+                      ],
                     ),
                   ),
                 ),

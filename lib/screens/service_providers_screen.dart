@@ -118,7 +118,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
 
       if (transportTypes.contains(widget.serviceKey)) {
         final vehiclesRaw = await apiService.getVehicles(type: widget.serviceKey) as List;
-        final vehicles = vehiclesRaw;
+        final vehicles = vehiclesRaw.where((v) => v['ownerId']?.toString() != currentUserId).toList();
         
         providers = vehicles.map<ServiceProvider>((v) => TransportListing(
           id: v['vehicleId'].toString(),
@@ -149,6 +149,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       } else if (equipmentTypes.contains(widget.serviceKey)) {
         final equipmentRawAll = await apiService.getEquipment() as List;
         final equipmentRaw = equipmentRawAll.where((e) {
+           if (e['ownerId']?.toString() == currentUserId) return false;
            final cat = e['category']?.toString().toLowerCase().trim() ?? '';
            final key = widget.serviceKey.toLowerCase().trim();
            return cat.contains(key) || key.contains(cat) || cat == key || cat + 's' == key || cat == key + 's';
@@ -172,6 +173,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           brandModel: e['brandModel'] ?? 'Standard',
           condition: e['condition'] ?? 'Good',
           price: '₹${e['pricePerHour']} / hr',
+          pricePerHalfDay: (e['pricePerHalfDay'] as num?)?.toDouble(),
           operatorAvailable: e['operatorAvailable'] ?? false,
           operatorPrice: (e['operatorPrice'] as num?)?.toDouble() ?? 0.0,
           image: e['imageUrl'],
@@ -184,7 +186,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         )).toList();
       } else if (serviceTypes.contains(widget.serviceKey)) {
          final servicesRaw = await apiService.getServices(type: widget.serviceKey) as List;
-         final services = servicesRaw;
+         final services = servicesRaw.where((s) => s['ownerId']?.toString() != currentUserId).toList();
 
          providers = services.map<ServiceProvider>((s) => ServiceListing(
            id: s['serviceId'].toString(),
@@ -208,7 +210,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            description: s['description'] ?? 'Professional agricultural services by experienced operator.',
          )).toList();
       } else if (widget.serviceKey == 'Farm Workers') {
-         final workers = await apiService.getWorkerGroups() as List;
+         final workersRaw = await apiService.getWorkerGroups() as List;
+         final workers = workersRaw.where((w) => w['ownerId']?.toString() != currentUserId).toList();
          
           providers = workers.map<ServiceProvider>((w) => FarmWorkerListing(
               id: w['groupId'].toString(),
@@ -239,6 +242,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           )).toList();
       } else {
          providers = ProviderManager().getProvidersByService(widget.serviceKey);
+         providers = providers.where((p) => p.providerId != currentUserId).toList();
       }
 
       // Apply Translation if not English
@@ -945,6 +949,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            assetId: provider.id,
            rate: rate > 0 ? rate : 1500,
            pricePerKm: provider.pricePerKm,
+           pricePerHour: provider.pricePerHour,
            driverIncluded: provider.driverIncluded,
            driverPrice: provider.operatorPrice,
            ownerProfileImage: provider.ownerProfileImage,
@@ -965,6 +970,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            providerId: actualProviderId,
            assetId: provider.id,
            rate: rate > 0 ? rate : 500,
+           pricePerHalfDay: provider.pricePerHalfDay,
            operatorPrice: provider.operatorPrice,
            operatorAvailable: provider.operatorAvailable,
            ownerProfileImage: provider.ownerProfileImage,
@@ -1213,7 +1219,86 @@ class _AssetDetailModal extends StatelessWidget {
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
       _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
       const SizedBox(height: 16),
-      Wrap(spacing: 8, runSpacing: 8, children: item.roleDistribution.map((r) => Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFF3F7F3), borderRadius: BorderRadius.circular(10)), child: Text(r, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32))))).toList()),
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FBF9),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE8F5E9)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Role Breakdown',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF546E7A), letterSpacing: 0.5),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: item.roleDistribution.map((r) {
+                final parts = r.split('-');
+                final isMale = parts.isNotEmpty && parts[0].toLowerCase().contains('male') && !parts[0].toLowerCase().contains('female');
+                final isGeneral = parts.length < 2;
+                final countGender = parts[0].trim();
+                final tasks = parts.length >= 2 ? parts.sublist(1).join('-').trim() : r;
+                final chipColor = isGeneral
+                    ? const Color(0xFFF3F7F3)
+                    : (isMale ? const Color(0xFFE3F2FD) : const Color(0xFFFCE4EC));
+                final borderColor = isGeneral
+                    ? const Color(0xFFB2DFDB)
+                    : (isMale ? const Color(0xFF90CAF9) : const Color(0xFFF48FB1));
+                final textColor = isGeneral
+                    ? const Color(0xFF2E7D32)
+                    : (isMale ? const Color(0xFF1565C0) : const Color(0xFFC2185B));
+                return ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 180),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: chipColor,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Gender + count badge
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isGeneral ? Icons.people_rounded : (isMale ? Icons.man_rounded : Icons.woman_rounded),
+                              size: 13,
+                              color: textColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              countGender,
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: textColor),
+                            ),
+                          ],
+                        ),
+                        if (!isGeneral) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            tasks,
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: textColor.withAlpha(200)),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
     ]);
   }
 

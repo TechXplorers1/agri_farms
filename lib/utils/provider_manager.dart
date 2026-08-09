@@ -119,6 +119,7 @@ class TransportListing extends ServiceProvider {
   String loadCapacity; // '1 ton'
   final String price; // '₹1200 / trip'
   final double? pricePerKm;
+  final double? pricePerHour;
   final bool driverIncluded;
   final double? operatorPrice;
   final String? vehicleNumber; // Optional / Private
@@ -143,6 +144,7 @@ class TransportListing extends ServiceProvider {
     required this.loadCapacity,
     required this.price,
     this.pricePerKm,
+    this.pricePerHour,
     this.driverIncluded = true, // Default usually yes
     this.operatorPrice,
     this.vehicleNumber,
@@ -162,6 +164,7 @@ class EquipmentListing extends ServiceProvider {
   final String? yearOfManufacture;
   final String? vehicleNumber;
   final List<String> attachedEquipments;
+  final double? pricePerHalfDay;
 
   EquipmentListing({
     required super.id,
@@ -186,6 +189,7 @@ class EquipmentListing extends ServiceProvider {
     this.yearOfManufacture,
     this.vehicleNumber,
     this.attachedEquipments = const [],
+    this.pricePerHalfDay,
     super.image,
     super.ownerProfileImage,
     super.description,
@@ -233,6 +237,7 @@ class ProviderManager extends ChangeNotifier {
                 : '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / hour',
             operatorAvailable: eq.operatorAvailable ?? false,
             operatorPrice: eq.operatorPrice ?? 0.0,
+            pricePerHalfDay: eq.pricePerHalfDay,
             condition: 'Good', // Default
             location: eq.location ?? '',
             isAvailable: eq.isAvailable ?? true,
@@ -263,6 +268,7 @@ class ProviderManager extends ChangeNotifier {
             loadCapacity: v.loadCapacity ?? 'Unknown',
             price: '₹${v.pricePerKmOrTrip?.toStringAsFixed(0) ?? 0} / trip',
             pricePerKm: v.pricePerKm,
+            pricePerHour: v.pricePerHour,
             distance: v.location ?? 'Unknown',
             latitude: v.latitude,
             longitude: v.longitude,

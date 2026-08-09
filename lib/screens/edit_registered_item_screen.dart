@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
@@ -34,10 +34,21 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   late TextEditingController _nameController;
   late TextEditingController _priceController;
   late TextEditingController _pricePerKmController;
+  late TextEditingController _transportHourlyPriceController;
   late TextEditingController _locationController;
   late TextEditingController _ownerBusinessNameController;
   late TextEditingController _descriptionController;
   late TextEditingController _serviceAreaController;
+
+  // WorkerGroup specific
+  late TextEditingController _maleCountController;
+  late TextEditingController _femaleCountController;
+  late TextEditingController _malePriceHourlyController;
+  late TextEditingController _femalePriceHourlyController;
+  final List<String> _roleDistributions = [];
+  final TextEditingController _roleCountController = TextEditingController();
+  String _roleGender = 'Male';
+  List<String> _selectedRoleSkills = [];
 
   // Specifics
   late TextEditingController _secondaryController; // e.g., brandModel, type, groupName
@@ -58,6 +69,12 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   List<String> _selectedAttachedEquipments = [];
   final TextEditingController _otherAttachedEquipmentController = TextEditingController();
 
+  final List<String> _farmSkills = [
+    'Harvesting', 'Sowing', 'Plowing', 'Fertilizer Application', 
+    'Pesticide Spraying', 'Weeding', 'Irrigation', 'Pruning', 
+    'Grading & Sorting', 'Loading & Unloading', 'Cattle Management', 'Others'
+  ];
+
   final List<String> _defaultSprayerTypes = [
     'Handheld sprayers', 'Knapsack (backpack) sprayers', 'Foot and rocker sprayers',
     'Portable power/HTP sprayers', 'Mist blowers/dusters', 'Knapsack power sprayers', 'Other'
@@ -66,7 +83,16 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   String? _currentSelectedSprayerType;
   late TextEditingController _currentOtherSprayerTypeController;
   late TextEditingController _currentSprayerCapacityController;
+  late TextEditingController _equipmentHalfDayPriceController;
   final Map<String, List<String>> _sprayerCapacitiesMap = {};
+
+  // Trolley Types
+  final List<String> _availableTrolleyTypes = [
+    '2-Wheel Hydraulic', '4-Wheel Hydraulic', '2-Wheel Non-Tipping', '4-Wheel Non-Tipping', 'Other'
+  ];
+  List<String> _selectedTrolleyTypes = [];
+  late TextEditingController _otherTrolleyTypeController;
+  bool _isOtherTrolleyTypeSelected = false;
 
   XFile? _imageFile;
   String? _imageUrl;
@@ -81,16 +107,23 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _nameController = TextEditingController();
     _priceController = TextEditingController();
     _pricePerKmController = TextEditingController();
+    _transportHourlyPriceController = TextEditingController();
+    _equipmentHalfDayPriceController = TextEditingController();
     _locationController = TextEditingController(text: widget.itemData['location']?.toString() ?? '');
     _secondaryController = TextEditingController();
     _capacityController = TextEditingController();
     _ownerBusinessNameController = TextEditingController(text: widget.itemData['ownerBusinessName']?.toString() ?? '');
     _descriptionController = TextEditingController(text: widget.itemData['description']?.toString() ?? '');
+    _maleCountController = TextEditingController();
+    _femaleCountController = TextEditingController();
+    _malePriceHourlyController = TextEditingController();
+    _femalePriceHourlyController = TextEditingController();
     _serviceAreaController = TextEditingController(text: widget.itemData['serviceArea']?.toString() ?? '');
     _imageUrl = widget.itemData['imageUrl']?.toString();
     _operatorPriceController = TextEditingController(text: widget.itemData['operatorPrice']?.toString() ?? '');
     _currentOtherSprayerTypeController = TextEditingController();
     _currentSprayerCapacityController = TextEditingController();
+    _otherTrolleyTypeController = TextEditingController();
     if (widget.category == 'Vehicle') {
       _selectedVehicleType = widget.itemData['vehicleType']?.toString();
       _nameController.text = widget.itemData['vehicleNumber']?.toString() ?? '';
@@ -111,6 +144,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     } else if (widget.category == 'Equipment') {
       _nameController.text = widget.itemData['brandModel']?.toString() ?? '';
       _priceController.text = widget.itemData['pricePerHour']?.toString() ?? '';
+      _equipmentHalfDayPriceController.text = widget.itemData['pricePerHalfDay']?.toString() ?? '';
       _secondaryController.text = widget.itemData['category']?.toString() ?? '';
       _boolFlag = widget.itemData['operatorAvailable'] ?? false;
       _condition = widget.itemData['conditionStatus']?.toString() ?? 'Good';
@@ -152,12 +186,17 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
              }
           }
         }
-        _nameController.text = widget.itemData['brandModel']?.toString() ?? '';
-        // Remove global capacity parsing logic
+      } else if (_secondaryController.text == 'Tractors') {
         if (attachedStr != null && attachedStr.isNotEmpty) {
           _selectedAttachedEquipments = attachedStr.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
         }
+      } else if (_secondaryController.text == 'Trolleys') {
+        if (attachedStr != null && attachedStr.isNotEmpty) {
+          _selectedTrolleyTypes = attachedStr.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        }
       }
+      
+      _nameController.text = widget.itemData['brandModel']?.toString() ?? '';
     } else if (widget.category == 'Service') {
       _nameController.text = widget.itemData['businessName']?.toString() ?? '';
       _priceController.text = widget.itemData['priceRate']?.toString() ?? '';
@@ -165,8 +204,23 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
       _boolFlag = widget.itemData['operatorIncluded'] ?? false;
     } else if (widget.category == 'WorkerGroup') {
       _nameController.text = widget.itemData['groupName']?.toString() ?? '';
-      _priceController.text = widget.itemData['pricePerMale']?.toString() ?? '';
-      _secondaryController.text = widget.itemData['pricePerFemale']?.toString() ?? '';
+      _priceController.text = widget.itemData['pricePerMale']?.toString() ?? widget.itemData['malePrice']?.toString() ?? '';
+      _secondaryController.text = widget.itemData['pricePerFemale']?.toString() ?? widget.itemData['femalePrice']?.toString() ?? '';
+      _maleCountController.text = widget.itemData['maleCount']?.toString() ?? '';
+      _femaleCountController.text = widget.itemData['femaleCount']?.toString() ?? '';
+      _malePriceHourlyController.text = widget.itemData['pricePerMaleHourly']?.toString() ?? widget.itemData['malePriceHourly']?.toString() ?? '';
+      _femalePriceHourlyController.text = widget.itemData['pricePerFemaleHourly']?.toString() ?? widget.itemData['femalePriceHourly']?.toString() ?? '';
+      
+      final rolesRaw = widget.itemData['roles'] ?? widget.itemData['roleDistribution'];
+      if (rolesRaw != null && rolesRaw is List) {
+        for (var r in rolesRaw) {
+          if (r is String) {
+            _roleDistributions.add(r);
+          } else if (r is Map) {
+            _roleDistributions.add('${r['count']} ${r['gender']} - ${r['taskName']}');
+          }
+        }
+      }
     }
   }
 
@@ -185,6 +239,13 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _otherAttachedEquipmentController.dispose();
     _currentOtherSprayerTypeController.dispose();
     _currentSprayerCapacityController.dispose();
+    _otherTrolleyTypeController.dispose();
+    _equipmentHalfDayPriceController.dispose();
+    _maleCountController.dispose();
+    _femaleCountController.dispose();
+    _malePriceHourlyController.dispose();
+    _femalePriceHourlyController.dispose();
+    _roleCountController.dispose();
     super.dispose();
   }
 
@@ -258,6 +319,15 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
   }
 
   Future<void> _submit() async {
+    if (_priceController.text.isEmpty) {
+      UiUtils.showCenteredToast(context, 'Please enter a price', isError: true);
+      return;
+    }
+    if (_secondaryController.text == 'Trolleys' && _equipmentHalfDayPriceController.text.isEmpty) {
+      UiUtils.showCenteredToast(context, 'Please enter a half day price', isError: true);
+      return;
+    }
+
     try {
       final updatedData = Map<String, dynamic>.from(widget.itemData);
 
@@ -328,6 +398,18 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
           updatedData['attachedEquipments'] = finalEquipments.join(', ');
           updatedData['sprayerTypes'] = finalEquipments;
           updatedData['sprayerCapacities'] = allCaps.toSet().toList();
+        } else if (_secondaryController.text == 'Trolleys') {
+          updatedData['brandModel'] = _nameController.text;
+          List<String> finalAttached = List.from(_selectedTrolleyTypes);
+          finalAttached.remove('Other');
+          if (_isOtherTrolleyTypeSelected && _otherTrolleyTypeController.text.trim().isNotEmpty) {
+            finalAttached.add(_otherTrolleyTypeController.text.trim());
+          }
+          if (finalAttached.isNotEmpty) {
+            updatedData['attachedEquipments'] = finalAttached.join(', ');
+          } else {
+            updatedData['attachedEquipments'] = '';
+          }
         } else {
           updatedData['brandModel'] = _nameController.text;
           
@@ -357,6 +439,9 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         }
 
         updatedData['pricePerHour'] = double.tryParse(_priceController.text) ?? 0.0;
+        if (_secondaryController.text == 'Trolleys') {
+          updatedData['pricePerHalfDay'] = double.tryParse(_equipmentHalfDayPriceController.text) ?? 0.0;
+        }
         updatedData['category'] = _secondaryController.text;
         updatedData['operatorAvailable'] = _boolFlag;
         updatedData['operatorPrice'] = _boolFlag ? (double.tryParse(_operatorPriceController.text) ?? 0.0) : 0.0;
@@ -375,9 +460,34 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
         await _apiService.updateService(widget.itemData['serviceId'], updatedData);
       } else if (widget.category == 'WorkerGroup') {
         updatedData['groupName'] = _nameController.text;
+        updatedData['maleCount'] = int.tryParse(_maleCountController.text) ?? 0;
+        updatedData['femaleCount'] = int.tryParse(_femaleCountController.text) ?? 0;
         updatedData['pricePerMale'] = double.tryParse(_priceController.text) ?? 0.0;
         updatedData['pricePerFemale'] = double.tryParse(_secondaryController.text) ?? 0.0;
+        updatedData['pricePerMaleHourly'] = double.tryParse(_malePriceHourlyController.text) ?? 0.0;
+        updatedData['pricePerFemaleHourly'] = double.tryParse(_femalePriceHourlyController.text) ?? 0.0;
         updatedData['location'] = _locationController.text;
+        
+        List<Map<String, dynamic>> rolesPayload = [];
+        for (String roleStr in _roleDistributions) {
+          final parts = roleStr.split('-');
+          if (parts.length == 2) {
+            final countAndGender = parts[0].trim().split(' ');
+            final tasks = parts[1].trim();
+            
+            if (countAndGender.length >= 2) {
+              int count = int.tryParse(countAndGender[0]) ?? 0;
+              String gender = countAndGender[1];
+              rolesPayload.add({
+                'gender': gender,
+                'count': count,
+                'taskName': tasks
+              });
+            }
+          }
+        }
+        updatedData['roles'] = rolesPayload;
+
         await _apiService.updateWorkerGroup(widget.itemData['groupId'], updatedData);
       }
 
@@ -641,7 +751,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                     const SizedBox(height: 20),
                     // Type-specific pricing fields
                     if (_selectedVehicleType == 'Tractor Trolley') ...[
-                      _buildTextField('Full Day Price', _priceController, Icons.wb_sunny_rounded, keyboardType: TextInputType.number, hint: 'e.g. 1500'),
+                      _buildTextField('Day-wise Price', _priceController, Icons.wb_sunny_rounded, keyboardType: TextInputType.number, hint: 'e.g. 1500'),
                       const SizedBox(height: 12),
                       _buildTextField('Half Day Price', _pricePerKmController, Icons.wb_twilight_rounded, keyboardType: TextInputType.number, hint: 'e.g. 800'),
                     ] else if (_selectedVehicleType == 'Mini Truck' || _selectedVehicleType == 'Truck') ...[
@@ -665,7 +775,13 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                     const SizedBox(height: 12),
                     _buildTextField('Description', _descriptionController, Icons.description_rounded, hint: 'Any extra info about this vehicle...', maxLines: 3),
                   ] else if (widget.category == 'Equipment') ...[
-                    _buildTextField('Price Per Hour', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
+                    if (widget.itemData['category'] == 'Trolleys') ...[
+                      _buildTextField('Full Day Price', _priceController, Icons.wb_sunny_rounded, keyboardType: TextInputType.number),
+                      const SizedBox(height: 20),
+                      _buildTextField('Half Day Price', _equipmentHalfDayPriceController, Icons.wb_twilight_rounded, keyboardType: TextInputType.number),
+                    ] else ...[
+                      _buildTextField('Price Per Hour', _priceController, Icons.currency_rupee_rounded, keyboardType: TextInputType.number),
+                    ],
                     const SizedBox(height: 20),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -714,13 +830,24 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                       ],
                     ],
                   ] else if (widget.category == 'WorkerGroup') ...[
-                    _buildTextField('Price Per Male', _priceController, Icons.man_rounded, keyboardType: TextInputType.number, hint: 'Rate for male workers'),
+                    _buildTextField('Price Per Male (Daily)', _priceController, Icons.man_rounded, keyboardType: TextInputType.number, hint: 'Daily rate for male workers'),
                     const SizedBox(height: 20),
-                    _buildTextField('Price Per Female', _secondaryController, Icons.woman_rounded, keyboardType: TextInputType.number, hint: 'Rate for female workers'),
+                    _buildTextField('Price Per Female (Daily)', _secondaryController, Icons.woman_rounded, keyboardType: TextInputType.number, hint: 'Daily rate for female workers'),
+                    const SizedBox(height: 20),
+                    _buildTextField('Price Per Male (Hourly)', _malePriceHourlyController, Icons.schedule_rounded, keyboardType: TextInputType.number, hint: 'Hourly rate for male workers'),
+                    const SizedBox(height: 20),
+                    _buildTextField('Price Per Female (Hourly)', _femalePriceHourlyController, Icons.schedule_rounded, keyboardType: TextInputType.number, hint: 'Hourly rate for female workers'),
                   ],
                 ],
               ),
             ),
+
+            if (widget.category == 'WorkerGroup')
+              _buildSectionCard(
+                title: 'Role Configuration',
+                icon: Icons.groups_rounded,
+                child: _buildRoleDistributionForm(),
+              ),
 
             if (widget.category == 'Equipment' && _secondaryController.text == 'Tractors')
               _buildSectionCard(
@@ -806,6 +933,108 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                                 setState(() {
                                   _selectedAttachedEquipments.add(text);
                                   _otherAttachedEquipmentController.clear();
+                                });
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00AA55),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            ),
+                            child: const Text('Add', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+            if (widget.category == 'Equipment' && _secondaryController.text == 'Trolleys')
+              _buildSectionCard(
+                title: 'Trolley Types',
+                icon: Icons.rv_hookup_rounded,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Select the available trolley types:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 12,
+                      children: [
+                        ..._availableTrolleyTypes.map((eq) {
+                          final isSelected = _selectedTrolleyTypes.contains(eq);
+                          return InputChip(
+                            label: Text(eq),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              setState(() {
+                                if (selected) {
+                                  _selectedTrolleyTypes.add(eq);
+                                } else {
+                                  _selectedTrolleyTypes.remove(eq);
+                                  if (eq == 'Other') _otherTrolleyTypeController.clear();
+                                }
+                              });
+                            },
+                            onDeleted: isSelected ? () {
+                              setState(() {
+                                _selectedTrolleyTypes.remove(eq);
+                                if (eq == 'Other') _otherTrolleyTypeController.clear();
+                              });
+                            } : null,
+                            deleteIconColor: const Color(0xFF00AA55),
+                            showCheckmark: false,
+                            selectedColor: const Color(0xFFE8F5E9),
+                            labelStyle: TextStyle(
+                              color: isSelected ? const Color(0xFF1B5E20) : Colors.grey[700],
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(
+                                color: isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!,
+                              ),
+                            ),
+                            backgroundColor: Colors.white,
+                          );
+                        }),
+                        ..._selectedTrolleyTypes
+                            .where((eq) => !_availableTrolleyTypes.contains(eq))
+                            .map((eq) => InputChip(
+                                  label: Text(eq),
+                                  onDeleted: () {
+                                    setState(() {
+                                      _selectedTrolleyTypes.remove(eq);
+                                    });
+                                  },
+                                  deleteIconColor: const Color(0xFF00AA55),
+                                  backgroundColor: const Color(0xFFE8F5E9),
+                                  labelStyle: const TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.w700),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    side: const BorderSide(color: Color(0xFF00AA55)),
+                                  ),
+                                )),
+                      ],
+                    ),
+                    if (_selectedTrolleyTypes.contains('Other')) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField('Custom Trolley Type', _otherTrolleyTypeController, Icons.add_circle_outline_rounded, hint: 'e.g. 6-Wheel Hydraulic'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () {
+                              final text = _otherTrolleyTypeController.text.trim();
+                              if (text.isNotEmpty && !_selectedTrolleyTypes.contains(text)) {
+                                setState(() {
+                                  _selectedTrolleyTypes.add(text);
+                                  _otherTrolleyTypeController.clear();
                                 });
                               }
                             },
@@ -1134,6 +1363,525 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // Multi-select skills
+  void _addRoleDistribution() {
+    final count = _roleCountController.text.trim();
+    if (count.isNotEmpty && _selectedRoleSkills.isNotEmpty) {
+      int newCount = int.tryParse(count) ?? 0;
+      if (newCount <= 0) {
+        UiUtils.showCenteredToast(context, 'Please enter a valid count greater than 0', isError: true);
+        return;
+      }
+      
+      int currentAllocated = 0;
+      for (String roleStr in _roleDistributions) {
+        final parts = roleStr.split('-');
+        if (parts.length == 2) {
+          final countAndGender = parts[0].trim().split(' ');
+          if (countAndGender.length >= 2 && countAndGender[1] == _roleGender) {
+            currentAllocated += int.tryParse(countAndGender[0]) ?? 0;
+          }
+        }
+      }
+
+      int maxAllowed = _roleGender == 'Male' 
+          ? (int.tryParse(_maleCountController.text) ?? 0)
+          : (int.tryParse(_femaleCountController.text) ?? 0);
+
+      if (currentAllocated + newCount > maxAllowed) {
+        UiUtils.showCenteredToast(context, 'Cannot allocate $newCount $_roleGender workers. Max allowed is $maxAllowed, already allocated is $currentAllocated.', isError: true);
+        return;
+      }
+
+      setState(() {
+        _roleDistributions.add('$count $_roleGender - ${_selectedRoleSkills.join(", ")}');
+        _roleCountController.clear();
+        _selectedRoleSkills = [];
+      });
+    } else {
+       UiUtils.showCenteredToast(context, 'Please enter count and select at least one skill', isError: true);
+    }
+  }
+
+
+  Future<void> _showEditRoleDialog(int index) async {
+    final roleStr = _roleDistributions[index];
+    final parts = roleStr.split('-');
+    if (parts.length < 2) return;
+
+    final countAndGender = parts[0].trim().split(' ');
+    final tasks = parts.sublist(1).join('-').trim();
+
+    final dialogCountController = TextEditingController(text: countAndGender[0]);
+    String dialogGender = countAndGender.length >= 2 ? countAndGender[1] : 'Male';
+    List<String> dialogSkills = tasks.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+    await showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dCtx) {
+        return StatefulBuilder(
+          builder: (dCtx, setDlgState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(12)),
+                          child: const Icon(Icons.edit_rounded, color: Color(0xFF1B5E20), size: 20),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Edit Role', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20))),
+                              Text('Update this role details', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(dCtx),
+                          icon: const Icon(Icons.close_rounded, color: Colors.grey, size: 20),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    const Text('Count', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(color: const Color(0xFFF9FBF9), borderRadius: BorderRadius.circular(15), border: Border.all(color: const Color(0xFFE8F5E9))),
+                      child: TextField(
+                        controller: dialogCountController,
+                        keyboardType: TextInputType.number,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                        decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14), prefixIcon: Icon(Icons.numbers_rounded, color: Color(0xFF00AA55), size: 20), hintText: 'e.g. 5'),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('Gender', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: ['Male', 'Female'].map((g) {
+                        final isSelected = dialogGender == g;
+                        final isMale = g == 'Male';
+                        return Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(right: isMale ? 8 : 0),
+                            child: GestureDetector(
+                              onTap: () => setDlgState(() => dialogGender = g),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? (isMale ? const Color(0xFFE3F2FD) : const Color(0xFFFCE4EC)) : const Color(0xFFF9FBF9),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: isSelected ? (isMale ? const Color(0xFF1565C0) : const Color(0xFFC2185B)) : const Color(0xFFE8F5E9), width: isSelected ? 2 : 1),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(isMale ? Icons.man_rounded : Icons.woman_rounded, size: 20, color: isSelected ? (isMale ? const Color(0xFF1565C0) : const Color(0xFFC2185B)) : Colors.grey[400]),
+                                    const SizedBox(width: 6),
+                                    Text(g, style: TextStyle(fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500, fontSize: 14, color: isSelected ? (isMale ? const Color(0xFF1565C0) : const Color(0xFFC2185B)) : Colors.grey[500])),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text('Skills / Tasks', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () async {
+                        final List<String> tempSelected = List.from(dialogSkills);
+                        await showDialog(
+                          context: dCtx,
+                          builder: (sCtx) => StatefulBuilder(
+                            builder: (sCtx, setSkillState) => AlertDialog(
+                              title: const Text('Select Skills', style: TextStyle(fontWeight: FontWeight.w800)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              content: SizedBox(
+                                width: double.maxFinite,
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: _farmSkills.map((skill) => CheckboxListTile(
+                                      dense: true,
+                                      value: tempSelected.contains(skill),
+                                      title: Text(skill, style: const TextStyle(fontSize: 14)),
+                                      activeColor: const Color(0xFF00AA55),
+                                      controlAffinity: ListTileControlAffinity.leading,
+                                      onChanged: (checked) => setSkillState(() { if (checked == true) tempSelected.add(skill); else tempSelected.remove(skill); }),
+                                    )).toList(),
+                                  ),
+                                ),
+                              ),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(sCtx), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                                  onPressed: () { setDlgState(() => dialogSkills = List.from(tempSelected)); Navigator.pop(sCtx); },
+                                  child: const Text('Done'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(15),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9FBF9),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: dialogSkills.isNotEmpty ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.checklist_rounded, color: dialogSkills.isNotEmpty ? const Color(0xFF00AA55) : Colors.grey, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(child: Text(dialogSkills.isEmpty ? 'Tap to select skills' : dialogSkills.join(', '), style: TextStyle(color: dialogSkills.isEmpty ? Colors.grey[400] : const Color(0xFF2C3E50), fontSize: 14, fontWeight: FontWeight.w500), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                            Icon(Icons.arrow_forward_ios_rounded, color: Colors.grey[400], size: 14),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(dCtx),
+                            style: OutlinedButton.styleFrom(foregroundColor: Colors.grey[700], side: BorderSide(color: Colors.grey[300]!), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), padding: const EdgeInsets.symmetric(vertical: 14)),
+                            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w700)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              final count = dialogCountController.text.trim();
+                              if (count.isEmpty || dialogSkills.isEmpty) { ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(content: Text('Enter count and select at least one skill'), backgroundColor: Colors.red)); return; }
+                              final newCount = int.tryParse(count) ?? 0;
+                              if (newCount <= 0) { ScaffoldMessenger.of(dCtx).showSnackBar(const SnackBar(content: Text('Count must be greater than 0'), backgroundColor: Colors.red)); return; }
+                              int currentAllocated = 0;
+                              for (int i = 0; i < _roleDistributions.length; i++) {
+                                if (i == index) continue;
+                                final p = _roleDistributions[i].split('-');
+                                if (p.length >= 2) { final cg = p[0].trim().split(' '); if (cg.length >= 2 && cg[1] == dialogGender) currentAllocated += int.tryParse(cg[0]) ?? 0; }
+                              }
+                              final maxAllowed = dialogGender == 'Male' ? (int.tryParse(_maleCountController.text) ?? 0) : (int.tryParse(_femaleCountController.text) ?? 0);
+                              if (currentAllocated + newCount > maxAllowed) { ScaffoldMessenger.of(dCtx).showSnackBar(SnackBar(content: Text('Max $dialogGender: $maxAllowed, already used: $currentAllocated'), backgroundColor: Colors.red)); return; }
+                              setState(() { _roleDistributions[index] = '$count $dialogGender - ${dialogSkills.join(", ")}'; });
+                              Navigator.pop(dCtx);
+                            },
+                            icon: const Icon(Icons.check_rounded, size: 18, color: Colors.white),
+                            label: const Text('Update Role', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), elevation: 0),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    dialogCountController.dispose();
+  }
+
+    Future<void> _showMultiSelectDialog() async {
+    final List<String> tempSelectedSkills = List.from(_selectedRoleSkills);
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Select Skills'),
+              content: SingleChildScrollView(
+                child: ListBody(
+                  children: _farmSkills.map((skill) {
+                    return CheckboxListTile(
+                      value: tempSelectedSkills.contains(skill),
+                      title: Text(skill),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      activeColor: const Color(0xFF00AA55),
+                      onChanged: (bool? checked) {
+                        setStateDialog(() {
+                          if (checked == true) {
+                            tempSelectedSkills.add(skill);
+                          } else {
+                            tempSelectedSkills.remove(skill);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _selectedRoleSkills = tempSelectedSkills;
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Done', style: TextStyle(color: Color(0xFF00AA55))),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildRoleDistributionForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Role Distribution',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF1B5E20),
+            letterSpacing: 0.1,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Specify who does what (e.g. 5 Men - Sowing)',
+          style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.3),
+        ),
+        const SizedBox(height: 20),
+        
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 1,
+              child: _buildTextField(
+                'Count', 
+                _roleCountController, 
+                Icons.numbers_rounded,
+                hint: 'e.g. 5', 
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              flex: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Gender',
+                    style: TextStyle(
+                      fontSize: 13, 
+                      fontWeight: FontWeight.w700, 
+                      color: Color(0xFF2C3E50),
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: _roleGender,
+                    decoration: InputDecoration(
+                      hintText: '',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: const BorderSide(color: Color(0xFFE8F5E9)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: const BorderSide(color: Color(0xFFE8F5E9)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFFF9FBF9),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    ),
+                    items: ['Male', 'Female']
+                        .map((t) => DropdownMenuItem(
+                            value: t,
+                            child: Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))))
+                        .toList(),
+                    onChanged: (v) => setState(() => _roleGender = v!),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Select Skills / Tasks',
+              style: TextStyle(
+                fontSize: 13, 
+                fontWeight: FontWeight.w700, 
+                color: Color(0xFF2C3E50),
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: _showMultiSelectDialog,
+              borderRadius: BorderRadius.circular(15),
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  hintText: 'Select Skills',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(color: Color(0xFFE8F5E9)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(color: Color(0xFFE8F5E9)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF9FBF9),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  suffixIcon: const Icon(Icons.arrow_drop_down_rounded, size: 28, color: Colors.grey),
+                ),
+                child: Text(
+                  _selectedRoleSkills.isEmpty ? 'Tap to select skills' : _selectedRoleSkills.join(', '),
+                  style: TextStyle(
+                    color: _selectedRoleSkills.isEmpty ? Colors.grey[400] : Colors.black87,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton.icon(
+            onPressed: _addRoleDistribution,
+            icon: const Icon(Icons.add, size: 18, color: Colors.white),
+            label: const Text('Add Role', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00AA55),
+              minimumSize: const Size(120, 44),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              elevation: 0,
+            ),
+          ),
+        ),
+
+        if (_roleDistributions.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FBF9),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE8F5E9), width: 1.5),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _roleDistributions.asMap().entries.map((entry) {
+                final int index = entry.key;
+                final String item = entry.value;
+                return Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4.0),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE8F5E9)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2.0),
+                        child: Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF00AA55)),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          item,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF2C3E50), height: 1.3),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      // Edit button → opens popup
+                      InkWell(
+                        onTap: () => _showEditRoleDialog(index),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Icon(Icons.edit_outlined, size: 17, color: Colors.blue[400]),
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      // Delete button
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _roleDistributions.removeAt(index);
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4.0),
+                          child: Icon(Icons.delete_outline_rounded, size: 17, color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

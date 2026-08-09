@@ -268,8 +268,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _nameController = TextEditingController(); // Name / Title
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _pricePerKmController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _otherSprayerTypeController = TextEditingController();
+  final TextEditingController _equipmentHalfDayPriceController = TextEditingController(); // Added for Equipment Trolleys Half Day Price
   final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
 
   // Address Detail Controllers
   final TextEditingController _houseNoController = TextEditingController();
@@ -311,6 +313,18 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     'Chisel Plow',
     'Rotavator (Rotary Tiller)',
     'Disc Harrow',
+    'Other'
+  ];
+
+  // Trolley Types
+  final List<String> _selectedTrolleyTypes = [];
+  final TextEditingController _otherTrolleyTypeController = TextEditingController();
+  bool _isOtherTrolleyTypeSelected = false;
+  final List<String> _availableTrolleyTypes = [
+    '2-Wheel Hydraulic',
+    '4-Wheel Hydraulic',
+    '2-Wheel Non-Tipping',
+    '4-Wheel Non-Tipping',
     'Other'
   ];
 
@@ -388,6 +402,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _currentOtherSprayerTypeController.dispose();
     _currentSprayerCapacityController.dispose();
     _malePriceController.dispose();
+    _femalePriceHourlyController.dispose();
+    _otherSprayerTypeController.dispose();
+    _otherTrolleyTypeController.dispose();
+    _equipmentHalfDayPriceController.dispose();
     _femalePriceController.dispose();
     _roleCountController.dispose();
     _operatorPriceController.dispose();
@@ -687,6 +705,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       _fieldErrors['price'] = 'Enter price';
       hasError = true;
     }
+    if (_selectedEquipmentType == 'Trolleys' && _equipmentHalfDayPriceController.text.isEmpty) {
+      _fieldErrors['price_halfday'] = 'Enter half day price';
+      hasError = true;
+    }
+    if (_operatorAvailable && _operatorPriceController.text.isEmpty) {
+      _fieldErrors['operator_price'] = 'Enter operator price';
+      hasError = true;
+    }
     if (_houseNoController.text.isEmpty) { _fieldErrors['houseNo'] = 'Required'; hasError = true; }
     if (_streetController.text.isEmpty) { _fieldErrors['street'] = 'Required'; hasError = true; }
     if (_villageController.text.isEmpty) { _fieldErrors['village'] = 'Required'; hasError = true; }
@@ -704,6 +730,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final prefs = await SharedPreferences.getInstance();
       final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
       double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+      double parsedPriceHalfDay = 0.0;
+      if (_selectedEquipmentType == 'Trolleys') {
+        parsedPriceHalfDay = double.tryParse(_equipmentHalfDayPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+      }
 
       String finalBrandModel = _brandModelController.text;
       
@@ -716,7 +746,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'brand': _selectedMake ?? 'Other',
         'model': (_selectedModel != null && _selectedModel != 'Other') ? _selectedModel : finalBrandModel,
         'conditionStatus': _condition,
-        'pricePerHour': parsedPrice,
+        'pricePerHour': parsedPrice, // Used as Full Day for Trolleys
+        'pricePerHalfDay': parsedPriceHalfDay, // Used for Trolleys Half Day
         'operatorAvailable': _operatorAvailable,
         'operatorPrice': _operatorAvailable ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
         'location': _locationController.text,
@@ -818,6 +849,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
          }
       }
       
+      return finalEquipments;
+    } else if (_selectedEquipmentType == 'Trolleys') {
+      List<String> finalEquipments = List.from(_selectedTrolleyTypes);
+      finalEquipments.remove('Other');
+      if (_isOtherTrolleyTypeSelected && _otherTrolleyTypeController.text.trim().isNotEmpty) {
+        finalEquipments.add(_otherTrolleyTypeController.text.trim());
+      }
       return finalEquipments;
     }
     return [];
@@ -1214,7 +1252,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           child: Column(
             children: [
               if (_selectedTransportType == 'Tractor Trolley') ...[
-                _buildTextField('Full Day Price', _priceController, 'e.g. 1500', keyboardType: TextInputType.number, errorKey: 'price', icon: Icons.wb_sunny_rounded),
+                _buildTextField('Day-wise Price', _priceController, 'e.g. 1500', keyboardType: TextInputType.number, errorKey: 'price', icon: Icons.wb_sunny_rounded),
                 const SizedBox(height: 12),
                 _buildTextField('Half Day Price', _pricePerKmController, 'e.g. 800', keyboardType: TextInputType.number, errorKey: 'price_km', icon: Icons.wb_twilight_rounded),
               ] else if (_selectedTransportType == 'Mini Truck' || _selectedTransportType == 'Truck') ...[
@@ -1264,7 +1302,11 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
     if (_selectedTransportType == 'Tractor Trolley') {
       if (!hasPrice) {
-        _fieldErrors['price'] = 'Enter Full Day price';
+        _fieldErrors['price'] = 'Enter Day-wise price';
+        hasError = true;
+      }
+      if (!hasPriceKm) {
+        _fieldErrors['price_km'] = 'Enter Half Day price';
         hasError = true;
       }
     } else if (_selectedTransportType == 'Mini Truck' || _selectedTransportType == 'Truck') {
@@ -1278,6 +1320,11 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         _fieldErrors['price_km'] = 'Enter daily price or KM-wise rate';
         hasError = true;
       }
+    }
+
+    if (_driverIncluded && _operatorPriceController.text.isEmpty) {
+      _fieldErrors['driver_price'] = 'Enter driver price';
+      hasError = true;
     }
 
     if (hasError) {
@@ -1378,6 +1425,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final prefs = await SharedPreferences.getInstance();
       final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
       double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+      double parsedPriceHalfDay = 0.0;
+      if (widget.category == 'Equipment' && _selectedEquipmentType == 'Trolleys') {
+        parsedPriceHalfDay = double.tryParse(_equipmentHalfDayPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+      }
 
       final String sType = _selectedServiceType ?? widget.category;
       final bool hasOperator = (sType != 'Electricians' && sType != 'Vet Care') && _operatorIncludedService;
@@ -1644,7 +1695,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   ),
                   if (_operatorIncludedService) ...[
                     const SizedBox(height: 12),
-                    _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, icon: Icons.person_add_rounded),
+                    _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, errorKey: 'operator_price', icon: Icons.person_add_rounded),
                   ],
                 ],
               ],
@@ -1855,6 +1906,116 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             ),
           ),
 
+        if (_selectedEquipmentType == 'Trolleys')
+          _buildSectionCard(
+            title: 'Trolley Types',
+            icon: Icons.rv_hookup_rounded,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select the available trolley types:',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF2C3E50), fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children: _availableTrolleyTypes.map((equipment) {
+                    final isSelected = _selectedTrolleyTypes.contains(equipment);
+                    return InputChip(
+                      label: Text(equipment),
+                      selected: isSelected,
+                      selectedColor: const Color(0xFFE8F5E9),
+                      showCheckmark: false,
+                      deleteIconColor: const Color(0xFF00AA55),
+                      labelStyle: TextStyle(
+                        color: isSelected ? const Color(0xFF1B5E20) : const Color(0xFF2C3E50),
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: BorderSide(
+                          color: isSelected ? const Color(0xFF00AA55) : Colors.grey[300]!,
+                        ),
+                      ),
+                      backgroundColor: Colors.white,
+                      onSelected: (bool selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedTrolleyTypes.add(equipment);
+                            if (equipment == 'Other') _isOtherTrolleyTypeSelected = true;
+                          } else {
+                            _selectedTrolleyTypes.remove(equipment);
+                            if (equipment == 'Other') {
+                              _isOtherTrolleyTypeSelected = false;
+                              _otherTrolleyTypeController.clear();
+                            }
+                          }
+                        });
+                      },
+                      onDeleted: isSelected ? () {
+                        setState(() {
+                          _selectedTrolleyTypes.remove(equipment);
+                          if (equipment == 'Other') {
+                            _isOtherTrolleyTypeSelected = false;
+                            _otherTrolleyTypeController.clear();
+                          }
+                        });
+                      } : null,
+                    );
+                  }).toList(),
+                ),
+                if (_isOtherTrolleyTypeSelected) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          'Other Trolley Type',
+                          _otherTrolleyTypeController,
+                          'e.g. 6-Wheel Hydraulic',
+                          icon: Icons.edit_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2.0),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final text = _otherTrolleyTypeController.text.trim();
+                            if (text.isNotEmpty) {
+                              setState(() {
+                                if (!_availableTrolleyTypes.contains(text)) {
+                                  _availableTrolleyTypes.insert(_availableTrolleyTypes.length - 1, text);
+                                }
+                                if (!_selectedTrolleyTypes.contains(text)) {
+                                  _selectedTrolleyTypes.add(text);
+                                }
+                                _otherTrolleyTypeController.clear();
+                                _selectedTrolleyTypes.remove('Other');
+                                _isOtherTrolleyTypeSelected = false;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AA55),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            minimumSize: const Size(0, 54),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          ),
+                          child: const Text('Add', style: TextStyle(fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
         if (_selectedEquipmentType == 'Sprayers')
           _buildSectionCard(
             title: 'Sprayer Types',
@@ -1996,13 +2157,20 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           icon: Icons.fact_check_rounded,
           child: Column(
             children: [
-              _buildTextField(
-                l10n.rentalPrice, 
-                _priceController, 
-                _selectedEquipmentType == 'Sprayers' ? 'e.g. ₹50 / litre' : 'e.g. ₹500 / hour', 
-                errorKey: 'price', 
-                icon: Icons.payments_rounded,
-              ),
+              if (_selectedEquipmentType == 'Trolleys') ...[
+                _buildTextField('Full Day Price', _priceController, 'e.g. 1500', errorKey: 'price', icon: Icons.wb_sunny_rounded, keyboardType: TextInputType.number),
+                const SizedBox(height: 20),
+                _buildTextField('Half Day Price', _equipmentHalfDayPriceController, 'e.g. 800', errorKey: 'price_halfday', icon: Icons.wb_twilight_rounded, keyboardType: TextInputType.number),
+              ] else ...[
+                _buildTextField(
+                  l10n.rentalPrice, 
+                  _priceController, 
+                  _selectedEquipmentType == 'Sprayers' ? 'e.g. ₹50 / litre' : 'e.g. ₹500 / hour', 
+                  errorKey: 'price', 
+                  icon: Icons.payments_rounded,
+                  keyboardType: TextInputType.number,
+                ),
+              ],
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 value: _condition,
@@ -2024,7 +2192,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               ),
               if (_operatorAvailable) ...[
                 const SizedBox(height: 12),
-                _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, icon: Icons.person_add_rounded),
+                _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, errorKey: 'operator_price', icon: Icons.person_add_rounded),
               ],
             ],
           ),

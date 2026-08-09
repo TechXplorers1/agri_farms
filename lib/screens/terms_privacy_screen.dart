@@ -1,7 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'login_screen.dart';
 
-class TermsPrivacyScreen extends StatelessWidget {
-  const TermsPrivacyScreen({super.key});
+class TermsPrivacyScreen extends StatefulWidget {
+  final bool isAcceptanceMode;
+  
+  const TermsPrivacyScreen({super.key, this.isAcceptanceMode = false});
+
+  @override
+  State<TermsPrivacyScreen> createState() => _TermsPrivacyScreenState();
+}
+
+class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
+  bool _hasAccepted = false;
+
+  void _onAccept() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('terms_accepted', true);
+    if (!mounted) return;
+    
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const AuthScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,10 +44,79 @@ class TermsPrivacyScreen extends StatelessWidget {
             ],
           ),
         ),
-        body: const TabBarView(
+        body: Column(
           children: [
-            _TermsOfServiceTab(),
-            _PrivacyPolicyTab(),
+            const Expanded(
+              child: TabBarView(
+                children: [
+                  _TermsOfServiceTab(),
+                  _PrivacyPolicyTab(),
+                ],
+              ),
+            ),
+            if (widget.isAcceptanceMode)
+              Container(
+                padding: const EdgeInsets.all(16.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      offset: const Offset(0, -4),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _hasAccepted,
+                            activeColor: const Color(0xFF00AA55),
+                            onChanged: (value) {
+                              setState(() {
+                                _hasAccepted = value ?? false;
+                              });
+                            },
+                          ),
+                          const Expanded(
+                            child: Text(
+                              'I have read and agree to the Terms of Service and Privacy Policy',
+                              style: TextStyle(fontSize: 13, color: Colors.black87),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _hasAccepted ? _onAccept : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AA55),
+                            disabledBackgroundColor: Colors.grey[300],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Accept and Continue',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
