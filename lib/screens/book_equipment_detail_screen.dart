@@ -147,6 +147,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     _liveJobsCompleted = widget.jobsCompleted ?? 0;
     _loadAddress();
     _fetchAssetBookings();
+    _fetchProviderBookings();
 
     if (widget.equipmentType.contains('Sprayer') &&
         widget.attachedEquipments != null) {
@@ -183,20 +184,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     try {
       final response = await ApiService().getAssetBookings(widget.assetId);
       final List<dynamic> data = response as List<dynamic>;
-      int completedCount =
-          data.where((b) {
-            final st = (b['status'] ?? '').toString().toUpperCase();
-            return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
-          }).length;
       setState(() {
         _existingBookings =
             data.map((json) => BookingDTO.fromJson(json)).toList();
-        if (completedCount > _liveJobsCompleted || _liveJobsCompleted == 0) {
-          _liveJobsCompleted =
-              (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
-                  ? widget.jobsCompleted!
-                  : completedCount;
-        }
       });
     } catch (e) {
       debugPrint("Error fetching bookings: $e");
@@ -207,6 +197,23 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         });
       }
     }
+  }
+
+  Future<void> _fetchProviderBookings() async {
+    try {
+      final response = await ApiService().getProviderBookings(widget.providerId);
+      if (response is List) {
+        int completedCount = response.where((b) {
+          final st = (b['status'] ?? '').toString().toUpperCase();
+          return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+        }).length;
+        if (mounted && completedCount > _liveJobsCompleted) {
+          setState(() {
+            _liveJobsCompleted = completedCount;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadAddress() async {

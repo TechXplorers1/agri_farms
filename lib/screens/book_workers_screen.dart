@@ -181,6 +181,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     _liveJobsCompleted = widget.jobsCompleted ?? 0;
     _loadAddress();
     _selectedDate = null;
+    _fetchProviderBookings();
   }
 
   // Helper to parse role strings like "10 Male - Harvesting"
@@ -231,30 +232,36 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     setState(() => _isLoadingBookings = true);
     try {
       final bookings = await ApiService().getAssetBookings(widget.assetId);
-      int completedCount = 0;
-      if (bookings is List) {
-        completedCount = bookings.where((b) {
-          final st = (b['status'] ?? '').toString().toUpperCase();
-          return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
-        }).length;
-      }
       setState(() {
         _existingBookings = bookings;
         _isLoadingBookings = false;
         _selectedStartHour = null;
         _durationHours = 1;
         _selectedSlots.clear();
-        if (completedCount > _liveJobsCompleted || _liveJobsCompleted == 0) {
-          _liveJobsCompleted = (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
-              ? widget.jobsCompleted!
-              : completedCount;
-        }
       });
       _recalculateAvailability();
     } catch (e) {
       setState(() => _isLoadingBookings = false);
       print('Error fetching bookings: $e');
     }
+  }
+
+  Future<void> _fetchProviderBookings() async {
+    try {
+      final bookings = await ApiService().getProviderBookings(widget.providerId);
+      int completedCount = 0;
+      if (bookings is List) {
+        completedCount = bookings.where((b) {
+          final st = (b['status'] ?? '').toString().toUpperCase();
+          return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+        }).length;
+        if (mounted && completedCount > _liveJobsCompleted) {
+          setState(() {
+            _liveJobsCompleted = completedCount;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   bool _isSlotBlocked(int hour) {

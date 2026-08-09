@@ -67,16 +67,6 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   final TextEditingController _countryController = TextEditingController(text: 'India');
   final TextEditingController _pincodeController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _houseNoController = TextEditingController();
-  final TextEditingController _streetController = TextEditingController();
-  final TextEditingController _villageController = TextEditingController();
-  final TextEditingController _mandalController = TextEditingController();
-  final TextEditingController _districtController = TextEditingController();
-  final TextEditingController _stateController = TextEditingController();
-  final TextEditingController _countryController = TextEditingController(
-    text: 'India',
-  );
-  final TextEditingController _pincodeController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
   bool _isHarvestingHalfDay = false;
   String? _selectedCropType;
@@ -346,22 +336,6 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     bool isSingleSlotMode = isDroneSpraying || isElectrician;
 
     setState(() {
-      if (_selectedSlots.contains(hour)) {
-        if (hour != _selectedSlots.first && hour != _selectedSlots.last) {
-           UiUtils.showCustomAlert(context, 'Cannot remove a middle slot. If you want to book a split time, you need to make a new booking.', isError: true);
-           return;
-        }
-        _selectedSlots.remove(hour);
-      } else {
-        if (_selectedSlots.isNotEmpty) {
-           _selectedSlots.sort();
-           if (hour != _selectedSlots.first - 1 && hour != _selectedSlots.last + 1) {
-              UiUtils.showCustomAlert(context, 'If you want to book a split time, you need to make a new booking.', isError: true);
-              return;
-           }
-        }
-        _selectedSlots.add(hour);
-        _selectedSlots.sort();
       if (isSingleSlotMode) {
         if (_selectedSlots.contains(hour)) {
           _selectedSlots.clear();
@@ -371,12 +345,24 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         }
       } else {
         if (_selectedSlots.contains(hour)) {
+          if (hour != _selectedSlots.first && hour != _selectedSlots.last) {
+             UiUtils.showCustomAlert(context, 'Cannot remove a middle slot. If you want to book a split time, you need to make a new booking.', isError: true);
+             return;
+          }
           _selectedSlots.remove(hour);
         } else {
+          if (_selectedSlots.isNotEmpty) {
+             _selectedSlots.sort();
+             if (hour != _selectedSlots.first - 1 && hour != _selectedSlots.last + 1) {
+                UiUtils.showCustomAlert(context, 'If you want to book a split time, you need to make a new booking.', isError: true);
+                return;
+             }
+          }
           _selectedSlots.add(hour);
           _selectedSlots.sort();
         }
       }
+      
       if (_selectedSlots.isNotEmpty) {
         _selectedStartHour = _selectedSlots.first;
         _durationHours = _selectedSlots.length;
@@ -411,6 +397,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     _liveJobsCompleted = widget.jobsCompleted ?? 0;
     _loadAddress();
     _fetchAssetBookings();
+    _fetchProviderBookings();
     _quantityController.addListener(() {
       if (mounted) setState(() {});
     });
@@ -425,18 +412,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     try {
       final response = await ApiService().getAssetBookings(widget.assetId);
       final List<dynamic> data = response as List<dynamic>;
-      int completedCount = data.where((b) {
-        final st = (b['status'] ?? '').toString().toUpperCase();
-        return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
-      }).length;
       setState(() {
         _existingBookings =
             data.map((json) => BookingDTO.fromJson(json)).toList();
-        if (completedCount > _liveJobsCompleted || _liveJobsCompleted == 0) {
-          _liveJobsCompleted = (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
-              ? widget.jobsCompleted!
-              : completedCount;
-        }
       });
     } catch (e) {
       debugPrint("Error fetching bookings: $e");
@@ -447,6 +425,23 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         });
       }
     }
+  }
+
+  Future<void> _fetchProviderBookings() async {
+    try {
+      final response = await ApiService().getProviderBookings(widget.providerId);
+      if (response is List) {
+        int completedCount = response.where((b) {
+          final st = (b['status'] ?? '').toString().toUpperCase();
+          return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+        }).length;
+        if (mounted && completedCount > _liveJobsCompleted) {
+          setState(() {
+            _liveJobsCompleted = completedCount;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   String get _fullStructuredAddress {
@@ -591,13 +586,6 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         return;
       }
       
-      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      
-      final addressData = await LocationHelper.getAddressFromCoordinates(position.latitude, position.longitude);
-      final String village = addressData['village'] ?? '';
-      final String district = addressData['district'] ?? '';
-      final String fullAddr = addressData['address'] ?? '';
-
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -606,9 +594,9 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         position.latitude,
         position.longitude,
       );
-      final String village = addressData['village']!;
-      final String district = addressData['district']!;
-      final String exactAddress = addressData['exactAddress']!;
+      final String village = addressData['village'] ?? '';
+      final String district = addressData['district'] ?? '';
+      final String fullAddr = addressData['address'] ?? '';
 
       if (mounted) {
         setState(() {
@@ -627,7 +615,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
           _villageController.text = village;
           _districtController.text = district;
           if (_streetController.text.isEmpty)
-            _streetController.text = exactAddress;
+            _streetController.text = fullAddr;
           _countryController.text = 'India';
           _detectedLat = position.latitude;
           _detectedLng = position.longitude;
@@ -722,14 +710,11 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     final street = prefs.getString('user_street') ?? '';
     final village = prefs.getString('user_village') ?? '';
     final mandal = prefs.getString('user_mandal') ?? '';
-    final mandal = prefs.getString('user_mandal') ?? '';
     final district = prefs.getString('user_district') ?? '';
     final state = prefs.getString('user_state') ?? '';
     final country = prefs.getString('user_country') ?? 'India';
-    final country = prefs.getString('user_country') ?? 'India';
     final pincode = prefs.getString('user_pincode') ?? '';
 
-    if (houseNo.isNotEmpty || street.isNotEmpty || village.isNotEmpty || district.isNotEmpty || state.isNotEmpty || pincode.isNotEmpty) {
     if (houseNo.isNotEmpty ||
         street.isNotEmpty ||
         village.isNotEmpty ||
@@ -808,26 +793,6 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
         _geocodeManualAddress();
       }
     });
-        _houseNoController.text = houseNo;
-        _streetController.text = street;
-        _villageController.text = village;
-        _mandalController.text = mandal;
-        _districtController.text = district;
-        _stateController.text = state;
-        _countryController.text = country;
-        _pincodeController.text = pincode;
-        if (_fieldErrors.containsKey('address')) {
-          _fieldErrors.remove('address');
-        }
-      });
-      UiUtils.showCenteredToast(context, 'Profile address loaded');
-    } else {
-      UiUtils.showCenteredToast(
-        context,
-        'No profile address saved. Please update in profile page.',
-        isError: true,
-      );
-    }
   }
 
   Future<void> _geocodeManualAddress() async {
@@ -1172,7 +1137,6 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     if (_pincodeController.text.trim().isEmpty) { _fieldErrors['pincode'] = 'Required'; addressValid = false; }
     final String fullAddress = _buildFullAddress();
 
-    if (_selectedDate != null && isQtyValid && addressValid && _selectedSlots.isNotEmpty) {
     bool isSlotsValid = isNoSlotRequired || _selectedSlots.isNotEmpty;
     final finalAddress =
         _fullStructuredAddress.isNotEmpty
@@ -2040,6 +2004,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                     hint: 'India',
                     icon: Icons.public_rounded,
                     enabled: false,
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -3372,56 +3337,50 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     bool enabled = true,
+    String? errorKey,
   }) {
+    final bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
+    final String? errorText = hasError ? _fieldErrors[errorKey] : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF2C3E50),
-          ),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: hasError ? Colors.red : const Color(0xFF2C3E50)),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: enabled ? const Color(0xFFF9FBF9) : Colors.grey[100],
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(
-              color: enabled ? const Color(0xFFE8F5E9) : Colors.grey[300]!,
-            ),
+            border: Border.all(color: hasError ? Colors.red : (enabled ? const Color(0xFFE8F5E9) : Colors.grey[300]!)),
           ),
           child: TextField(
             controller: controller,
             enabled: enabled,
             keyboardType: keyboardType,
-            style: TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-              color: enabled ? const Color(0xFF2C3E50) : Colors.grey[700],
-            ),
+            onChanged: (_) {
+              if (hasError && errorKey != null) {
+                setState(() => _fieldErrors.remove(errorKey));
+              }
+              _debounceGeocoding();
+            },
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: enabled ? const Color(0xFF2C3E50) : Colors.grey[700]),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(
-                color: Colors.grey[400],
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-              prefixIcon: Icon(
-                icon,
-                color: enabled ? const Color(0xFF00AA55) : Colors.grey[500],
-                size: 18,
-              ),
+              hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500, fontSize: 13),
+              prefixIcon: Icon(icon, color: hasError ? Colors.red : (enabled ? const Color(0xFF00AA55) : Colors.grey[500]), size: 18),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
           ),
         ),
+        if (hasError && errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0, left: 4),
+            child: Text(errorText, style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w500)),
+          ),
       ],
     );
   }
@@ -3708,58 +3667,4 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     );
   }
 
-  Widget _buildAddressInputField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    bool enabled = true,
-    String? errorKey,
-  }) {
-    final bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
-    final String? errorText = hasError ? _fieldErrors[errorKey] : null;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: hasError ? Colors.red : const Color(0xFF2C3E50)),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: enabled ? const Color(0xFFF9FBF9) : Colors.grey[100],
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: hasError ? Colors.red : (enabled ? const Color(0xFFE8F5E9) : Colors.grey[300]!)),
-          ),
-          child: TextField(
-            controller: controller,
-            enabled: enabled,
-            keyboardType: keyboardType,
-            onChanged: (_) {
-              if (hasError && errorKey != null) {
-                setState(() => _fieldErrors.remove(errorKey));
-              }
-              _debounceGeocoding();
-            },
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: enabled ? const Color(0xFF2C3E50) : Colors.grey[700]),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500, fontSize: 13),
-              prefixIcon: Icon(icon, color: hasError ? Colors.red : (enabled ? const Color(0xFF00AA55) : Colors.grey[500]), size: 18),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-          ),
-        ),
-        if (hasError && errorText != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4.0, left: 4),
-            child: Text(errorText, style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w500)),
-          ),
-      ],
-    );
-  }
 }

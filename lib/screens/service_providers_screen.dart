@@ -1164,7 +1164,8 @@ class _AssetDetailModalState extends State<_AssetDetailModal> {
 
   Future<void> _fetchCompletedCount() async {
     try {
-      final response = await ApiService().getAssetBookings(widget.provider.id);
+      final actualProviderId = widget.provider.providerId ?? widget.provider.id;
+      final response = await ApiService().getProviderBookings(actualProviderId);
       if (response is List) {
         int count = response.where((b) {
           final st = (b['status'] ?? '').toString().toUpperCase();

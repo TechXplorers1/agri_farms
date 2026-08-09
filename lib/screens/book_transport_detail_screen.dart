@@ -251,6 +251,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     }
     _loadAddress();
     _fetchAssetBookings();
+    _fetchProviderBookings();
     _kmController.addListener(() => setState(() {}));
   }
 
@@ -263,17 +264,8 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     try {
       final response = await ApiService().getAssetBookings(widget.assetId);
       final List<dynamic> data = response as List<dynamic>;
-      int completedCount = data.where((b) {
-        final st = (b['status'] ?? '').toString().toUpperCase();
-        return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
-      }).length;
       setState(() {
         _existingBookings = data.map((json) => BookingDTO.fromJson(json)).toList();
-        if (completedCount > _liveJobsCompleted || _liveJobsCompleted == 0) {
-          _liveJobsCompleted = (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
-              ? widget.jobsCompleted!
-              : completedCount;
-        }
       });
     } catch (e) {
       debugPrint("Error fetching bookings: $e");
@@ -285,6 +277,24 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       }
     }
   }
+
+  Future<void> _fetchProviderBookings() async {
+    try {
+      final response = await ApiService().getProviderBookings(widget.providerId);
+      if (response is List) {
+        int completedCount = response.where((b) {
+          final st = (b['status'] ?? '').toString().toUpperCase();
+          return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+        }).length;
+        if (mounted && completedCount > _liveJobsCompleted) {
+          setState(() {
+            _liveJobsCompleted = completedCount;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
 
   void _clearAddressErrors() {
     _fieldErrors.remove('houseNo');
