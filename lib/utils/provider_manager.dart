@@ -163,6 +163,7 @@ class EquipmentListing extends ServiceProvider {
   String condition; // 'Good', 'New'
   final String? yearOfManufacture;
   final String? vehicleNumber;
+  final List<String> attachedEquipments;
 
   EquipmentListing({
     required super.id,
@@ -186,6 +187,7 @@ class EquipmentListing extends ServiceProvider {
     this.condition = 'Good',
     this.yearOfManufacture,
     this.vehicleNumber,
+    this.attachedEquipments = const [],
     super.image,
     super.ownerProfileImage,
     super.description,
@@ -223,12 +225,14 @@ class ProviderManager extends ChangeNotifier {
             ownerName: eq.ownerName,
             businessName: eq.ownerBusinessName,
             serviceName: eq.category ?? 'Equipment',
-            brandModel: eq.brandModel ?? 'Unknown Model',
+            brandModel: eq.brandModel ?? (eq.brand != null ? '${eq.brand} ${eq.model ?? ''}'.trim() : 'Unknown Model'),
             distance: eq.location ?? 'Unknown',
             latitude: eq.latitude,
             longitude: eq.longitude,
             rating: eq.rating ?? 0.0,
-            price: '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / hour',
+            price: eq.category == 'Sprayers'
+                ? '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / litre'
+                : '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / hour',
             operatorAvailable: eq.operatorAvailable ?? false,
             operatorPrice: eq.operatorPrice ?? 0.0,
             condition: 'Good', // Default
@@ -236,6 +240,11 @@ class ProviderManager extends ChangeNotifier {
             isAvailable: eq.isAvailable ?? true,
             jobsCompleted: eq.jobsCompleted ?? 0,
             image: eq.imageUrl,
+            description: eq.description,
+            vehicleNumber: eq.vehicleNumber,
+            attachedEquipments: eq.attachedEquipments != null && eq.attachedEquipments!.isNotEmpty 
+                ? eq.attachedEquipments!.split(',').map((e) => e.trim()).toList()
+                : [],
           ));
         }
       } catch (e) {
@@ -263,11 +272,13 @@ class ProviderManager extends ChangeNotifier {
             driverIncluded: v.driverIncluded ?? true,
             operatorPrice: v.operatorPrice,
             vehicleNumber: v.vehicleNumber,
-            serviceArea: v.location,
+            serviceArea: v.serviceArea,
             location: v.location ?? '',
             isAvailable: v.isAvailable ?? true,
             jobsCompleted: v.jobsCompleted ?? 0,
             image: v.imageUrl,
+            description: v.description,
+            ownerProfileImage: v.ownerProfileImageUrl,
           ));
         }
       } catch (e) {
@@ -335,6 +346,7 @@ class ProviderManager extends ChangeNotifier {
           isAvailable: provider.isAvailable,
           imageUrl: provider.image,
           rating: provider.rating,
+          attachedEquipments: provider.attachedEquipments.isNotEmpty ? provider.attachedEquipments.join(',') : null,
         ));
       } else if (provider is TransportListing) {
         await _apiService.addVehicle(TransportVehicle(
@@ -406,7 +418,8 @@ class ProviderManager extends ChangeNotifier {
            id: old.id, providerId: old.providerId, name: old.name, serviceName: old.serviceName, distance: old.distance, rating: old.rating,
            approvalStatus: status, location: old.location, brandModel: old.brandModel, price: old.price,
            operatorAvailable: old.operatorAvailable, condition: old.condition, isAvailable: old.isAvailable,
-           jobsCompleted: old.jobsCompleted, yearOfManufacture: old.yearOfManufacture
+           jobsCompleted: old.jobsCompleted, yearOfManufacture: old.yearOfManufacture,
+           attachedEquipments: old.attachedEquipments
          );
       }
 

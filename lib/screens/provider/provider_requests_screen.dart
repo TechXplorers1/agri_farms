@@ -283,7 +283,32 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                                 ],
                               ),
                             ),
-                            const Tab(text: 'Active'),
+                            Tab(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('Active'),
+                                  if (activeBookings.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF00AA55),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        '${activeBookings.length}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
                             const Tab(text: 'History'),
                           ],
                         ),
@@ -540,7 +565,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                       const SizedBox(height: 12),
                       Text('REQUEST DETAILS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey[500], letterSpacing: 0.5)),
                       const SizedBox(height: 8),
-                      ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Provider', 'Count', 'Vehicle Count', 'Location', 'location'].contains(e.key)).map((e) =>
+                      ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Provider', 'Count', 'Vehicle Count', 'Location', 'location', 'slots_list', 'Slots List'].contains(e.key)).map((e) =>
                         Padding(
                           padding: const EdgeInsets.only(bottom: 6),
                           child: Row(
@@ -663,8 +688,8 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              actionsAlignment: MainAxisAlignment.spaceBetween,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -763,68 +788,77 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
                       ],
                     ),
                   ],
+                  const SizedBox(height: 20),
+                  // Buttons always in a Row so they never stack on narrow screens
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                        ),
+                        child: Text(
+                          'Keep Booking',
+                          style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: isSubmitting ? null : () async {
+                          final reason = reasonController.text.trim();
+                          if (reason.length < 15) {
+                            setStateDialog(() {
+                              errorText = 'Reason must be at least 15 characters (${reason.length}/15)';
+                            });
+                            return;
+                          }
+
+                          setStateDialog(() {
+                            isSubmitting = true;
+                          });
+                          
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            final userName = prefs.getString('user_name') ?? 'Owner';
+                            final userRole = prefs.getString('user_role') ?? 'Owner';
+                            final cancelledBy = '$userRole ($userName)';
+                            
+                            await _bookingManager.updateBookingStatus(
+                              booking.id,
+                              actionStatus,
+                              providerId: _currentProviderId,
+                              cancelledBy: cancelledBy,
+                              cancellationReason: reason,
+                            );
+                            
+                            if (mounted) {
+                              Navigator.pop(dialogContext);
+                              UiUtils.showCenteredToast(context, 'Booking ${actionStatus.toLowerCase()} successfully');
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              setStateDialog(() {
+                                isSubmitting = false;
+                              });
+                              UiUtils.showCustomAlert(context, 'Failed to update booking: $e', isError: true);
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red[600],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        child: isSubmitting
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text('Yes, $actionName', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
-                  child: Text(
-                    'Keep Booking',
-                    style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: isSubmitting ? null : () async {
-                    final reason = reasonController.text.trim();
-                    if (reason.length < 15) {
-                      setStateDialog(() {
-                        errorText = 'Reason must be at least 15 characters (${reason.length}/15)';
-                      });
-                      return;
-                    }
-
-                    setStateDialog(() {
-                      isSubmitting = true;
-                    });
-                    
-                    try {
-                      final prefs = await SharedPreferences.getInstance();
-                      final userName = prefs.getString('user_name') ?? 'Owner';
-                      final userRole = prefs.getString('user_role') ?? 'Owner';
-                      final cancelledBy = '$userRole ($userName)';
-                      
-                      await _bookingManager.updateBookingStatus(
-                        booking.id, 
-                        actionStatus,
-                        providerId: _currentProviderId,
-                        cancelledBy: cancelledBy,
-                        cancellationReason: reason,
-                      );
-                      
-                      if (mounted) {
-                        Navigator.pop(dialogContext); // Close dialog cleanly
-                        UiUtils.showCenteredToast(context, 'Booking ${actionStatus.toLowerCase()} successfully');
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        setStateDialog(() {
-                          isSubmitting = false;
-                        });
-                        UiUtils.showCustomAlert(context, 'Failed to update booking: $e', isError: true);
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red[600],
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: isSubmitting
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Text('Yes, $actionName', style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
             );
           },
         );

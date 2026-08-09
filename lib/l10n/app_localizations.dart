@@ -121,7 +121,7 @@ abstract class AppLocalizations {
   /// Hint text for search bar
   ///
   /// In en, this message translates to:
-  /// **'Search seeds, tractor, spraying...'**
+  /// **'Search tractor, spraying...'**
   String get searchHint;
 
   /// Section header for services
@@ -943,13 +943,13 @@ abstract class AppLocalizations {
   /// No description provided for @priceMale.
   ///
   /// In en, this message translates to:
-  /// **'Price/Male (₹)'**
+  /// **'Price/Male (â‚¹)'**
   String get priceMale;
 
   /// No description provided for @priceFemale.
   ///
   /// In en, this message translates to:
-  /// **'Price/Female (₹)'**
+  /// **'Price/Female (â‚¹)'**
   String get priceFemale;
 
   /// No description provided for @dailyWage.
@@ -1099,7 +1099,7 @@ abstract class AppLocalizations {
   /// No description provided for @chooseMake.
   ///
   /// In en, this message translates to:
-  /// **'Choose Make'**
+  /// **'Choose Brand'**
   String get chooseMake;
 
   /// No description provided for @chooseType.

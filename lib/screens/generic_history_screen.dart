@@ -584,7 +584,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                             style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Colors.grey[500], letterSpacing: 0.8)
                           ),
                           const SizedBox(height: 12),
-                          ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Count', 'Vehicle Count', 'Location', 'location'].contains(e.key)).map((e) =>
+                          ...booking.details.entries.where((e) => !['male_count', 'female_count', 'role_counts', 'Count', 'Vehicle Count', 'Location', 'location', 'slots_list', 'Slots List'].contains(e.key)).map((e) =>
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8),
                               child: Row(
@@ -815,8 +815,8 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              actionsAlignment: MainAxisAlignment.spaceBetween,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -915,67 +915,76 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                       ],
                     ),
                   ],
+                  const SizedBox(height: 20),
+                  // Buttons always in a Row so they never stack on narrow screens
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                        ),
+                        child: Text(
+                          'Keep Booking',
+                          style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: isSubmitting ? null : () async {
+                          final reason = reasonController.text.trim();
+                          if (reason.length < 15) {
+                            setStateDialog(() {
+                              errorText = 'Reason must be at least 15 characters (${reason.length}/15)';
+                            });
+                            return;
+                          }
+
+                          setStateDialog(() {
+                            isSubmitting = true;
+                          });
+                          
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            final userName = prefs.getString('user_name') ?? 'Farmer';
+                            final userRole = prefs.getString('user_role') ?? 'Farmer';
+                            final cancelledBy = '$userRole ($userName)';
+                            
+                            await _bookingManager.updateBookingStatus(
+                              booking.id,
+                              'Cancelled',
+                              cancelledBy: cancelledBy,
+                              cancellationReason: reason,
+                            );
+                            
+                            if (mounted) {
+                              Navigator.pop(dialogContext);
+                              UiUtils.showCenteredToast(context, 'Booking cancelled successfully');
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              setStateDialog(() {
+                                isSubmitting = false;
+                              });
+                              UiUtils.showCustomAlert(context, 'Failed to cancel booking: $e', isError: true);
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red[600],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        child: isSubmitting
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: isSubmitting ? null : () => Navigator.pop(dialogContext),
-                  child: Text(
-                    'Keep Booking',
-                    style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: isSubmitting ? null : () async {
-                    final reason = reasonController.text.trim();
-                    if (reason.length < 15) {
-                      setStateDialog(() {
-                        errorText = 'Reason must be at least 15 characters (${reason.length}/15)';
-                      });
-                      return;
-                    }
-
-                    setStateDialog(() {
-                      isSubmitting = true;
-                    });
-                    
-                    try {
-                      final prefs = await SharedPreferences.getInstance();
-                      final userName = prefs.getString('user_name') ?? 'Farmer';
-                      final userRole = prefs.getString('user_role') ?? 'Farmer';
-                      final cancelledBy = '$userRole ($userName)';
-                      
-                      await _bookingManager.updateBookingStatus(
-                        booking.id, 
-                        'Cancelled',
-                        cancelledBy: cancelledBy,
-                        cancellationReason: reason,
-                      );
-                      
-                      if (mounted) {
-                        Navigator.pop(dialogContext); // Close dialog cleanly
-                        UiUtils.showCenteredToast(context, 'Booking cancelled successfully');
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        setStateDialog(() {
-                          isSubmitting = false;
-                        });
-                        UiUtils.showCustomAlert(context, 'Failed to cancel booking: $e', isError: true);
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red[600],
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  child: isSubmitting
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Yes, Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ],
             );
           },
         );

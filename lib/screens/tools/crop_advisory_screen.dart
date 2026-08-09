@@ -68,6 +68,7 @@ class CropAdvisoryScreen extends StatelessWidget {
       'name': 'Tomato',
       'icon': Icons.circle,
       'color': Colors.red,
+      'image': 'assets/images/tomato_icon.png',
       'details': {
         'Overview': 'Popular vegetable crop.',
         'Sowing': 'Nursery raising required.\nTransplant after 25 days.\nSpacing: 60x45 cm',
@@ -87,19 +88,29 @@ class CropAdvisoryScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
       ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.1, // Slightly taller cards
-        ),
-        itemCount: crops.length,
-        itemBuilder: (context, index) {
-          final crop = crops[index];
-          return _buildCropCard(context, crop);
-        },
+      body: Column(
+        children: [
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.1, // Slightly taller cards
+              ),
+              itemCount: crops.length,
+              itemBuilder: (context, index) {
+                final crop = crops[index];
+                return _buildCropCard(context, crop);
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: _buildDisclaimerCard(),
+          ),
+        ],
       ),
     );
   }
@@ -130,7 +141,7 @@ class CropAdvisoryScreen extends StatelessWidget {
                 color: (crop['color'] as Color).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(crop['icon'], size: 40, color: crop['color']),
+              child: _buildCropIconWidget(crop, 40),
             ),
             const SizedBox(height: 12),
             Text(
@@ -164,29 +175,38 @@ class CropDetailScreen extends StatelessWidget {
          backgroundColor: Colors.white,
          surfaceTintColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-             Center(
-               child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: (crop['color'] as Color).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(crop['icon'], size: 60, color: crop['color']),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   Center(
+                     child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: (crop['color'] as Color).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: _buildCropIconWidget(crop, 60),
+                    ),
+                   ),
+                   const SizedBox(height: 24),
+                   _buildSection('Overview', details['Overview']!, Icons.info_outline, Colors.blue),
+                   _buildSection('Sowing', details['Sowing']!, Icons.calendar_month, Colors.green),
+                   _buildSection('Fertilizer', details['Fertilizer']!, Icons.science, Colors.orange),
+                   _buildSection('Plant Protection', details['Protection']!, Icons.bug_report, Colors.red),
+                   _buildSection('Harvesting', details['Harvest']!, Icons.agriculture, Colors.brown),
+                   const SizedBox(height: 8),
+                   _buildDisclaimerCard(),
+                   const SizedBox(height: 16),
+                ],
               ),
-             ),
-             const SizedBox(height: 24),
-             _buildSection('Overview', details['Overview']!, Icons.info_outline, Colors.blue),
-             _buildSection('Sowing', details['Sowing']!, Icons.calendar_month, Colors.green),
-             _buildSection('Fertilizer', details['Fertilizer']!, Icons.science, Colors.orange),
-             _buildSection('Plant Protection', details['Protection']!, Icons.bug_report, Colors.red),
-             _buildSection('Harvesting', details['Harvest']!, Icons.agriculture, Colors.brown),
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -225,4 +245,106 @@ class CropDetailScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _buildDisclaimerCard() {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    decoration: BoxDecoration(
+      color: const Color(0xFFFFF8E1),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: const Color(0xFFFFE082), width: 1),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.amber.withOpacity(0.08),
+          blurRadius: 8,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    child: const Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.warning_amber_rounded,
+          color: Color(0xFFF57F17),
+          size: 22,
+        ),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Disclaimer: ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFE65100),
+                    fontSize: 13,
+                  ),
+                ),
+                TextSpan(
+                  text:
+                      "It's just as per our knowledge, please cross check everything again with local agricultural experts.",
+                  style: TextStyle(
+                    color: Color(0xFF5D4037),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildCropIconWidget(Map<String, dynamic> crop, double iconSize) {
+  if (crop['image'] != null || crop['name'] == 'Tomato') {
+    return Image.asset(
+      'assets/images/tomato_icon.png',
+      width: iconSize,
+      height: iconSize,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) => _buildTomatoFallbackWidget(iconSize),
+    );
+  }
+  return Icon(crop['icon'] as IconData, size: iconSize, color: crop['color'] as Color?);
+}
+
+Widget _buildTomatoFallbackWidget(double size) {
+  return SizedBox(
+    width: size,
+    height: size,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: size * 0.9,
+          height: size * 0.9,
+          decoration: const BoxDecoration(
+            color: Color(0xFFE53935),
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [Color(0xFFFF5252), Color(0xFFD32F2F)],
+              center: Alignment(-0.3, -0.3),
+              radius: 0.8,
+            ),
+          ),
+        ),
+        Positioned(
+          top: size * 0.05,
+          child: Icon(
+            Icons.eco_rounded,
+            size: size * 0.45,
+            color: const Color(0xFF4CAF50),
+          ),
+        ),
+      ],
+    ),
+  );
 }

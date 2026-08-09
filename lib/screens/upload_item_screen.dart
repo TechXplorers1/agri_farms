@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/translated_text.dart';
 import 'package:geolocator/geolocator.dart';
@@ -22,10 +23,15 @@ import '../data/ploughing_data.dart';
 import '../data/harvesting_data.dart';
 
 class UploadItemScreen extends StatefulWidget {
-  final String category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
+  final String
+  category; // 'Transport', 'Equipment', 'Farm Workers', 'Ploughing' (future)
   final String? defaultSubtype;
 
-  const UploadItemScreen({super.key, required this.category, this.defaultSubtype});
+  const UploadItemScreen({
+    super.key,
+    required this.category,
+    this.defaultSubtype,
+  });
 
   @override
   State<UploadItemScreen> createState() => _UploadItemScreenState();
@@ -38,27 +44,24 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   bool _isFetchingLocation = false;
   double _selectedLatitude = 0.0;
   double _selectedLongitude = 0.0;
-  
+
   final ImagePicker _picker = ImagePicker();
   final ScrollController _scrollController = ScrollController();
   final Map<String, String?> _fieldErrors = {};
-  
 
   Future<bool> _requestMediaPermission() async {
     if (kIsWeb) return true;
     PermissionStatus status;
     final isAndroid = defaultTargetPlatform == TargetPlatform.android;
     final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
-    
+
     if (isAndroid) {
       // In Android 13+ (API 33+), READ_EXTERNAL_STORAGE is deprecated.
       // Use Permission.photos. For older Androids, Permission.storage.
       // permission_handler makes it easy by requesting both or the relevant one.
-      Map<Permission, PermissionStatus> statuses = await [
-        Permission.storage,
-        Permission.photos,
-      ].request();
-      
+      Map<Permission, PermissionStatus> statuses =
+          await [Permission.storage, Permission.photos].request();
+
       bool photosGranted = statuses[Permission.photos]?.isGranted ?? false;
       bool photosLimited = statuses[Permission.photos]?.isLimited ?? false;
       bool storageGranted = statuses[Permission.storage]?.isGranted ?? false;
@@ -68,8 +71,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       }
       return false;
     } else if (isIOS) {
-       status = await Permission.photos.request();
-       return status.isGranted || status.isLimited;
+      status = await Permission.photos.request();
+      return status.isGranted || status.isLimited;
     }
     return true; // Default for web/desktop
   }
@@ -77,24 +80,32 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   void _showPermissionDeniedDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Permission Required"),
-        content: const Text("Media/Photo access is required to upload asset images. Please allow it in the app settings to proceed."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Permission Required"),
+            content: const Text(
+              "Media/Photo access is required to upload asset images. Please allow it in the app settings to proceed.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  openAppSettings();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00AA55),
+                ),
+                child: const Text(
+                  "Open Settings",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              openAppSettings();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55)),
-            child: const Text("Open Settings", style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
     );
   }
 
@@ -142,14 +153,18 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        UiUtils.showCenteredToast(context, 'Location permissions are permanently denied');
+        UiUtils.showCenteredToast(
+          context,
+          'Location permissions are permanently denied',
+        );
         setState(() => _isFetchingLocation = false);
         return;
       }
 
-      
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
       setState(() {
         _selectedLatitude = position.latitude;
         _selectedLongitude = position.longitude;
@@ -166,14 +181,23 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
       // Try cross-platform geocoding (nominatim)
       try {
-        final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=${position.latitude}&lon=${position.longitude}&format=json');
-        final responseData = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
+        final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?lat=${position.latitude}&lon=${position.longitude}&format=json',
+        );
+        final responseData = await http.get(
+          url,
+          headers: {'User-Agent': 'AgriFarmsApp/1.0'},
+        );
         final response = json.decode(responseData.body);
         if (response != null && response['address'] != null) {
           final addr = response['address'];
           houseNo = addr['house_number'];
           street = addr['road'] ?? addr['suburb'] ?? addr['neighbourhood'];
-          village = addr['suburb'] ?? addr['village'] ?? addr['neighbourhood'] ?? addr['city_district'];
+          village =
+              addr['suburb'] ??
+              addr['village'] ??
+              addr['neighbourhood'] ??
+              addr['city_district'];
           district = addr['district'] ?? addr['city'] ?? addr['county'];
           state = addr['state'];
           pincode = addr['postcode'];
@@ -185,20 +209,27 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       }
 
       // Fallback to mobile-specific if on Android/iOS safely
-      final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+      final isMobile =
+          !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.iOS ||
+              defaultTargetPlatform == TargetPlatform.android);
       if (isMobile) {
         try {
-          final placemarks = await geo.placemarkFromCoordinates(position.latitude, position.longitude);
+          final placemarks = await geo.placemarkFromCoordinates(
+            position.latitude,
+            position.longitude,
+          );
           if (placemarks.isNotEmpty) {
             final place = placemarks[0];
             houseNo ??= place.subThoroughfare;
             street ??= place.thoroughfare ?? place.subLocality;
             village ??= place.subLocality ?? place.locality;
-            district ??= place.subAdministrativeArea ?? place.administrativeArea;
+            district ??=
+                place.subAdministrativeArea ?? place.administrativeArea;
             state ??= place.administrativeArea;
             pincode ??= place.postalCode;
             country ??= place.country;
-            
+
             if (exactAddress == null) {
               exactAddress = [
                 place.street,
@@ -207,7 +238,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 place.subAdministrativeArea,
                 place.administrativeArea,
                 place.postalCode,
-                place.country
+                place.country,
               ].where((part) => part != null && part.isNotEmpty).join(', ');
             }
           }
@@ -228,11 +259,11 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         if (pincode != null) _pincodeController.text = pincode;
         if (country != null) _countryController.text = country;
       });
-      
+
       if (mounted) {
         UiUtils.showCenteredToast(
-          context, 
-          'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}'
+          context,
+          'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}',
         );
       }
     } catch (e) {
@@ -263,8 +294,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       if (mounted) setState(() => _isUploading = false);
     }
   }
+
   // Common Controllers
-  final TextEditingController _nameController = TextEditingController(); // Name / Title
+  final TextEditingController _nameController =
+      TextEditingController(); // Name / Title
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _pricePerKmController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
@@ -277,7 +310,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   final TextEditingController _mandalController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
-  final TextEditingController _countryController = TextEditingController(text: 'India');
+  final TextEditingController _countryController = TextEditingController(
+    text: 'India',
+  );
   final TextEditingController _pincodeController = TextEditingController();
 
   // Transport Specific
@@ -285,65 +320,180 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   String? _selectedVehicleMake; // New
   String? _selectedVehicleModel; // New
   final TextEditingController _capacityController = TextEditingController();
-  final TextEditingController _vehicleNumberController = TextEditingController(); // New
-  final TextEditingController _serviceAreaController = TextEditingController(); // New
+  String _selectedCapacityUnit = 'Ton';
+  final TextEditingController _vehicleNumberController =
+      TextEditingController(); // New
+  final TextEditingController _serviceAreaController =
+      TextEditingController(); // New
   bool _driverIncluded = true;
 
   // Equipment Specific
-  String? _selectedEquipmentType; 
+  String? _selectedEquipmentType;
   String? _selectedMake; // New
   String? _selectedModel; // New
   final TextEditingController _brandModelController = TextEditingController();
   final TextEditingController _yearController = TextEditingController(); // New
   bool _operatorAvailable = false;
-  final TextEditingController _operatorPriceController = TextEditingController();
+  final TextEditingController _operatorPriceController =
+      TextEditingController();
   String _condition = 'Good';
+
+  // Attached Equipments
+  final List<String> _selectedAttachedEquipments = [];
+  final TextEditingController _otherAttachedEquipmentController =
+      TextEditingController();
+  bool _isOtherAttachedEquipmentSelected = false;
+  final List<String> _availableAttachedEquipments = [
+    'Mouldboard Plow',
+    'Disc Plow',
+    'Chisel Plow',
+    'Rotavator (Rotary Tiller)',
+    'Disc Harrow',
+    'Other',
+  ];
+
+  // Sprayer Types
+  String? _currentSelectedSprayerType;
+  final TextEditingController _currentOtherSprayerTypeController =
+      TextEditingController();
+  final TextEditingController _currentSprayerCapacityController =
+      TextEditingController();
+  final Map<String, List<String>> _sprayerCapacitiesMap = {};
+
+  final List<String> _availableSprayerTypes = [
+    'Handheld sprayers',
+    'Knapsack (backpack) sprayers',
+    'Foot and rocker sprayers',
+    'Portable power/HTP sprayers',
+    'Mist blowers/dusters',
+    'Knapsack power sprayers',
+    'Other',
+  ];
+
+  // Ploughing Equipment Types
+  String? _currentSelectedPloughType;
+  final TextEditingController _currentOtherPloughTypeController =
+      TextEditingController();
+  final TextEditingController _currentPloughCapacityController =
+      TextEditingController();
+  final Map<String, List<String>> _ploughCapacitiesMap = {};
+  String _selectedPloughCapacityUnit = 'HP';
+  final List<String> _ploughCapacityUnits = ['HP', 'Blades', 'Bottom', 'Feet'];
+
+  final List<String> _availablePloughTypes = [
+    'Moldboard Plough',
+    'Disc Plough',
+    'Rotary Plough (Rotavator)',
+    'Subsoiler',
+    'Chisel Plough',
+    'Harrow Plough',
+    'Reversible Plough',
+    'Other',
+  ];
+
+  // Harvester Types
+  String? _currentSelectedHarvestType;
+  final TextEditingController _currentOtherHarvestTypeController =
+      TextEditingController();
+  final TextEditingController _currentHarvestCapacityController =
+      TextEditingController();
+  final Map<String, List<String>> _harvestCapacitiesMap = {};
+  String _selectedHarvestCapacityUnit = 'HP';
+  final List<String> _harvestCapacityUnits = ['HP', 'Ft', 'Bags/Hr', 'Tons/Hr'];
+
+  final List<String> _availableHarvestTypes = [
+    'Track / Chain Model (Wet Land)',
+    'Wheel Harvester (4 Wheeler Tyres)',
+    'Wheel Harvester (2 Tyres)',
+    'Combine Harvester',
+    'Paddy Harvester',
+    'Mini Harvester',
+    'Sugarcane Harvester',
+    'Maize Harvester',
+    'Other',
+  ];
 
   // Farm Worker Specific
   final TextEditingController _maleCountController = TextEditingController();
   final TextEditingController _femaleCountController = TextEditingController();
   final TextEditingController _malePriceController = TextEditingController();
   final TextEditingController _femalePriceController = TextEditingController();
-  final TextEditingController _malePriceHourlyController = TextEditingController();
-  final TextEditingController _femalePriceHourlyController = TextEditingController();
+  final TextEditingController _malePriceHourlyController =
+      TextEditingController();
+  final TextEditingController _femalePriceHourlyController =
+      TextEditingController();
   // Role Distribution
   final List<String> _roleDistributions = [];
   final TextEditingController _roleCountController = TextEditingController();
   // String? _selectedRoleTask; // Removed
   String _roleGender = 'Male';
   // Skills handled by _selectedSkills list now
-  
+
   // Service Specific (Ploughing, Harvesting, etc.)
-  final TextEditingController _equipmentUsedController = TextEditingController(); // e.g., "John Deere 5310"
+  final TextEditingController _equipmentUsedController =
+      TextEditingController(); // e.g., "John Deere 5310"
   String? _selectedPloughEquipmentType;
   String? _selectedPloughCapacity;
-  final TextEditingController _customPloughEquipmentTypeController = TextEditingController();
-  final TextEditingController _customPloughCapacityController = TextEditingController();
+  final TextEditingController _customPloughEquipmentTypeController =
+      TextEditingController();
+  final TextEditingController _customPloughCapacityController =
+      TextEditingController();
   String? _selectedHarvestEquipmentType;
   String? _selectedHarvestCapacity;
-  final TextEditingController _customHarvestEquipmentTypeController = TextEditingController();
-  final TextEditingController _customHarvestCapacityController = TextEditingController();
+  final TextEditingController _customHarvestEquipmentTypeController =
+      TextEditingController();
+  final TextEditingController _customHarvestCapacityController =
+      TextEditingController();
   bool _operatorIncludedService = true;
   String? _selectedServiceType; // New for generic Services category
 
   // Mock Lists
-  final List<String> _transportTypes = ['Mini Truck', 'Tractor Trolley', 'Truck', 'Container'];
-  final List<String> _equipmentCategories = ['Tractors', 'Harvesters', 'Sprayers', 'Trolleys', 'JCB']; 
-  final List<String> _serviceCategories = ['Ploughing', 'Harvesting', 'Drone Spraying', 'Vet Care', 'Electricians', 'Farm Workers']; // Added Farm Workers
-  
+  final List<String> _transportTypes = [
+    'Mini Truck',
+    'Tractor Trolley',
+    'Truck',
+    'Container',
+  ];
+  final List<String> _equipmentCategories = [
+    'Tractors',
+    'Harvesters',
+    'Sprayers',
+    'Trolleys',
+    'JCB',
+  ];
+  final List<String> _serviceCategories = [
+    'Ploughing',
+    'Harvesting',
+    'Drone Spraying',
+    'Vet Care',
+    'Electricians',
+    'Farm Workers',
+  ]; // Added Farm Workers
+
   final List<String> _conditions = ['New', 'Good', 'Average', 'Poor'];
 
   final List<String> _farmSkills = [
-    'Harvesting', 'Sowing', 'Plowing', 'Fertilizer Application', 
-    'Pesticide Spraying', 'Weeding', 'Irrigation', 'Pruning', 
-    'Grading & Sorting', 'Loading & Unloading', 'Cattle Management', 'Others'
+    'Harvesting',
+    'Sowing',
+    'Plowing',
+    'Fertilizer Application',
+    'Pesticide Spraying',
+    'Weeding',
+    'Irrigation',
+    'Pruning',
+    'Grading & Sorting',
+    'Loading & Unloading',
+    'Cattle Management',
+    'Others',
   ];
   final List<String> _selectedSkills = [];
 
   Map<String, List<String>> _equipmentCapacityMap = {};
   String? _selectedEquipmentTypeForCap;
-  final TextEditingController _capacityInputController = TextEditingController();
-  final TextEditingController _customEquipmentTypeController = TextEditingController();
+  final TextEditingController _capacityInputController =
+      TextEditingController();
+  final TextEditingController _customEquipmentTypeController =
+      TextEditingController();
 
   @override
   void dispose() {
@@ -360,6 +510,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _yearController.dispose();
     _maleCountController.dispose();
     _femaleCountController.dispose();
+    _currentOtherSprayerTypeController.dispose();
+    _currentSprayerCapacityController.dispose();
     _malePriceController.dispose();
     _femalePriceController.dispose();
     _roleCountController.dispose();
@@ -373,7 +525,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     super.dispose();
   }
 
-  
   @override
   void initState() {
     super.initState();
@@ -387,7 +538,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       } else if (widget.category == 'Equipment') {
         if (_equipmentCategories.contains(subtype)) {
           _selectedEquipmentType = subtype;
-        } else if (subtype == 'Tractors' && _equipmentCategories.contains('Tractors')) {
+        } else if (subtype == 'Tractors' &&
+            _equipmentCategories.contains('Tractors')) {
           _selectedEquipmentType = 'Tractors';
         } else {
           for (var cat in _equipmentCategories) {
@@ -421,30 +573,35 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     setState(() {
       _villageController.text = prefs.getString('user_village') ?? '';
       _mandalController.text = prefs.getString('user_mandal') ?? '';
+      _mandalController.text = prefs.getString('user_mandal') ?? '';
       _districtController.text = prefs.getString('user_district') ?? '';
       _houseNoController.text = prefs.getString('user_houseNo') ?? '';
       _streetController.text = prefs.getString('user_street') ?? '';
       _stateController.text = prefs.getString('user_state') ?? '';
       _countryController.text = prefs.getString('user_country') ?? '';
       _pincodeController.text = prefs.getString('user_pincode') ?? '';
-      
+
       double? lat = prefs.getDouble('user_latitude');
       double? lng = prefs.getDouble('user_longitude');
       if (lat != null) _selectedLatitude = lat;
       if (lng != null) _selectedLongitude = lng;
     });
-    if (mounted) UiUtils.showCenteredToast(context, 'Location filled from profile');
+    if (mounted)
+      UiUtils.showCenteredToast(context, 'Location filled from profile');
   }
 
   Future<void> _updateCoordinatesFromAddress() async {
     try {
-      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_mandalController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
-      
+      String fullAddress =
+          "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_mandalController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
+
       double? lat, lng;
       // Local geocoding
       try {
         if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-          List<geo.Location> locations = await geo.locationFromAddress(fullAddress);
+          List<geo.Location> locations = await geo.locationFromAddress(
+            fullAddress,
+          );
           if (locations.isNotEmpty) {
             lat = locations.first.latitude;
             lng = locations.first.longitude;
@@ -452,17 +609,19 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         }
       } catch (e) {}
 
-      
       // OS geocoding fallback
       if (lat == null || lng == null) {
-        String fallbackAddress = "${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}";
-        final coords = await GeocodingService.getCoordinates(fullAddress, fallbackAddress: fallbackAddress);
+        String fallbackAddress =
+            "${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}";
+        final coords = await GeocodingService.getCoordinates(
+          fullAddress,
+          fallbackAddress: fallbackAddress,
+        );
         if (coords != null) {
           lat = coords['latitude'];
           lng = coords['longitude'];
         }
       }
-
 
       if (lat != null && lng != null) {
         setState(() {
@@ -480,7 +639,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     setState(() => _isSubmitting = true);
     try {
       // If we are in 'Services' generic category and the selected dropdown item is 'Farm Workers'
-      if (widget.category == 'Farm Workers' || (widget.category == 'Services' && _selectedServiceType == 'Farm Workers')) {
+      if (widget.category == 'Farm Workers' ||
+          (widget.category == 'Services' &&
+              _selectedServiceType == 'Farm Workers')) {
         await _submitFarmWorker();
       } else if (widget.category == 'Transport') {
         await _submitTransport();
@@ -503,13 +664,42 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       _fieldErrors['name'] = 'Please enter group name';
       hasError = true;
     }
-    if (_maleCountController.text.isEmpty && _femaleCountController.text.isEmpty) {
+    if (_maleCountController.text.isEmpty &&
+        _femaleCountController.text.isEmpty) {
       _fieldErrors['maleCount'] = 'Enter at least one';
       _fieldErrors['femaleCount'] = 'Enter at least one';
       hasError = true;
     }
     if (_roleDistributions.isEmpty) {
       _fieldErrors['roles'] = AppLocalizations.of(context)!.selectSkillError;
+      hasError = true;
+    }
+    if (_houseNoController.text.isEmpty) {
+      _fieldErrors['houseNo'] = 'Required';
+      hasError = true;
+    }
+    if (_streetController.text.isEmpty) {
+      _fieldErrors['street'] = 'Required';
+      hasError = true;
+    }
+    if (_villageController.text.isEmpty) {
+      _fieldErrors['village'] = 'Required';
+      hasError = true;
+    }
+    if (_mandalController.text.isEmpty) {
+      _fieldErrors['mandal'] = 'Required';
+      hasError = true;
+    }
+    if (_districtController.text.isEmpty) {
+      _fieldErrors['district'] = 'Required';
+      hasError = true;
+    }
+    if (_stateController.text.isEmpty) {
+      _fieldErrors['state'] = 'Required';
+      hasError = true;
+    }
+    if (_pincodeController.text.isEmpty) {
+      _fieldErrors['pincode'] = 'Required';
       hasError = true;
     }
 
@@ -519,11 +709,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     }
 
     // Derive skills from the added roles
-    final derivedSkills = _roleDistributions
-        .map((e) => e.split('-')[1].trim())
-        .expand((e) => e.split(',').map((s) => s.trim()))
-        .toSet()
-        .toList();
+    final derivedSkills =
+        _roleDistributions
+            .map((e) => e.split('-')[1].trim())
+            .expand((e) => e.split(',').map((s) => s.trim()))
+            .toSet()
+            .toList();
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -537,14 +728,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         if (parts.length == 2) {
           final countAndGender = parts[0].trim().split(' '); // ["5", "Male"]
           final tasks = parts[1].trim(); // "Sowing, Weeding"
-          
+
           if (countAndGender.length >= 2) {
             int count = int.tryParse(countAndGender[0]) ?? 0;
             String gender = countAndGender[1];
             rolesPayload.add({
               'gender': gender,
               'count': count,
-              'taskName': tasks
+              'taskName': tasks,
             });
           }
         }
@@ -557,13 +748,19 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'femaleCount': int.tryParse(_femaleCountController.text) ?? 0,
         'pricePerMale': double.tryParse(_malePriceController.text) ?? 0.0,
         'pricePerFemale': double.tryParse(_femalePriceController.text) ?? 0.0,
-        'pricePerMaleHourly': double.tryParse(_malePriceHourlyController.text) ?? 0.0,
-        'pricePerFemaleHourly': double.tryParse(_femalePriceHourlyController.text) ?? 0.0,
+        'pricePerMaleHourly':
+            double.tryParse(_malePriceHourlyController.text) ?? 0.0,
+        'pricePerFemaleHourly':
+            double.tryParse(_femalePriceHourlyController.text) ?? 0.0,
         'skills': derivedSkills.join(', '),
-        'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        'location':
+            _locationController.text.isNotEmpty
+                ? _locationController.text
+                : 'Local',
         'houseNo': _houseNoController.text,
         'street': _streetController.text,
         'village': _villageController.text,
+        'mandal': _mandalController.text,
         'mandal': _mandalController.text,
         'district': _districtController.text,
         'state': _stateController.text,
@@ -575,8 +772,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'isAvailable': true,
         'rating': 5.0,
         'approvalStatus': 'Pending',
-        'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Workers',
-        'roles': rolesPayload
+        'imageUrl':
+            await _uploadSelectedImage() ??
+            'https://placehold.co/600x400?text=Workers',
+        'roles': rolesPayload,
       };
 
       await ApiService().addWorkerGroup(workerGroupData);
@@ -588,7 +787,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         distance: '0.5 km', // Mock
         rating: 5.0,
         approvalStatus: 'Pending',
-        location: _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        location:
+            _locationController.text.isNotEmpty
+                ? _locationController.text
+                : 'Local',
         maleCount: int.tryParse(_maleCountController.text) ?? 0,
         femaleCount: int.tryParse(_femaleCountController.text) ?? 0,
         malePrice: int.tryParse(_malePriceController.text) ?? 0,
@@ -608,22 +810,79 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     }
   }
 
-
-
   Future<void> _submitEquipment() async {
     setState(() => _fieldErrors.clear());
     bool hasError = false;
+
+    if (_nameController.text.isEmpty) {
+      _fieldErrors['name'] = 'Enter business name';
+      hasError = true;
+    }
 
     if (_selectedEquipmentType == null) {
       _fieldErrors['category'] = 'Select category';
       hasError = true;
     }
+    if (_selectedEquipmentType != null) {
+      // Make selection is no longer mandatory
+    }
     if (_brandModelController.text.isEmpty) {
       _fieldErrors['brandModel'] = 'Enter brand/model';
       hasError = true;
     }
+    if (_selectedEquipmentType == 'Sprayers') {
+      bool hasPendingSprayer =
+          _currentSelectedSprayerType != null &&
+          _currentSprayerCapacityController.text.isNotEmpty;
+      if (_sprayerCapacitiesMap.isEmpty && !hasPendingSprayer) {
+        _fieldErrors['sprayerTypes'] =
+            'Add at least one sprayer type with capacity';
+        hasError = true;
+      } else {
+        bool missingCapacity = false;
+        for (var caps in _sprayerCapacitiesMap.values) {
+          if (caps.isEmpty) {
+            missingCapacity = true;
+            break;
+          }
+        }
+        if (missingCapacity) {
+          _fieldErrors['sprayerCapacity'] =
+              'Add at least one capacity for each sprayer';
+          hasError = true;
+        }
+      }
+    }
     if (_priceController.text.isEmpty) {
       _fieldErrors['price'] = 'Enter price';
+      hasError = true;
+    }
+    if (_houseNoController.text.isEmpty) {
+      _fieldErrors['houseNo'] = 'Required';
+      hasError = true;
+    }
+    if (_streetController.text.isEmpty) {
+      _fieldErrors['street'] = 'Required';
+      hasError = true;
+    }
+    if (_villageController.text.isEmpty) {
+      _fieldErrors['village'] = 'Required';
+      hasError = true;
+    }
+    if (_mandalController.text.isEmpty) {
+      _fieldErrors['mandal'] = 'Required';
+      hasError = true;
+    }
+    if (_districtController.text.isEmpty) {
+      _fieldErrors['district'] = 'Required';
+      hasError = true;
+    }
+    if (_stateController.text.isEmpty) {
+      _fieldErrors['state'] = 'Required';
+      hasError = true;
+    }
+    if (_pincodeController.text.isEmpty) {
+      _fieldErrors['pincode'] = 'Required';
       hasError = true;
     }
 
@@ -635,31 +894,56 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
-      double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+      double parsedPrice =
+          double.tryParse(
+            _priceController.text.replaceAll(RegExp(r'[^0-9.]'), ''),
+          ) ??
+          0.0;
 
       String brandModelVal = _brandModelController.text;
-      if (_selectedEquipmentType == 'Harvesters' || _selectedEquipmentType == 'Sprayers' || widget.category == 'Harvesters' || widget.category == 'Sprayers' || widget.category == 'Harvesting') {
+      if (_selectedEquipmentType == 'Harvesters' ||
+          _selectedEquipmentType == 'Sprayers' ||
+          widget.category == 'Harvesters' ||
+          widget.category == 'Sprayers' ||
+          widget.category == 'Harvesting') {
         List<String> list = [];
         _equipmentCapacityMap.forEach((type, caps) {
           for (var c in caps) {
             list.add("$type - $c");
           }
         });
-        brandModelVal = list.isNotEmpty ? list.join(', ') : 'Standard Equipment';
+        brandModelVal =
+            list.isNotEmpty ? list.join(', ') : 'Standard Equipment';
       }
 
       final Map<String, dynamic> equipmentData = {
         'ownerId': ownerId,
         'category': _selectedEquipmentType,
         'brandModel': brandModelVal,
-        'ownerBusinessName': _nameController.text.isNotEmpty ? _nameController.text : null,
-        'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : null,
+        'ownerBusinessName':
+            _nameController.text.isNotEmpty ? _nameController.text : null,
+        'description':
+            _descriptionController.text.isNotEmpty
+                ? _descriptionController.text
+                : null,
         'brand': _selectedMake ?? 'Other',
-        'model': (_selectedModel != null && _selectedModel != 'Other') ? _selectedModel : brandModelVal,
+        'model':
+            (_selectedModel != null && _selectedModel != 'Other')
+                ? _selectedModel
+                : brandModelVal,
         'conditionStatus': _condition,
         'pricePerHour': parsedPrice,
         'operatorAvailable': _operatorAvailable,
-        'operatorPrice': _operatorAvailable ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
+        'operatorPrice':
+            _operatorAvailable
+                ? (double.tryParse(
+                      _operatorPriceController.text.replaceAll(
+                        RegExp(r'[^0-9.]'),
+                        '',
+                      ),
+                    ) ??
+                    0.0)
+                : 0.0,
         'location': _locationController.text,
         'houseNo': _houseNoController.text,
         'street': _streetController.text,
@@ -674,27 +958,49 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'isAvailable': true,
         'rating': 5.0,
         'approvalStatus': 'Pending',
-        'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Equipment',
-        'vehicleNumber': _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
+        'imageUrl':
+            await _uploadSelectedImage() ??
+            'https://placehold.co/600x400?text=Equipment',
+        'vehicleNumber':
+            _vehicleNumberController.text.isNotEmpty
+                ? _vehicleNumberController.text
+                : null,
+        'attachedEquipments': _getFinalAttachedEquipments(),
       };
+
+      if (_selectedEquipmentType == 'Sprayers') {
+        equipmentData['sprayerTypes'] = _getFinalAttachedEquipmentsList();
+        // Send a flattened list of capacities for backward compatibility if needed
+        List<String> allCaps = [];
+        _sprayerCapacitiesMap.values.forEach((list) => allCaps.addAll(list));
+        equipmentData['sprayerCapacities'] = allCaps.toSet().toList();
+      }
 
       await ApiService().addEquipment(equipmentData);
 
       final newProvider = EquipmentListing(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: _nameController.text.isNotEmpty ? _nameController.text : 'Owner', // Owner name usually
+        name:
+            _nameController.text.isNotEmpty
+                ? _nameController.text
+                : 'Owner', // Owner name usually
         serviceName: _selectedEquipmentType!, // 'Tractors', 'Harvesters'
         distance: '1 km',
         rating: 5.0,
         approvalStatus: 'Pending',
         location: _locationController.text,
-        brandModel: _brandModelController.text,
+        brandModel: brandModelVal,
         price: _priceController.text,
         operatorAvailable: _operatorAvailable,
         condition: _condition,
-        yearOfManufacture: _yearController.text.isNotEmpty ? _yearController.text : null,
-        vehicleNumber: _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
+        yearOfManufacture:
+            _yearController.text.isNotEmpty ? _yearController.text : null,
+        vehicleNumber:
+            _vehicleNumberController.text.isNotEmpty
+                ? _vehicleNumberController.text
+                : null,
         image: 'https://placehold.co/600x400?text=Equipment',
+        attachedEquipments: _getFinalAttachedEquipmentsList(),
       );
 
       ProviderManager().addProvider(newProvider);
@@ -704,13 +1010,69 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     }
   }
 
+  String? _getFinalAttachedEquipments() {
+    final list = _getFinalAttachedEquipmentsList();
+    if (list.isEmpty) return '';
+    return list.join(', ');
+  }
+
+  List<String> _getFinalAttachedEquipmentsList() {
+    if (_selectedEquipmentType == 'Tractors') {
+      List<String> finalEquipments = List.from(_selectedAttachedEquipments);
+      finalEquipments.remove('Other');
+      if (_isOtherAttachedEquipmentSelected &&
+          _otherAttachedEquipmentController.text.trim().isNotEmpty) {
+        finalEquipments.add(_otherAttachedEquipmentController.text.trim());
+      }
+      return finalEquipments;
+    } else if (_selectedEquipmentType == 'Sprayers') {
+      List<String> finalEquipments = [];
+      for (var entry in _sprayerCapacitiesMap.entries) {
+        String type = entry.key;
+        List<String> caps = entry.value;
+
+        // Check if there's a capacity pending in the input field matching this type
+        if (_currentSelectedSprayerType == type &&
+            _currentSprayerCapacityController.text.isNotEmpty) {
+          if (!caps.contains(_currentSprayerCapacityController.text.trim())) {
+            caps.add(_currentSprayerCapacityController.text.trim());
+          }
+        }
+
+        if (caps.isNotEmpty) {
+          finalEquipments.add('$type (Capacities: ${caps.join(', ')}L)');
+        } else {
+          finalEquipments.add(type);
+        }
+      }
+
+      // If there's a pending type that hasn't been added to the map yet
+      if (_currentSelectedSprayerType != null &&
+          _currentSprayerCapacityController.text.isNotEmpty) {
+        String pendingType = _currentSelectedSprayerType!;
+        if (pendingType == 'Other') {
+          pendingType = _currentOtherSprayerTypeController.text.trim();
+        }
+        if (pendingType.isNotEmpty &&
+            !_sprayerCapacitiesMap.containsKey(pendingType)) {
+          finalEquipments.add(
+            '$pendingType (Capacities: ${_currentSprayerCapacityController.text.trim()}L)',
+          );
+        }
+      }
+
+      return finalEquipments;
+    }
+    return [];
+  }
+
   void _completeSubmission() {
     _upgradeUserToProvider();
     Navigator.pop(context);
     UiUtils.showCustomAlert(
-      context, 
+      context,
       AppLocalizations.of(context)!.listingUploaded,
-      isError: false
+      isError: false,
     );
   }
 
@@ -719,14 +1081,17 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
   }
 
   Future<void> _upgradeUserToProvider() async {
-     final prefs = await SharedPreferences.getInstance();
-     await prefs.setString('user_role', 'Owner');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_role', 'Owner');
   }
 
   String _getScreenTitle() {
-    if (widget.category == 'Transport') return AppLocalizations.of(context)!.addVehicle;
-    if (widget.category == 'Equipment') return AppLocalizations.of(context)!.addEquipment;
-    if (widget.category == 'Farm Workers') return AppLocalizations.of(context)!.addGroup;
+    if (widget.category == 'Transport')
+      return AppLocalizations.of(context)!.addVehicle;
+    if (widget.category == 'Equipment')
+      return AppLocalizations.of(context)!.addEquipment;
+    if (widget.category == 'Farm Workers')
+      return AppLocalizations.of(context)!.addGroup;
     return '${AppLocalizations.of(context)!.addListing} ${widget.category}';
   }
 
@@ -735,13 +1100,23 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
-        title: Text(_getScreenTitle(), style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20))),
+        title: Text(
+          _getScreenTitle(),
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF1B5E20),
+          ),
+        ),
         surfaceTintColor: Colors.transparent,
         backgroundColor: Colors.white,
         centerTitle: true,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Color(0xFF1B5E20),
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -764,48 +1139,81 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFF1F8F1),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE8F5E9), width: 2),
+                    border: Border.all(
+                      color: const Color(0xFFE8F5E9),
+                      width: 2,
+                    ),
                   ),
-                  child: _selectedImage != null 
-                    ? Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          kIsWeb 
-                            ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
-                            : Image.file(File(_selectedImage!.path), fit: BoxFit.cover),
-                          Container(
-                             color: Colors.black38,
-                             alignment: Alignment.center,
-                             child: const Column(
-                               mainAxisAlignment: MainAxisAlignment.center,
-                               children: [
-                                 Icon(Icons.edit_rounded, color: Colors.white, size: 32),
-                                 SizedBox(height: 8),
-                                 Text('Change Photo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                               ],
-                             ),
+                  child:
+                      _selectedImage != null
+                          ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              kIsWeb
+                                  ? Image.network(
+                                    _selectedImage!.path,
+                                    fit: BoxFit.cover,
+                                  )
+                                  : Image.file(
+                                    File(_selectedImage!.path),
+                                    fit: BoxFit.cover,
+                                  ),
+                              Container(
+                                color: Colors.black38,
+                                alignment: Alignment.center,
+                                child: const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.edit_rounded,
+                                      color: Colors.white,
+                                      size: 32,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Change Photo',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                          : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.green.withOpacity(0.1),
+                                      blurRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.add_a_photo_rounded,
+                                  size: 40,
+                                  color: Color(0xFF00AA55),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Click to upload high quality photos',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                           Container(
-                             padding: const EdgeInsets.all(16),
-                             decoration: BoxDecoration(
-                               color: Colors.white,
-                               shape: BoxShape.circle,
-                               boxShadow: [BoxShadow(color: Colors.green.withOpacity(0.1), blurRadius: 10)],
-                             ),
-                             child: const Icon(Icons.add_a_photo_rounded, size: 40, color: Color(0xFF00AA55)),
-                           ),
-                           const SizedBox(height: 16),
-                           Text(
-                             'Click to upload high quality photos', 
-                             style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500, fontSize: 13),
-                           ),
-                        ],
-                      ),
                 ),
               ),
             ),
@@ -814,80 +1222,163 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             if (widget.category == 'Farm Workers') _buildFarmWorkerForm(),
             if (widget.category == 'Transport') _buildTransportForm(),
             if (widget.category == 'Equipment') _buildEquipmentForm(),
-            if (!['Farm Workers', 'Transport', 'Equipment'].contains(widget.category)) _buildServicesForm(),
+            if (![
+              'Farm Workers',
+              'Transport',
+              'Equipment',
+            ].contains(widget.category))
+              _buildServicesForm(),
 
             if (true) ...[
-               _buildSectionCard(
-                 title: 'Details', 
-                 icon: Icons.info_outline_rounded,
-                 trailing: TextButton.icon(
-                    onPressed: _fillWithProfileLocation,
-                    icon: const Icon(Icons.person_pin_circle_rounded, size: 16),
-                    label: const Text('Profile Location', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF00AA55),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
+              _buildSectionCard(
+                title: 'Details',
+                icon: Icons.info_outline_rounded,
+                trailing: TextButton.icon(
+                  onPressed: _fillWithProfileLocation,
+                  icon: const Icon(Icons.person_pin_circle_rounded, size: 16),
+                  label: const Text(
+                    'Profile Location',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                   ),
-                 child: Column(
-                   children: [
-                      _buildTextField(
-                        AppLocalizations.of(context)!.locationLabel, 
-                        _locationController, 
-                        'e.g. Rampur, Nagpur',
-                        icon: Icons.location_on_rounded,
-                        suffixIcon: _isFetchingLocation 
-                          ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
-                          : IconButton(
-                              icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
-                              onPressed: _fetchCurrentLocation,
-                            ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(child: _buildTextField('H.No', _houseNoController, 'e.g. 123', icon: Icons.home_rounded)),
-                          const SizedBox(width: 16),
-                          Expanded(child: _buildTextField('Street', _streetController, 'Street Name', icon: Icons.map_rounded)),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(child: _buildTextField('Village', _villageController, 'Village Name', icon: Icons.location_city_rounded)),
-                          const SizedBox(width: 16),
-                          Expanded(child: _buildTextField('Mandal', _mandalController, 'Mandal Name', icon: Icons.maps_home_work_rounded)),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(child: _buildTextField('District', _districtController, 'District Name', icon: Icons.location_city_rounded)),
-                          const SizedBox(width: 16),
-                          Expanded(child: _buildTextField('State', _stateController, 'State Name')),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(child: _buildTextField('Pincode', _pincodeController, '6-digit code', keyboardType: TextInputType.number)),
-                          const SizedBox(width: 16),
-                          Expanded(child: _buildTextField('Country', _countryController, 'India', icon: Icons.public_rounded, enabled: false)),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      _buildTextField(
-                        AppLocalizations.of(context)!.descriptionLabel, 
-                        _descriptionController, 
-                        'Any extra info...', 
-                        icon: Icons.description_rounded,
-                        maxLines: 3,
-                      ),
-                   ],
-                 ),
-               ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF00AA55),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    _buildTextField(
+                      AppLocalizations.of(context)!.locationLabel,
+                      _locationController,
+                      'e.g. Rampur, Nagpur',
+                      icon: Icons.location_on_rounded,
+                      suffixIcon:
+                          _isFetchingLocation
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              )
+                              : IconButton(
+                                icon: const Icon(
+                                  Icons.my_location_rounded,
+                                  color: Color(0xFF00AA55),
+                                ),
+                                onPressed: _fetchCurrentLocation,
+                              ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            'H.No',
+                            _houseNoController,
+                            'e.g. 123',
+                            icon: Icons.home_rounded,
+                            errorKey: 'houseNo',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildTextField(
+                            'Street',
+                            _streetController,
+                            'Street Name',
+                            icon: Icons.map_rounded,
+                            errorKey: 'street',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            'Village',
+                            _villageController,
+                            'Village Name',
+                            icon: Icons.location_city_rounded,
+                            errorKey: 'village',
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildTextField(
+                            'Mandal',
+                            _mandalController,
+                            'Mandal Name',
+                            icon: Icons.maps_home_work_rounded,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            'District',
+                            _districtController,
+                            'District Name',
+                            icon: Icons.location_city_rounded,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildTextField(
+                            'State',
+                            _stateController,
+                            'State Name',
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            'Pincode',
+                            _pincodeController,
+                            '6-digit code',
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildTextField(
+                            'Country',
+                            _countryController,
+                            'India',
+                            icon: Icons.public_rounded,
+                            enabled: false,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    _buildTextField(
+                      AppLocalizations.of(context)!.descriptionLabel,
+                      _descriptionController,
+                      'Any extra info...',
+                      icon: Icons.description_rounded,
+                      maxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
             ],
 
             const SizedBox(height: 40),
@@ -910,12 +1401,31 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   backgroundColor: const Color(0xFF00AA55),
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.grey[300],
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   elevation: 0,
                 ),
-                child: _isSubmitting 
-                  ? const Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3)))
-                  : Text(AppLocalizations.of(context)!.submitListing, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                child:
+                    _isSubmitting
+                        ? const Center(
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 3,
+                            ),
+                          ),
+                        )
+                        : Text(
+                          AppLocalizations.of(context)!.submitListing,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
               ),
             ),
             const SizedBox(height: 40),
@@ -936,14 +1446,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           title: 'Group Identity',
           icon: Icons.groups_rounded,
           child: _buildTextField(
-            'Group Name / Leader Name', 
-            _nameController, 
-            l10n.groupNameHint, 
+            'Group Name / Leader Name',
+            _nameController,
+            l10n.groupNameHint,
             errorKey: 'name',
             icon: Icons.badge_rounded,
           ),
         ),
-        
+
         _buildSectionCard(
           title: 'Staffing & Wages',
           icon: Icons.payments_rounded,
@@ -951,25 +1461,77 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             children: [
               Row(
                 children: [
-                  Expanded(child: _buildTextField(l10n.maleWorkers, _maleCountController, 'Count', keyboardType: TextInputType.number, errorKey: 'maleCount', icon: Icons.male_rounded)),
+                  Expanded(
+                    child: _buildTextField(
+                      l10n.maleWorkers,
+                      _maleCountController,
+                      'Count',
+                      keyboardType: TextInputType.number,
+                      errorKey: 'maleCount',
+                      icon: Icons.male_rounded,
+                    ),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: _buildTextField(l10n.priceMale, _malePriceController, l10n.dailyWage, keyboardType: TextInputType.number, errorKey: 'malePrice', icon: Icons.currency_rupee_rounded)),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                 children: [
-                  Expanded(child: _buildTextField(l10n.femaleWorkers, _femaleCountController, 'Count', keyboardType: TextInputType.number, errorKey: 'femaleCount', icon: Icons.female_rounded)),
-                  const SizedBox(width: 16),
-                  Expanded(child: _buildTextField(l10n.priceFemale, _femalePriceController, l10n.dailyWage, keyboardType: TextInputType.number, errorKey: 'femalePrice', icon: Icons.currency_rupee_rounded)),
+                  Expanded(
+                    child: _buildTextField(
+                      l10n.priceMale,
+                      _malePriceController,
+                      l10n.dailyWage,
+                      keyboardType: TextInputType.number,
+                      errorKey: 'malePrice',
+                      icon: Icons.currency_rupee_rounded,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),
               Row(
                 children: [
-                  Expanded(child: _buildTextField('Hourly Rate (Male)', _malePriceHourlyController, 'e.g. 50/hr', keyboardType: TextInputType.number, errorKey: 'malePriceHourly')),
+                  Expanded(
+                    child: _buildTextField(
+                      l10n.femaleWorkers,
+                      _femaleCountController,
+                      'Count',
+                      keyboardType: TextInputType.number,
+                      errorKey: 'femaleCount',
+                      icon: Icons.female_rounded,
+                    ),
+                  ),
                   const SizedBox(width: 16),
-                   Expanded(child: _buildTextField('Hourly Rate (Female)', _femalePriceHourlyController, 'e.g. 40/hr', keyboardType: TextInputType.number, errorKey: 'femalePriceHourly')),
+                  Expanded(
+                    child: _buildTextField(
+                      l10n.priceFemale,
+                      _femalePriceController,
+                      l10n.dailyWage,
+                      keyboardType: TextInputType.number,
+                      errorKey: 'femalePrice',
+                      icon: Icons.currency_rupee_rounded,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      'Hourly Rate (Male)',
+                      _malePriceHourlyController,
+                      'e.g. 50/hr',
+                      keyboardType: TextInputType.number,
+                      errorKey: 'malePriceHourly',
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildTextField(
+                      'Hourly Rate (Female)',
+                      _femalePriceHourlyController,
+                      'e.g. 40/hr',
+                      keyboardType: TextInputType.number,
+                      errorKey: 'femalePriceHourly',
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -985,7 +1547,6 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     );
   }
 
-
   Widget _buildTransportForm() {
     final l10n = AppLocalizations.of(context)!;
     return Column(
@@ -998,8 +1559,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             children: [
               DropdownButtonFormField<String>(
                 value: _selectedTransportType,
-                decoration: _inputDecoration(l10n.vehicleType, icon: Icons.category_rounded),
-                items: _transportTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                decoration: _inputDecoration(
+                  l10n.vehicleType,
+                  icon: Icons.category_rounded,
+                ),
+                items:
+                    _transportTypes
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
                 onChanged: (v) {
                   setState(() {
                     _selectedTransportType = v;
@@ -1009,64 +1576,141 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              
+
               // MAKE & MODEL SELECTION
               Builder(
                 builder: (context) {
-                   List<String> makes = [];
-                   if (_selectedTransportType != null) {
-                     makes = VehicleData.getMakes(_selectedTransportType!);
-                   }
-                   
-                   List<String> models = [];
-                   if (_selectedTransportType != null && _selectedVehicleMake != null) {
-                     models = VehicleData.getModels(_selectedTransportType!, _selectedVehicleMake!);
-                   }
-                   
-                   return Column(
-                     children: [
-                       if (makes.isNotEmpty) ...[
-                          DropdownButtonFormField<String>(
-                            value: _selectedVehicleMake,
-                            decoration: _inputDecoration('Select Make', icon: Icons.branding_watermark_rounded),
-                            items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                            onChanged: (v) {
-                              setState(() {
-                                _selectedVehicleMake = v;
-                                _selectedVehicleModel = null;
-                              });
-                            },
+                  List<String> makes = [];
+                  if (_selectedTransportType != null) {
+                    makes = VehicleData.getMakes(_selectedTransportType!);
+                  }
+
+                  List<String> models = [];
+                  if (_selectedTransportType != null &&
+                      _selectedVehicleMake != null) {
+                    models = VehicleData.getModels(
+                      _selectedTransportType!,
+                      _selectedVehicleMake!,
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      if (makes.isNotEmpty) ...[
+                        DropdownButtonFormField<String>(
+                          value: _selectedVehicleMake,
+                          decoration: _inputDecoration(
+                            'Select Make',
+                            icon: Icons.branding_watermark_rounded,
                           ),
-                          const SizedBox(height: 16),
-                       ],
-                       if (models.isNotEmpty) ...[
-                          DropdownButtonFormField<String>(
-                            value: _selectedVehicleModel,
-                            decoration: _inputDecoration('Select Model', icon: Icons.model_training_rounded),
-                            items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                            onChanged: (v) {
-                              setState(() {
-                                _selectedVehicleModel = v;
-                                if (v != 'Other' && _selectedVehicleMake != null) {
-                                   _nameController.text = "${_selectedVehicleMake} $v";
-                                }
-                              });
-                            },
+                          items:
+                              makes
+                                  .map(
+                                    (t) => DropdownMenuItem(
+                                      value: t,
+                                      child: Text(t),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedVehicleMake = v;
+                              _selectedVehicleModel = null;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      if (models.isNotEmpty) ...[
+                        DropdownButtonFormField<String>(
+                          value: _selectedVehicleModel,
+                          decoration: _inputDecoration(
+                            'Select Model',
+                            icon: Icons.model_training_rounded,
                           ),
-                          const SizedBox(height: 16),
-                       ],
-                     ],
-                   );
-                }
+                          items:
+                              models
+                                  .map(
+                                    (t) => DropdownMenuItem(
+                                      value: t,
+                                      child: Text(t),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedVehicleModel = v;
+                              if (v != 'Other' &&
+                                  _selectedVehicleMake != null) {
+                                _nameController.text =
+                                    "${_selectedVehicleMake} $v";
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ],
+                  );
+                },
               ),
 
-              _buildTextField('Vehicle Name / Title', _nameController, l10n.vehicleNameHint, errorKey: 'name', icon: Icons.title_rounded),
+              _buildTextField(
+                'Vehicle Name / Title',
+                _nameController,
+                l10n.vehicleNameHint,
+                errorKey: 'name',
+                icon: Icons.title_rounded,
+              ),
               const SizedBox(height: 16),
-              _buildTextField(l10n.vehicleNumber, _vehicleNumberController, 'e.g. MH 40 AB 1234', errorKey: 'number', icon: Icons.numbers_rounded),
+              _buildTextField(
+                l10n.vehicleNumber,
+                _vehicleNumberController,
+                'e.g. MH 40 AB 1234',
+                errorKey: 'number',
+                icon: Icons.numbers_rounded,
+              ),
               const SizedBox(height: 16),
-              _buildTextField(l10n.loadCapacity, _capacityController, 'e.g. 1.5 Ton', errorKey: 'capacity', icon: Icons.line_weight_rounded),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: _buildTextField(
+                      l10n.loadCapacity,
+                      _capacityController,
+                      'e.g. 1.5',
+                      keyboardType: TextInputType.number,
+                      errorKey: 'capacity',
+                      icon: Icons.line_weight_rounded,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 1,
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedCapacityUnit,
+                      decoration: _inputDecoration('Unit'),
+                      items:
+                          ['Ton', 'kg']
+                              .map(
+                                (u) =>
+                                    DropdownMenuItem(value: u, child: Text(u)),
+                              )
+                              .toList(),
+                      onChanged:
+                          (v) => setState(() => _selectedCapacityUnit = v!),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
-              _buildTextField(l10n.serviceArea, _serviceAreaController, 'e.g. Within 50km', icon: Icons.map_rounded),
+              _buildTextField(
+                l10n.serviceArea,
+                _serviceAreaController,
+                'e.g. Within 50km',
+                icon: Icons.map_rounded,
+              ),
             ],
           ),
         ),
@@ -1077,31 +1721,81 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           child: Column(
             children: [
               if (_selectedTransportType == 'Tractor Trolley') ...[
-                _buildTextField('Full Day Price', _priceController, 'e.g. 1500', keyboardType: TextInputType.number, errorKey: 'price', icon: Icons.wb_sunny_rounded),
+                _buildTextField(
+                  'Full Day Price',
+                  _priceController,
+                  'e.g. 1500',
+                  keyboardType: TextInputType.number,
+                  errorKey: 'price',
+                  icon: Icons.wb_sunny_rounded,
+                ),
                 const SizedBox(height: 12),
-                _buildTextField('Half Day Price', _pricePerKmController, 'e.g. 800', keyboardType: TextInputType.number, errorKey: 'price_km', icon: Icons.wb_twilight_rounded),
-              ] else if (_selectedTransportType == 'Mini Truck' || _selectedTransportType == 'Truck') ...[
-                _buildTextField('KM-wise Rate (per KM)', _pricePerKmController, 'e.g. 20', keyboardType: TextInputType.number, errorKey: 'price_km', icon: Icons.speed_rounded),
+                _buildTextField(
+                  'Half Day Price',
+                  _pricePerKmController,
+                  'e.g. 800',
+                  keyboardType: TextInputType.number,
+                  errorKey: 'price_km',
+                  icon: Icons.wb_twilight_rounded,
+                ),
+              ] else if (_selectedTransportType == 'Mini Truck' ||
+                  _selectedTransportType == 'Truck') ...[
+                _buildTextField(
+                  'KM-wise Rate (per KM)',
+                  _pricePerKmController,
+                  'e.g. 20',
+                  keyboardType: TextInputType.number,
+                  errorKey: 'price_km',
+                  icon: Icons.speed_rounded,
+                ),
               ] else ...[
-                _buildTextField('Daily Rate / Flat Price', _priceController, 'e.g. 1500', keyboardType: TextInputType.number, errorKey: 'price', icon: Icons.payments_rounded),
+                _buildTextField(
+                  'Daily Rate / Flat Price',
+                  _priceController,
+                  'e.g. 1500',
+                  keyboardType: TextInputType.number,
+                  errorKey: 'price',
+                  icon: Icons.payments_rounded,
+                ),
                 const SizedBox(height: 12),
-                _buildTextField('KM-wise Rate (per KM)', _pricePerKmController, 'e.g. 20', keyboardType: TextInputType.number, errorKey: 'price_km', icon: Icons.speed_rounded),
+                _buildTextField(
+                  'KM-wise Rate (per KM)',
+                  _pricePerKmController,
+                  'e.g. 20',
+                  keyboardType: TextInputType.number,
+                  errorKey: 'price_km',
+                  icon: Icons.speed_rounded,
+                ),
               ],
               const SizedBox(height: 12),
               CheckboxListTile(
-                title: Text(l10n.driverIncluded, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                title: Text(
+                  l10n.driverIncluded,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 value: _driverIncluded,
-                onChanged: (v) => setState(() {
-                  _driverIncluded = v!;
-                  if (!v) _operatorPriceController.clear();
-                }),
+                onChanged:
+                    (v) => setState(() {
+                      _driverIncluded = v!;
+                      if (!v) _operatorPriceController.clear();
+                    }),
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
                 activeColor: const Color(0xFF00AA55),
               ),
               if (_driverIncluded) ...[
                 const SizedBox(height: 12),
-                _buildTextField('Driver Price', _operatorPriceController, 'e.g. 300', keyboardType: TextInputType.number, errorKey: 'driver_price', icon: Icons.currency_rupee_rounded),
+                _buildTextField(
+                  'Driver Price',
+                  _operatorPriceController,
+                  'e.g. 300',
+                  keyboardType: TextInputType.number,
+                  errorKey: 'driver_price',
+                  icon: Icons.currency_rupee_rounded,
+                ),
               ],
             ],
           ),
@@ -1130,7 +1824,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         _fieldErrors['price'] = 'Enter Full Day price';
         hasError = true;
       }
-    } else if (_selectedTransportType == 'Mini Truck' || _selectedTransportType == 'Truck') {
+    } else if (_selectedTransportType == 'Mini Truck' ||
+        _selectedTransportType == 'Truck') {
       if (!hasPriceKm) {
         _fieldErrors['price_km'] = 'Enter KM-wise rate';
         hasError = true;
@@ -1158,29 +1853,38 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         return;
       }
 
-      if (userRole == null || (userRole.toLowerCase() != 'owner' && userRole.toLowerCase() != 'provider')) { // Allowing Provider just in case
+      if (userRole == null ||
+          (userRole.toLowerCase() != 'owner' &&
+              userRole.toLowerCase() != 'provider')) {
+        // Allowing Provider just in case
         _showError('Only an Owner can upload vehicles.');
         return;
       }
 
       // Parse price to double
       double parsedPrice = 0.0;
-      if (hasPrice && _selectedTransportType != 'Mini Truck' && _selectedTransportType != 'Truck') {
+      if (hasPrice &&
+          _selectedTransportType != 'Mini Truck' &&
+          _selectedTransportType != 'Truck') {
         try {
-          parsedPrice = double.parse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), ''));
+          parsedPrice = double.parse(
+            _priceController.text.replaceAll(RegExp(r'[^0-9.]'), ''),
+          );
         } catch (e) {
-           _showError('Please enter a valid numeric daily price');
-           return;
+          _showError('Please enter a valid numeric daily price');
+          return;
         }
       }
 
       double parsedPriceKm = 0.0;
       if (hasPriceKm) {
         try {
-          parsedPriceKm = double.parse(_pricePerKmController.text.replaceAll(RegExp(r'[^0-9.]'), ''));
+          parsedPriceKm = double.parse(
+            _pricePerKmController.text.replaceAll(RegExp(r'[^0-9.]'), ''),
+          );
         } catch (e) {
-           _showError('Please enter a valid numeric KM-wise price');
-           return;
+          _showError('Please enter a valid numeric KM-wise price');
+          return;
         }
       }
 
@@ -1188,20 +1892,55 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       await apiService.addVehicle({
         'ownerId': userId,
         'vehicleType': _selectedTransportType,
-        'vehicleNumber': _vehicleNumberController.text.isNotEmpty ? _vehicleNumberController.text : null,
-        'loadCapacity': _capacityController.text.isNotEmpty ? _capacityController.text : 'Unknown',
+        'vehicleNumber':
+            _vehicleNumberController.text.isNotEmpty
+                ? _vehicleNumberController.text
+                : null,
+        'loadCapacity':
+            _capacityController.text.isNotEmpty
+                ? '${_capacityController.text} $_selectedCapacityUnit'
+                : 'Unknown',
         'pricePerKmOrTrip': parsedPrice,
         'pricePerKm': parsedPriceKm,
         'driverIncluded': _driverIncluded,
-        'operatorPrice': _driverIncluded ? (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0) : 0.0,
-        'serviceArea': _serviceAreaController.text.isNotEmpty ? _serviceAreaController.text : null,
-        'location': _locationController.text.isNotEmpty ? _locationController.text : 'Unknown',
+        'operatorPrice':
+            _driverIncluded
+                ? (double.tryParse(
+                      _operatorPriceController.text.replaceAll(
+                        RegExp(r'[^0-9.]'),
+                        '',
+                      ),
+                    ) ??
+                    0.0)
+                : 0.0,
+        'serviceArea':
+            _serviceAreaController.text.isNotEmpty
+                ? _serviceAreaController.text
+                : null,
+        'location':
+            _locationController.text.isNotEmpty
+                ? _locationController.text
+                : 'Unknown',
+        'houseNo': _houseNoController.text,
+        'street': _streetController.text,
+        'village': _villageController.text,
+        'mandal': _mandalController.text,
+        'district': _districtController.text,
+        'state': _stateController.text,
+        'country': _countryController.text,
+        'pincode': _pincodeController.text,
         'latitude': _selectedLatitude,
         'longitude': _selectedLongitude,
+        'description':
+            _descriptionController.text.isNotEmpty
+                ? _descriptionController.text
+                : null,
         'isAvailable': true,
         'rating': 5.0, // Default for new
         'approvalStatus': 'Pending',
-        'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Vehicle', // Mock image
+        'imageUrl':
+            await _uploadSelectedImage() ??
+            'https://placehold.co/600x400?text=Vehicle', // Mock image
       });
 
       _completeSubmission();
@@ -1224,47 +1963,78 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     }
 
     if (hasError) {
-       _showError('Please provide service details');
-       return;
+      _showError('Please provide service details');
+      return;
     }
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final ownerId = prefs.getString('user_id') ?? 'unknown_owner';
-      double parsedPrice = double.tryParse(_priceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0;
+      double parsedPrice =
+          double.tryParse(
+            _priceController.text.replaceAll(RegExp(r'[^0-9.]'), ''),
+          ) ??
+          0.0;
 
       final String sType = _selectedServiceType ?? widget.category;
-      final bool hasOperator = (sType != 'Electricians' && sType != 'Vet Care') && _operatorIncludedService;
+      final bool hasOperator =
+          (sType != 'Electricians' && sType != 'Vet Care') &&
+          _operatorIncludedService;
 
-      String equipString = _equipmentUsedController.text.isNotEmpty ? _equipmentUsedController.text : 'Standard Equipment';
-      if (_selectedPloughEquipmentType != null && (sType == 'Ploughing' || widget.category == 'Ploughing')) {
-        String eqType = (_selectedPloughEquipmentType == 'Others' && _customPloughEquipmentTypeController.text.isNotEmpty)
-            ? _customPloughEquipmentTypeController.text
-            : _selectedPloughEquipmentType!;
-        String cap = (_selectedPloughCapacity == 'Custom / Other Capacity' && _customPloughCapacityController.text.isNotEmpty)
-            ? _customPloughCapacityController.text
-            : (_selectedPloughCapacity ?? '');
-        equipString = "$eqType${cap.isNotEmpty ? ' ($cap)' : ''}${_equipmentUsedController.text.isNotEmpty ? ' - ${_equipmentUsedController.text}' : ''}";
-      } else if (sType == 'Harvesting' || sType == 'Drone Spraying' || widget.category == 'Harvesting' || widget.category == 'Drone Spraying') {
-        List<String> list = [];
-        _equipmentCapacityMap.forEach((type, caps) {
-          for (var c in caps) {
-            list.add("$type - $c");
-          }
-        });
-        equipString = list.isNotEmpty ? list.join(', ') : 'Standard Equipment';
+      String equipmentUsed = _equipmentUsedController.text.trim();
+      if (_selectedServiceType == 'Harvesting' ||
+          widget.category == 'Harvesting') {
+        if (_harvestCapacitiesMap.isNotEmpty) {
+          equipmentUsed = _harvestCapacitiesMap.entries
+              .map((e) => '${e.key} - ${e.value.join('/')}')
+              .join(', ');
+        }
+      } else if (_selectedServiceType == 'Sprayers' ||
+          _selectedServiceType == 'Drone Spraying' ||
+          widget.category == 'Sprayers' ||
+          widget.category == 'Drone Spraying') {
+        if (_sprayerCapacitiesMap.isNotEmpty) {
+          equipmentUsed = _sprayerCapacitiesMap.entries
+              .map((e) => '${e.key} - ${e.value.join('/')} L')
+              .join(', ');
+        }
+      } else if (_selectedServiceType == 'Ploughing' ||
+          widget.category == 'Ploughing') {
+        if (_ploughCapacitiesMap.isNotEmpty) {
+          equipmentUsed = _ploughCapacitiesMap.entries
+              .map((e) => '${e.key} - ${e.value.join('/')}')
+              .join(', ');
+        }
+      }
+      if (equipmentUsed.isEmpty) {
+        equipmentUsed = 'Standard Equipment';
       }
 
       final Map<String, dynamic> serviceData = {
         'ownerId': ownerId,
         'serviceType': sType,
         'businessName': _nameController.text,
-        'description': _descriptionController.text.isNotEmpty ? _descriptionController.text : 'No description provided',
-        'equipmentUsed': equipString,
+        'description':
+            _descriptionController.text.isNotEmpty
+                ? _descriptionController.text
+                : 'No description provided',
+        'equipmentUsed': equipmentUsed,
         'priceRate': parsedPrice,
         'operatorIncluded': hasOperator,
-        'operatorPrice': (sType == 'Drone Spraying' || !hasOperator) ? 0.0 : (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0),
-        'location': _locationController.text.isNotEmpty ? _locationController.text : 'Local',
+        'operatorPrice':
+            (sType == 'Drone Spraying' || !hasOperator)
+                ? 0.0
+                : (double.tryParse(
+                      _operatorPriceController.text.replaceAll(
+                        RegExp(r'[^0-9.]'),
+                        '',
+                      ),
+                    ) ??
+                    0.0),
+        'location':
+            _locationController.text.isNotEmpty
+                ? _locationController.text
+                : 'Local',
         'houseNo': _houseNoController.text,
         'street': _streetController.text,
         'village': _villageController.text,
@@ -1278,7 +2048,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         'isAvailable': true,
         'rating': 5.0,
         'approvalStatus': 'Pending',
-        'imageUrl': await _uploadSelectedImage() ?? 'https://placehold.co/600x400?text=Service',
+        'imageUrl':
+            await _uploadSelectedImage() ??
+            'https://placehold.co/600x400?text=Service',
       };
 
       await ApiService().addService(serviceData);
@@ -1286,18 +2058,28 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       final newProvider = ServiceListing(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text, // Provider Name
-        serviceName: sType, // e.g. 'Ploughing' passed from home screen or selected
+        serviceName:
+            sType, // e.g. 'Ploughing' passed from home screen or selected
         distance: '1 km',
         rating: 5.0,
         approvalStatus: 'Pending',
         location: _locationController.text,
-        equipmentUsed: equipString,
+        equipmentUsed: equipmentUsed,
         price: _priceController.text,
         operatorIncluded: hasOperator,
-        operatorPrice: (sType == 'Drone Spraying' || !hasOperator) ? 0.0 : (double.tryParse(_operatorPriceController.text.replaceAll(RegExp(r'[^0-9.]'), '')) ?? 0.0),
+        operatorPrice:
+            (sType == 'Drone Spraying' || !hasOperator)
+                ? 0.0
+                : (double.tryParse(
+                      _operatorPriceController.text.replaceAll(
+                        RegExp(r'[^0-9.]'),
+                        '',
+                      ),
+                    ) ??
+                    0.0),
         jobsCompleted: 0,
         isAvailable: true,
-        image: 'https://placehold.co/600x400?text=Service', 
+        image: 'https://placehold.co/600x400?text=Service',
       );
 
       ProviderManager().addProvider(newProvider);
@@ -1342,7 +2124,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       nameIcon = Icons.person_rounded;
 
       equipmentLabel = 'Specialization / Skills';
-      equipmentPlaceholder = 'e.g. Tractor repair, Harvester servicing, Engine work';
+      equipmentPlaceholder =
+          'e.g. Tractor repair, Harvester servicing, Engine work';
       equipmentIcon = Icons.build_rounded;
     } else if (serviceType == 'Soil Testing') {
       equipmentLabel = 'Testing Methods / Parameters';
@@ -1363,97 +2146,111 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           child: Column(
             children: [
               // If category is generic 'Services', show dropdown
-              if (widget.category == 'Services') 
-                 DropdownButtonFormField<String>(
-                   value: _selectedServiceType, 
-                   decoration: _inputDecoration('Select Service Type', icon: Icons.category_rounded),
-                   items: _serviceCategories.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                   onChanged: (val) {
-                      setState(() => _selectedServiceType = val);
-                   },
-                 )
+              if (widget.category == 'Services')
+                DropdownButtonFormField<String>(
+                  value: _selectedServiceType,
+                  decoration: _inputDecoration(
+                    'Select Service Type',
+                    icon: Icons.category_rounded,
+                  ),
+                  items:
+                      _serviceCategories
+                          .map(
+                            (s) => DropdownMenuItem(value: s, child: Text(s)),
+                          )
+                          .toList(),
+                  onChanged: (val) {
+                    setState(() => _selectedServiceType = val);
+                  },
+                )
               else
-                 Row(
-                   children: [
-                     const Icon(Icons.check_circle_rounded, color: Color(0xFF00AA55), size: 18),
-                     const SizedBox(width: 8),
-                     Text('Category: ${widget.category}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1B5E20))),
-                   ],
-                 ), 
-              
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      color: Color(0xFF00AA55),
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Category: ${widget.category}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1B5E20),
+                      ),
+                    ),
+                  ],
+                ),
+
               // If Farm Workers is selected, show Farm Workers form instead of generic service form
               if (_selectedServiceType == 'Farm Workers') ...[
-                 const SizedBox(height: 24),
-                 _buildFarmWorkerForm(),
-              ] else if (serviceType == 'Ploughing' || _selectedServiceType == 'Ploughing' || widget.category == 'Ploughing') ...[
-                  const SizedBox(height: 20),
-                  _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
-                  const SizedBox(height: 20),
-                  DropdownButtonFormField<String>(
-                    value: _selectedPloughEquipmentType,
-                    decoration: _inputDecoration('Ploughing Equipment Type', icon: Icons.agriculture_rounded),
-                    items: PloughingData.equipmentTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedPloughEquipmentType = val;
-                        _selectedPloughCapacity = null;
-                      });
-                    },
-                  ),
-                  if (_selectedPloughEquipmentType == 'Others') ...[
-                    const SizedBox(height: 20),
-                    _buildTextField('Custom Equipment Type', _customPloughEquipmentTypeController, 'Specify equipment type...', icon: Icons.edit_note_rounded),
-                  ],
-                  const SizedBox(height: 20),
-                  DropdownButtonFormField<String>(
-                    value: _selectedPloughCapacity,
-                    decoration: _inputDecoration('Equipment Capacity / Specification', icon: Icons.straighten_rounded),
-                    items: PloughingData.getCapacities(_selectedPloughEquipmentType).map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedPloughCapacity = val;
-                      });
-                    },
-                  ),
-                  if (_selectedPloughCapacity == 'Custom / Other Capacity') ...[
-                    const SizedBox(height: 20),
-                    _buildTextField('Custom Capacity / Specs', _customPloughCapacityController, 'e.g. 5 Bottom Heavy Duty / 75 HP', icon: Icons.tune_rounded),
-                  ],
-                  const SizedBox(height: 20),
-                  _buildTextField('Tractor Brand / Model (Optional)', _equipmentUsedController, 'e.g. John Deere 5310 4WD', icon: Icons.handyman_rounded),
-               ] else if (serviceType == 'Harvesting' || _selectedServiceType == 'Harvesting' || widget.category == 'Harvesting') ...[
-                  const SizedBox(height: 20),
-                  _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
-                  const SizedBox(height: 20),
-                  _buildEquipmentCapacitySection(
-                    categoryTitle: 'HARVESTER TYPES',
-                    subtitle: 'Add harvesters and their capacities:',
-                    dropdownLabel: 'Harvesting Equipment Type',
-                    dropdownItems: HarvestingData.presetChips,
-                    capacityLabel: 'Capacity (HP or Ft)',
-                    capacityHint: 'e.g. 75 HP or 14 Ft',
-                    defaultUnit: 'HP',
-                    icon: Icons.agriculture_rounded,
-                  ),
-               ] else if (serviceType == 'Drone Spraying' || _selectedServiceType == 'Drone Spraying' || widget.category == 'Drone Spraying') ...[
-                  const SizedBox(height: 20),
-                  _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
-                  const SizedBox(height: 20),
-                  _buildEquipmentCapacitySection(
-                    categoryTitle: 'SPRAYER TYPES',
-                    subtitle: 'Add sprayers and their capacities:',
-                    dropdownLabel: 'Sprayer Type',
-                    dropdownItems: SprayerData.sprayerTypes,
-                    capacityLabel: 'Capacity (Litres)',
-                    capacityHint: 'e.g. 150',
-                    defaultUnit: 'L',
-                    icon: Icons.water_drop_rounded,
-                  ),
-               ] else ...[
-                 const SizedBox(height: 20),
-                 _buildTextField(nameLabel, _nameController, namePlaceholder, errorKey: 'name', icon: nameIcon),
-                 const SizedBox(height: 20),
-                 _buildTextField(equipmentLabel, _equipmentUsedController, equipmentPlaceholder, icon: equipmentIcon),
+                const SizedBox(height: 24),
+                _buildFarmWorkerForm(),
+              ] else if (serviceType == 'Ploughing' ||
+                  _selectedServiceType == 'Ploughing' ||
+                  widget.category == 'Ploughing') ...[
+                const SizedBox(height: 20),
+                _buildTextField(
+                  nameLabel,
+                  _nameController,
+                  namePlaceholder,
+                  errorKey: 'name',
+                  icon: nameIcon,
+                ),
+                const SizedBox(height: 20),
+                _buildPloughCapacitySection(),
+              ] else if (serviceType == 'Harvesting' ||
+                  _selectedServiceType == 'Harvesting' ||
+                  widget.category == 'Harvesting') ...[
+                const SizedBox(height: 20),
+                _buildTextField(
+                  nameLabel,
+                  _nameController,
+                  namePlaceholder,
+                  errorKey: 'name',
+                  icon: nameIcon,
+                ),
+                const SizedBox(height: 20),
+                _buildHarvestCapacitySection(),
+              ] else if (serviceType == 'Drone Spraying' ||
+                  _selectedServiceType == 'Drone Spraying' ||
+                  widget.category == 'Drone Spraying') ...[
+                const SizedBox(height: 20),
+                _buildTextField(
+                  nameLabel,
+                  _nameController,
+                  namePlaceholder,
+                  errorKey: 'name',
+                  icon: nameIcon,
+                ),
+                const SizedBox(height: 20),
+                _buildEquipmentCapacitySection(
+                  categoryTitle: 'SPRAYER TYPES',
+                  subtitle: 'Add sprayers and their capacities:',
+                  dropdownLabel: 'Sprayer Type',
+                  dropdownItems: SprayerData.sprayerTypes,
+                  capacityLabel: 'Capacity (Litres)',
+                  capacityHint: 'e.g. 150',
+                  defaultUnit: 'L',
+                  icon: Icons.water_drop_rounded,
+                ),
+              ] else ...[
+                const SizedBox(height: 20),
+                _buildTextField(
+                  nameLabel,
+                  _nameController,
+                  namePlaceholder,
+                  errorKey: 'name',
+                  icon: nameIcon,
+                ),
+                const SizedBox(height: 20),
+                _buildTextField(
+                  equipmentLabel,
+                  _equipmentUsedController,
+                  equipmentPlaceholder,
+                  icon: equipmentIcon,
+                ),
               ],
             ],
           ),
@@ -1465,33 +2262,78 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             icon: Icons.sell_rounded,
             child: Column(
               children: [
-                _buildTextField(
-                  (_selectedServiceType == 'Ploughing' || widget.category == 'Ploughing') ? 'Your Rate (per Hour)' : 'Your Rate', 
-                  _priceController, 
-                  (_selectedServiceType == 'Electricians' || _selectedServiceType == 'Vet Care' || _selectedServiceType == 'Mechanics') 
-                    ? 'e.g. ₹200 / visit' 
-                    : (_selectedServiceType == 'Ploughing' || widget.category == 'Ploughing' || _selectedServiceType == 'Harvesting' || _selectedServiceType == 'Drone Spraying' || widget.category == 'Harvesting')
-                      ? 'e.g. ₹1500 / hour'
-                      : 'e.g. ₹1200 / acre', 
-                  errorKey: 'price',
-                  icon: Icons.payments_rounded,
-                ),
-                
-                if (_selectedServiceType != 'Electricians' && _selectedServiceType != 'Vet Care') ...[
+                if (_selectedServiceType == 'Harvesting' ||
+                    widget.category == 'Harvesting' ||
+                    serviceType == 'Harvesting') ...[
+                  _buildTextField(
+                    'Full Day Charge (₹)',
+                    _priceController,
+                    'e.g. 5000',
+                    keyboardType: TextInputType.number,
+                    errorKey: 'price',
+                    icon: Icons.wb_sunny_rounded,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    'Half Day Charge (₹)',
+                    _pricePerKmController,
+                    'e.g. 3000',
+                    keyboardType: TextInputType.number,
+                    errorKey: 'price_km',
+                    icon: Icons.wb_twilight_rounded,
+                  ),
+                ] else ...[
+                  _buildTextField(
+                    (_selectedServiceType == 'Ploughing' ||
+                            widget.category == 'Ploughing')
+                        ? 'Your Rate (per Hour)'
+                        : 'Your Rate',
+                    _priceController,
+                    (_selectedServiceType == 'Electricians' ||
+                            _selectedServiceType == 'Vet Care' ||
+                            _selectedServiceType == 'Mechanics')
+                        ? 'e.g. ₹200 / visit'
+                        : (_selectedServiceType == 'Ploughing' ||
+                            widget.category == 'Ploughing' ||
+                            _selectedServiceType == 'Drone Spraying')
+                        ? 'e.g. ₹1500 / hour'
+                        : 'e.g. ₹1200 / acre',
+                    errorKey: 'price',
+                    icon: Icons.payments_rounded,
+                  ),
+                ],
+
+                if (_selectedServiceType != 'Electricians' &&
+                    _selectedServiceType != 'Vet Care') ...[
                   const SizedBox(height: 12),
                   SwitchListTile(
-                    title: const Text('Operator Included?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    title: const Text(
+                      'Operator Included?',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     value: _operatorIncludedService,
-                    onChanged: (v) => setState(() {
-                      _operatorIncludedService = v;
-                      if (!v) _operatorPriceController.clear();
-                    }),
+                    onChanged:
+                        (v) => setState(() {
+                          _operatorIncludedService = v;
+                          if (!v) _operatorPriceController.clear();
+                        }),
                     activeColor: const Color(0xFF00AA55),
                     contentPadding: EdgeInsets.zero,
                   ),
-                  if (_operatorIncludedService && serviceType != 'Drone Spraying' && _selectedServiceType != 'Drone Spraying') ...[
+                  if (_operatorIncludedService &&
+                      serviceType != 'Drone Spraying' &&
+                      _selectedServiceType != 'Drone Spraying') ...[
                     const SizedBox(height: 12),
-                    _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, icon: Icons.person_add_rounded),
+                    _buildTextField(
+                      'Operator Price',
+                      _operatorPriceController,
+                      'e.g. ₹300 / day',
+                      keyboardType: TextInputType.number,
+                      icon: Icons.person_add_rounded,
+                    ),
                   ],
                 ],
               ],
@@ -1501,10 +2343,407 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     );
   }
 
+  Widget _buildPloughCapacitySection() {
+    return _buildSectionCard(
+      title: 'PLOUGHING EQUIPMENT TYPES',
+      icon: Icons.agriculture_rounded,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Add equipment and their capacities:',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF2C3E50),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            value: _currentSelectedPloughType,
+            isExpanded: true,
+            decoration: _inputDecoration(
+              'Equipment Type',
+              icon: Icons.agriculture_rounded,
+            ),
+            items:
+                _availablePloughTypes
+                    .map(
+                      (t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis)),
+                    )
+                    .toList(),
+            onChanged:
+                (v) => setState(() => _currentSelectedPloughType = v),
+          ),
+          if (_currentSelectedPloughType == 'Other') ...[
+            const SizedBox(height: 16),
+            _buildTextField(
+              'Custom Equipment Name',
+              _currentOtherPloughTypeController,
+              'e.g. Special Plough',
+              icon: Icons.edit_rounded,
+            ),
+          ],
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                flex: 3,
+                child: _buildTextField(
+                  'Capacity',
+                  _currentPloughCapacityController,
+                  'e.g. 45',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  icon: Icons.straighten_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<String>(
+                  value: _selectedPloughCapacityUnit,
+                  isExpanded: true,
+                  decoration: _inputDecoration('Unit'),
+                  items: _ploughCapacityUnits
+                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedPloughCapacityUnit = val);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2.0),
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (_currentSelectedPloughType == null) return;
+
+                    String type = _currentSelectedPloughType!;
+                    if (type == 'Other') {
+                      final customType =
+                          _currentOtherPloughTypeController.text.trim();
+                      if (customType.isEmpty) return;
+                      type = customType;
+
+                      if (!_availablePloughTypes.contains(type)) {
+                        setState(() {
+                          _availablePloughTypes.insert(
+                            _availablePloughTypes.length - 1,
+                            type,
+                          );
+                        });
+                      }
+                    }
+
+                    final capText =
+                        _currentPloughCapacityController.text.trim();
+                    if (capText.isNotEmpty) {
+                      final formattedCap = '$capText $_selectedPloughCapacityUnit';
+                      setState(() {
+                        if (!_ploughCapacitiesMap.containsKey(type)) {
+                          _ploughCapacitiesMap[type] = [];
+                        }
+                        if (!_ploughCapacitiesMap[type]!.contains(formattedCap)) {
+                          _ploughCapacitiesMap[type]!.add(formattedCap);
+                        }
+
+                        // Reset inputs
+                        _currentPloughCapacityController.clear();
+                        _currentOtherPloughTypeController.clear();
+                        _currentSelectedPloughType = null;
+                      });
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00AA55),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    minimumSize: const Size(0, 54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  child: const Text(
+                    'Add',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_ploughCapacitiesMap.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const Text(
+              'Added Equipment:',
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF1B5E20),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children:
+                  _ploughCapacitiesMap.entries.expand((entry) {
+                    if (entry.value.isEmpty) {
+                      return [
+                        Chip(
+                          label: Text(entry.key),
+                          deleteIcon: const Icon(
+                            Icons.cancel,
+                            color: Color(0xFF00AA55),
+                            size: 18,
+                          ),
+                          backgroundColor: const Color(0xFFE8F5E9),
+                          side: const BorderSide(color: Color(0xFFC8E6C9)),
+                          onDeleted: () {
+                            setState(() {
+                              _ploughCapacitiesMap.remove(entry.key);
+                            });
+                          },
+                        ),
+                      ];
+                    }
+                    return entry.value.map((capacity) {
+                      return Chip(
+                        label: Text('${entry.key} - $capacity'),
+                        deleteIcon: const Icon(
+                          Icons.cancel,
+                          color: Color(0xFF00AA55),
+                          size: 18,
+                        ),
+                        backgroundColor: const Color(0xFFE8F5E9),
+                        side: const BorderSide(color: Color(0xFFC8E6C9)),
+                        onDeleted: () {
+                          setState(() {
+                            _ploughCapacitiesMap[entry.key]!.remove(
+                              capacity,
+                            );
+                            if (_ploughCapacitiesMap[entry.key]!.isEmpty) {
+                              _ploughCapacitiesMap.remove(entry.key);
+                            }
+                          });
+                        },
+                      );
+                    }).toList();
+                  }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHarvestCapacitySection() {
+    return _buildSectionCard(
+      title: 'HARVESTING EQUIPMENT TYPES',
+      icon: Icons.agriculture_rounded,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Add harvester types and their capacities:',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF2C3E50),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            value: _currentSelectedHarvestType,
+            isExpanded: true,
+            decoration: _inputDecoration(
+              'Harvester Type',
+              icon: Icons.agriculture_rounded,
+            ),
+            items:
+                _availableHarvestTypes
+                    .map(
+                      (t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis)),
+                    )
+                    .toList(),
+            onChanged:
+                (v) => setState(() => _currentSelectedHarvestType = v),
+          ),
+          if (_currentSelectedHarvestType == 'Other') ...[
+            const SizedBox(height: 16),
+            _buildTextField(
+              'Custom Harvester Name',
+              _currentOtherHarvestTypeController,
+              'e.g. Special Harvester',
+              icon: Icons.edit_rounded,
+            ),
+          ],
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                flex: 3,
+                child: _buildTextField(
+                  'Capacity',
+                  _currentHarvestCapacityController,
+                  'e.g. 45',
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  icon: Icons.straighten_rounded,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<String>(
+                  value: _selectedHarvestCapacityUnit,
+                  isExpanded: true,
+                  decoration: _inputDecoration('Unit'),
+                  items: _harvestCapacityUnits
+                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _selectedHarvestCapacityUnit = val);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2.0),
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (_currentSelectedHarvestType == null) return;
+
+                    String type = _currentSelectedHarvestType!;
+                    if (type == 'Other') {
+                      final customType =
+                          _currentOtherHarvestTypeController.text.trim();
+                      if (customType.isEmpty) return;
+                      type = customType;
+
+                      if (!_availableHarvestTypes.contains(type)) {
+                        setState(() {
+                          _availableHarvestTypes.insert(
+                            _availableHarvestTypes.length - 1,
+                            type,
+                          );
+                        });
+                      }
+                    }
+
+                    final capText =
+                        _currentHarvestCapacityController.text.trim();
+                    if (capText.isNotEmpty) {
+                      final formattedCap = '$capText $_selectedHarvestCapacityUnit';
+                      setState(() {
+                        if (!_harvestCapacitiesMap.containsKey(type)) {
+                          _harvestCapacitiesMap[type] = [];
+                        }
+                        if (!_harvestCapacitiesMap[type]!.contains(formattedCap)) {
+                          _harvestCapacitiesMap[type]!.add(formattedCap);
+                        }
+
+                        // Reset inputs
+                        _currentHarvestCapacityController.clear();
+                        _currentOtherHarvestTypeController.clear();
+                        _currentSelectedHarvestType = null;
+                      });
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00AA55),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    minimumSize: const Size(0, 54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  child: const Text(
+                    'Add',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (_harvestCapacitiesMap.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const Text(
+              'Added Equipment:',
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF1B5E20),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
+              children:
+                  _harvestCapacitiesMap.entries.expand((entry) {
+                    if (entry.value.isEmpty) {
+                      return [
+                        Chip(
+                          label: Text(entry.key),
+                          deleteIcon: const Icon(
+                            Icons.cancel,
+                            color: Color(0xFF00AA55),
+                            size: 18,
+                          ),
+                          backgroundColor: const Color(0xFFE8F5E9),
+                          side: const BorderSide(color: Color(0xFFC8E6C9)),
+                          onDeleted: () {
+                            setState(() {
+                              _harvestCapacitiesMap.remove(entry.key);
+                            });
+                          },
+                        ),
+                      ];
+                    }
+                    return entry.value.map((capacity) {
+                      return Chip(
+                        label: Text('${entry.key} - $capacity'),
+                        deleteIcon: const Icon(
+                          Icons.cancel,
+                          color: Color(0xFF00AA55),
+                          size: 18,
+                        ),
+                        backgroundColor: const Color(0xFFE8F5E9),
+                        side: const BorderSide(color: Color(0xFFC8E6C9)),
+                        onDeleted: () {
+                          setState(() {
+                            _harvestCapacitiesMap[entry.key]!.remove(
+                              capacity,
+                            );
+                            if (_harvestCapacitiesMap[entry.key]!.isEmpty) {
+                              _harvestCapacitiesMap.remove(entry.key);
+                            }
+                          });
+                        },
+                      );
+                    }).toList();
+                  }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildEquipmentForm() {
     final l10n = AppLocalizations.of(context)!;
     List<String> makes = [];
-    if (_selectedEquipmentType != null) {
+    if (_selectedEquipmentType != null &&
+        _selectedEquipmentType != 'Sprayers') {
       makes = VehicleData.getMakes(_selectedEquipmentType!);
     }
 
@@ -1526,8 +2765,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             children: [
               DropdownButtonFormField<String>(
                 value: _selectedEquipmentType,
-                decoration: _inputDecoration('Category', icon: Icons.category_rounded),
-                items: _equipmentCategories.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                decoration: _inputDecoration(
+                  'Category',
+                  isError: _fieldErrors.containsKey('category'),
+                  icon: Icons.category_rounded,
+                ),
+                items:
+                    _equipmentCategories
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
                 onChanged: (v) {
                   setState(() {
                     _selectedEquipmentType = v;
@@ -1538,22 +2784,23 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              _buildTextField('Owner / Business Name', _nameController, l10n.ownerNameHint, icon: Icons.person_rounded),
+              _buildTextField(
+                'Owner / Business Name',
+                _nameController,
+                l10n.ownerNameHint,
+                errorKey: 'name',
+                icon: Icons.person_rounded,
+              ),
               const SizedBox(height: 20),
-              
-              if (_selectedEquipmentType == 'Harvesters' || widget.category == 'Harvesters' || widget.category == 'Harvesting') ...[
-                _buildEquipmentCapacitySection(
-                  categoryTitle: 'HARVESTER TYPES',
-                  subtitle: 'Add harvesters and their capacities:',
-                  dropdownLabel: 'Harvester Type',
-                  dropdownItems: HarvestingData.presetChips,
-                  capacityLabel: 'Capacity (HP or Ft)',
-                  capacityHint: 'e.g. 75 HP or 14 Ft',
-                  defaultUnit: 'HP',
-                  icon: Icons.agriculture_rounded,
-                ),
+
+              if (_selectedEquipmentType == 'Harvesters' ||
+                  widget.category == 'Harvesters' ||
+                  widget.category == 'Harvesting') ...[
+                _buildHarvestCapacitySection(),
                 const SizedBox(height: 20),
-              ] else if (_selectedEquipmentType == 'Sprayers' || widget.category == 'Sprayers' || widget.category == 'Drone Spraying') ...[
+              ] else if (_selectedEquipmentType == 'Sprayers' ||
+                  widget.category == 'Sprayers' ||
+                  widget.category == 'Drone Spraying') ...[
                 _buildEquipmentCapacitySection(
                   categoryTitle: 'SPRAYER TYPES',
                   subtitle: 'Add sprayers and their capacities:',
@@ -1570,8 +2817,16 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 if (makes.isNotEmpty) ...[
                   DropdownButtonFormField<String>(
                     value: _selectedMake,
-                    decoration: _inputDecoration('Select Make', icon: Icons.branding_watermark_rounded),
-                    items: makes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                    decoration: _inputDecoration(
+                      'Select Make',
+                      icon: Icons.branding_watermark_rounded,
+                    ),
+                    items:
+                        makes
+                            .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)),
+                            )
+                            .toList(),
                     onChanged: (v) {
                       setState(() {
                         _selectedMake = v;
@@ -1587,65 +2842,438 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 if (models.isNotEmpty) ...[
                   DropdownButtonFormField<String>(
                     value: _selectedModel,
-                    decoration: _inputDecoration('Select Model', icon: Icons.model_training_rounded),
-                    items: models.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                    decoration: _inputDecoration(
+                      'Select Model',
+                      icon: Icons.model_training_rounded,
+                    ),
+                    items:
+                        models
+                            .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)),
+                            )
+                            .toList(),
                     onChanged: (v) {
                       setState(() {
                         _selectedModel = v;
                         if (v != 'Other') {
-                           _brandModelController.text = "${_selectedMake} $v"; 
+                          _brandModelController.text = "${_selectedMake} $v";
                         } else {
-                           _brandModelController.clear();
+                          _brandModelController.clear();
                         }
                       });
                     },
                   ),
-                   const SizedBox(height: 16),
+                  const SizedBox(height: 16),
                 ],
-                
-                // Manual Entry Fallback
-                if (showManualMake || showManualModel) 
-                   _buildTextField(l10n.brandModel, _brandModelController, 'e.g. John Deere 5310', icon: Icons.edit_note_rounded),
 
-                if (showManualMake || showManualModel) 
-                   const SizedBox(height: 20),
+                // Manual Entry Fallback
+                if (showManualMake || showManualModel)
+                  _buildTextField(
+                    l10n.brandModel,
+                    _brandModelController,
+                    'e.g. John Deere 5310',
+                    icon: Icons.edit_note_rounded,
+                  ),
+
+                if (showManualMake || showManualModel)
+                  const SizedBox(height: 20),
               ],
 
-              _buildTextField(l10n.yearManufacture, _yearController, 'e.g. 2021', keyboardType: TextInputType.number, icon: Icons.calendar_today_rounded),
+              _buildTextField(
+                l10n.yearManufacture,
+                _yearController,
+                'e.g. 2021',
+                keyboardType: TextInputType.number,
+                icon: Icons.calendar_today_rounded,
+              ),
               const SizedBox(height: 20),
-              _buildTextField(l10n.vehicleNumber, _vehicleNumberController, 'e.g. TN 37 BY 1234 (Optional)', icon: Icons.numbers_rounded),
+              _buildTextField(
+                l10n.vehicleNumber,
+                _vehicleNumberController,
+                'e.g. TN 37 BY 1234 (Optional)',
+                icon: Icons.numbers_rounded,
+              ),
             ],
           ),
         ),
+
+        if (_selectedEquipmentType == 'Tractors')
+          _buildSectionCard(
+            title: 'Attached Equipments',
+            icon: Icons.agriculture_rounded,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select any attached equipments available with the tractor:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF2C3E50),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children:
+                      _availableAttachedEquipments.map((equipment) {
+                        final isSelected = _selectedAttachedEquipments.contains(
+                          equipment,
+                        );
+                        return InputChip(
+                          label: Text(equipment),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFFE8F5E9),
+                          showCheckmark: false,
+                          deleteIconColor: const Color(0xFF00AA55),
+                          labelStyle: TextStyle(
+                            color:
+                                isSelected
+                                    ? const Color(0xFF1B5E20)
+                                    : const Color(0xFF2C3E50),
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color:
+                                  isSelected
+                                      ? const Color(0xFF00AA55)
+                                      : Colors.grey[300]!,
+                            ),
+                          ),
+                          backgroundColor: Colors.white,
+                          onSelected: (bool selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedAttachedEquipments.add(equipment);
+                                if (equipment == 'Other')
+                                  _isOtherAttachedEquipmentSelected = true;
+                              } else {
+                                _selectedAttachedEquipments.remove(equipment);
+                                if (equipment == 'Other') {
+                                  _isOtherAttachedEquipmentSelected = false;
+                                  _otherAttachedEquipmentController.clear();
+                                }
+                              }
+                            });
+                          },
+                          onDeleted:
+                              isSelected
+                                  ? () {
+                                    setState(() {
+                                      _selectedAttachedEquipments.remove(
+                                        equipment,
+                                      );
+                                      if (equipment == 'Other') {
+                                        _isOtherAttachedEquipmentSelected =
+                                            false;
+                                        _otherAttachedEquipmentController
+                                            .clear();
+                                      }
+                                    });
+                                  }
+                                  : null,
+                        );
+                      }).toList(),
+                ),
+                if (_isOtherAttachedEquipmentSelected) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          'Other Equipment Name',
+                          _otherAttachedEquipmentController,
+                          'e.g. Cultivator',
+                          icon: Icons.edit_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2.0),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final text =
+                                _otherAttachedEquipmentController.text.trim();
+                            if (text.isNotEmpty) {
+                              setState(() {
+                                if (!_availableAttachedEquipments.contains(
+                                  text,
+                                )) {
+                                  _availableAttachedEquipments.insert(
+                                    _availableAttachedEquipments.length - 1,
+                                    text,
+                                  );
+                                }
+                                if (!_selectedAttachedEquipments.contains(
+                                  text,
+                                )) {
+                                  _selectedAttachedEquipments.add(text);
+                                }
+                                _otherAttachedEquipmentController.clear();
+                                _selectedAttachedEquipments.remove('Other');
+                                _isOtherAttachedEquipmentSelected = false;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AA55),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            minimumSize: const Size(0, 54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                          child: const Text(
+                            'Add',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+        if (_selectedEquipmentType == 'Sprayers')
+          _buildSectionCard(
+            title: 'Sprayer Types',
+            icon: Icons.water_drop_rounded,
+            isError: _fieldErrors.containsKey('sprayerTypes'),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Add sprayers and their capacities:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF2C3E50),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _currentSelectedSprayerType,
+                  decoration: _inputDecoration(
+                    'Sprayer Type',
+                    icon: Icons.grass_rounded,
+                  ),
+                  items:
+                      _availableSprayerTypes
+                          .map(
+                            (t) => DropdownMenuItem(value: t, child: Text(t)),
+                          )
+                          .toList(),
+                  onChanged:
+                      (v) => setState(() => _currentSelectedSprayerType = v),
+                ),
+                if (_currentSelectedSprayerType == 'Other') ...[
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    'Custom Sprayer Name',
+                    _currentOtherSprayerTypeController,
+                    'e.g. Special Sprayer',
+                    icon: Icons.edit_rounded,
+                  ),
+                ],
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        'Capacity (Litres)',
+                        _currentSprayerCapacityController,
+                        'e.g. 150',
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        icon: Icons.water_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2.0),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (_currentSelectedSprayerType == null) return;
+
+                          String type = _currentSelectedSprayerType!;
+                          if (type == 'Other') {
+                            final customType =
+                                _currentOtherSprayerTypeController.text.trim();
+                            if (customType.isEmpty) return;
+                            type = customType;
+
+                            // Optionally add to available types
+                            if (!_availableSprayerTypes.contains(type)) {
+                              setState(() {
+                                _availableSprayerTypes.insert(
+                                  _availableSprayerTypes.length - 1,
+                                  type,
+                                );
+                              });
+                            }
+                          }
+
+                          final capText =
+                              _currentSprayerCapacityController.text.trim();
+                          if (capText.isNotEmpty) {
+                            setState(() {
+                              if (!_sprayerCapacitiesMap.containsKey(type)) {
+                                _sprayerCapacitiesMap[type] = [];
+                              }
+                              if (!_sprayerCapacitiesMap[type]!.contains(
+                                capText,
+                              )) {
+                                _sprayerCapacitiesMap[type]!.add(capText);
+                              }
+
+                              // Reset inputs
+                              _currentSprayerCapacityController.clear();
+                              _currentOtherSprayerTypeController.clear();
+                              _currentSelectedSprayerType = null;
+                            });
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00AA55),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          minimumSize: const Size(0, 54),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                        child: const Text(
+                          'Add',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_sprayerCapacitiesMap.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Added Sprayers:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF1B5E20),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8.0,
+                    runSpacing: 8.0,
+                    children:
+                        _sprayerCapacitiesMap.entries.expand((entry) {
+                          if (entry.value.isEmpty) {
+                            return [
+                              Chip(
+                                label: Text(entry.key),
+                                deleteIconColor: const Color(0xFF00AA55),
+                                backgroundColor: const Color(0xFFE8F5E9),
+                                onDeleted: () {
+                                  setState(() {
+                                    _sprayerCapacitiesMap.remove(entry.key);
+                                  });
+                                },
+                              ),
+                            ];
+                          }
+                          return entry.value.map((capacity) {
+                            return Chip(
+                              label: Text('${entry.key} - $capacity L'),
+                              deleteIconColor: const Color(0xFF00AA55),
+                              backgroundColor: const Color(0xFFE8F5E9),
+                              onDeleted: () {
+                                setState(() {
+                                  _sprayerCapacitiesMap[entry.key]!.remove(
+                                    capacity,
+                                  );
+                                  if (_sprayerCapacitiesMap[entry.key]!
+                                      .isEmpty) {
+                                    _sprayerCapacitiesMap.remove(entry.key);
+                                  }
+                                });
+                              },
+                            );
+                          });
+                        }).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
 
         _buildSectionCard(
           title: 'Rental Terms & Condition',
           icon: Icons.fact_check_rounded,
           child: Column(
             children: [
-              _buildTextField(l10n.rentalPrice, _priceController, 'e.g. ₹500 / hour', icon: Icons.payments_rounded),
+              _buildTextField(
+                l10n.rentalPrice,
+                _priceController,
+                _selectedEquipmentType == 'Sprayers'
+                    ? 'e.g. ₹50 / litre'
+                    : 'e.g. ₹500 / hour',
+                errorKey: 'price',
+                icon: Icons.payments_rounded,
+              ),
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 value: _condition,
-                decoration: _inputDecoration(l10n.condition, icon: Icons.info_outline_rounded),
-                items: _conditions.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                decoration: _inputDecoration(
+                  l10n.condition,
+                  icon: Icons.info_outline_rounded,
+                ),
+                items:
+                    _conditions
+                        .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                        .toList(),
                 onChanged: (v) => setState(() => _condition = v!),
               ),
               const SizedBox(height: 12),
               SwitchListTile(
-                title: Text(l10n.operatorAvailable, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                subtitle: Text(l10n.operatorAvailableSubtitle, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                title: Text(
+                  l10n.operatorAvailable,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  l10n.operatorAvailableSubtitle,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
                 value: _operatorAvailable,
-                onChanged: (v) => setState(() {
-                  _operatorAvailable = v;
-                  if (!v) _operatorPriceController.clear();
-                }),
+                onChanged:
+                    (v) => setState(() {
+                      _operatorAvailable = v;
+                      if (!v) _operatorPriceController.clear();
+                    }),
                 activeColor: const Color(0xFF00AA55),
                 contentPadding: EdgeInsets.zero,
               ),
               if (_operatorAvailable) ...[
                 const SizedBox(height: 12),
-                _buildTextField('Operator Price', _operatorPriceController, 'e.g. ₹300 / day', keyboardType: TextInputType.number, icon: Icons.person_add_rounded),
+                _buildTextField(
+                  'Operator Price',
+                  _operatorPriceController,
+                  'e.g. ₹300 / day',
+                  keyboardType: TextInputType.number,
+                  icon: Icons.person_add_rounded,
+                ),
               ],
             ],
           ),
@@ -1656,13 +3284,23 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
   // --- HELPERS ---
 
-  Widget _buildSectionCard({required String title, required IconData icon, required Widget child, Widget? trailing}) {
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+    Widget? trailing,
+    bool isError = false,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
+        border:
+            isError
+                ? Border.all(color: Colors.red.withOpacity(0.5), width: 1.5)
+                : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -1677,22 +3315,31 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
-                      borderRadius: BorderRadius.circular(10),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5E9),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, size: 18, color: const Color(0xFF00AA55)),
                     ),
-                    child: Icon(icon, size: 18, color: const Color(0xFF00AA55)),
-                  ),
-                  const SizedBox(width: 12),
-                  TranslatedText(
-                    title,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TranslatedText(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1B5E20),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
               if (trailing != null) trailing,
             ],
@@ -1704,16 +3351,34 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, String hint, {int maxLines = 1, TextInputType keyboardType = TextInputType.text, String? errorKey, Widget? suffixIcon, IconData? icon, bool enabled = true}) {
+  Widget _buildTextField(
+    String label,
+    TextEditingController controller,
+    String hint, {
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+    String? errorKey,
+    Widget? suffixIcon,
+    IconData? icon,
+    bool enabled = true,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
     bool hasError = errorKey != null && _fieldErrors.containsKey(errorKey);
     final errorText = hasError ? _fieldErrors[errorKey] : null;
 
     return TranslationBuilder(
-      texts: [label, hint, if (hasError && errorText != null) errorText else ''],
+      texts: [
+        label,
+        hint,
+        if (hasError && errorText != null) errorText else '',
+      ],
       builder: (context, translatedTexts) {
         final translatedLabel = translatedTexts[0];
         final translatedHint = translatedTexts[1];
-        final translatedError = translatedTexts.length > 2 && translatedTexts[2].isNotEmpty ? translatedTexts[2] : errorText;
+        final translatedError =
+            translatedTexts.length > 2 && translatedTexts[2].isNotEmpty
+                ? translatedTexts[2]
+                : errorText;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1721,8 +3386,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             Text(
               translatedLabel,
               style: TextStyle(
-                fontSize: 13, 
-                fontWeight: FontWeight.w700, 
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
                 color: hasError ? Colors.red : const Color(0xFF2C3E50),
                 letterSpacing: 0.2,
               ),
@@ -1733,16 +3398,32 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               enabled: enabled,
               maxLines: maxLines,
               keyboardType: keyboardType,
+              inputFormatters: inputFormatters,
               onChanged: (_) {
                 if (hasError) setState(() => _fieldErrors.remove(errorKey));
               },
-              decoration: _inputDecoration(translatedHint, isError: hasError, icon: icon).copyWith(suffixIcon: suffixIcon),
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: enabled ? null : Colors.grey[700]),
+              decoration: _inputDecoration(
+                translatedHint,
+                isError: hasError,
+                icon: icon,
+              ).copyWith(suffixIcon: suffixIcon),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: enabled ? null : Colors.grey[700],
+              ),
             ),
             if (hasError && translatedError != null)
               Padding(
                 padding: const EdgeInsets.only(top: 6.0, left: 4),
-                child: Text(translatedError, style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w500)),
+                child: Text(
+                  translatedError,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
           ],
         );
@@ -1750,28 +3431,43 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     );
   }
 
-  InputDecoration _inputDecoration(String hint, {bool isError = false, IconData? icon}) {
+  InputDecoration _inputDecoration(
+    String hint, {
+    bool isError = false,
+    IconData? icon,
+  }) {
     return InputDecoration(
       hintText: hint,
-      prefixIcon: icon != null ? Icon(icon, size: 20, color: const Color(0xFF00AA55)) : null,
+      prefixIcon:
+          icon != null
+              ? Icon(icon, size: 20, color: const Color(0xFF00AA55))
+              : null,
       hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide(color: isError ? Colors.red : const Color(0xFFE8F5E9)),
+        borderSide: BorderSide(
+          color: isError ? Colors.red : const Color(0xFFE8F5E9),
+        ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide(color: isError ? Colors.red : const Color(0xFFE8F5E9)),
+        borderSide: BorderSide(
+          color: isError ? Colors.red : const Color(0xFFE8F5E9),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+        borderSide: BorderSide(
+          color: isError ? Colors.red : const Color(0xFF00AA55),
+          width: 1.5,
+        ),
       ),
       filled: true,
       fillColor: const Color(0xFFF9FBF9),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
+
   // Multi-select skills
   List<String> _selectedRoleSkills = [];
 
@@ -1780,10 +3476,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     if (count.isNotEmpty && _selectedRoleSkills.isNotEmpty) {
       int newCount = int.tryParse(count) ?? 0;
       if (newCount <= 0) {
-        UiUtils.showCenteredToast(context, 'Please enter a valid count greater than 0', isError: true);
+        UiUtils.showCenteredToast(
+          context,
+          'Please enter a valid count greater than 0',
+          isError: true,
+        );
         return;
       }
-      
+
       int currentAllocated = 0;
       for (String roleStr in _roleDistributions) {
         final parts = roleStr.split('-');
@@ -1795,22 +3495,33 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         }
       }
 
-      int maxAllowed = _roleGender == 'Male' 
-          ? (int.tryParse(_maleCountController.text) ?? 0)
-          : (int.tryParse(_femaleCountController.text) ?? 0);
+      int maxAllowed =
+          _roleGender == 'Male'
+              ? (int.tryParse(_maleCountController.text) ?? 0)
+              : (int.tryParse(_femaleCountController.text) ?? 0);
 
       if (currentAllocated + newCount > maxAllowed) {
-        UiUtils.showCenteredToast(context, 'Cannot allocate $newCount $_roleGender workers. Max allowed is $maxAllowed, already allocated is $currentAllocated.', isError: true);
+        UiUtils.showCenteredToast(
+          context,
+          'Cannot allocate $newCount $_roleGender workers. Max allowed is $maxAllowed, already allocated is $currentAllocated.',
+          isError: true,
+        );
         return;
       }
 
       setState(() {
-        _roleDistributions.add('$count $_roleGender - ${_selectedRoleSkills.join(", ")}');
+        _roleDistributions.add(
+          '$count $_roleGender - ${_selectedRoleSkills.join(", ")}',
+        );
         _roleCountController.clear();
         _selectedRoleSkills = []; // Reset list
       });
     } else {
-       UiUtils.showCenteredToast(context, 'Please enter count and select at least one skill', isError: true);
+      UiUtils.showCenteredToast(
+        context,
+        'Please enter count and select at least one skill',
+        isError: true,
+      );
     }
   }
 
@@ -1826,29 +3537,33 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               title: const Text('Select Skills'),
               content: SingleChildScrollView(
                 child: ListBody(
-                  children: _farmSkills.map((skill) {
-                    return CheckboxListTile(
-                      value: tempSelectedSkills.contains(skill),
-                      title: Text(skill),
-                      controlAffinity: ListTileControlAffinity.leading,
-                      activeColor: const Color(0xFF00AA55),
-                      onChanged: (bool? checked) {
-                        setStateDialog(() {
-                          if (checked == true) {
-                            tempSelectedSkills.add(skill);
-                          } else {
-                            tempSelectedSkills.remove(skill);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
+                  children:
+                      _farmSkills.map((skill) {
+                        return CheckboxListTile(
+                          value: tempSelectedSkills.contains(skill),
+                          title: Text(skill),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          activeColor: const Color(0xFF00AA55),
+                          onChanged: (bool? checked) {
+                            setStateDialog(() {
+                              if (checked == true) {
+                                tempSelectedSkills.add(skill);
+                              } else {
+                                tempSelectedSkills.remove(skill);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
                 ),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ),
                 TextButton(
                   onPressed: () {
@@ -1857,7 +3572,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                     });
                     Navigator.pop(context);
                   },
-                  child: const Text('Done', style: TextStyle(color: Color(0xFF00AA55))),
+                  child: const Text(
+                    'Done',
+                    style: TextStyle(color: Color(0xFF00AA55)),
+                  ),
                 ),
               ],
             );
@@ -1886,16 +3604,16 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.3),
         ),
         const SizedBox(height: 20),
-        
+
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               flex: 1,
               child: _buildTextField(
-                'Count', 
-                _roleCountController, 
-                'e.g. 5', 
+                'Count',
+                _roleCountController,
+                'e.g. 5',
                 keyboardType: TextInputType.number,
               ),
             ),
@@ -1908,8 +3626,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   const Text(
                     'Gender',
                     style: TextStyle(
-                      fontSize: 13, 
-                      fontWeight: FontWeight.w700, 
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                       color: Color(0xFF2C3E50),
                       letterSpacing: 0.2,
                     ),
@@ -1918,11 +3636,21 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   DropdownButtonFormField<String>(
                     value: _roleGender,
                     decoration: _inputDecoration(''),
-                    items: ['Male', 'Female']
-                        .map((t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(t, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500))))
-                        .toList(),
+                    items:
+                        ['Male', 'Female']
+                            .map(
+                              (t) => DropdownMenuItem(
+                                value: t,
+                                child: Text(
+                                  t,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
                     onChanged: (v) => setState(() => _roleGender = v!),
                   ),
                 ],
@@ -1931,15 +3659,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           ],
         ),
         const SizedBox(height: 20),
-        
+
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'Select Skills / Tasks',
               style: TextStyle(
-                fontSize: 13, 
-                fontWeight: FontWeight.w700, 
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
                 color: Color(0xFF2C3E50),
                 letterSpacing: 0.2,
               ),
@@ -1950,12 +3678,21 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               borderRadius: BorderRadius.circular(15),
               child: InputDecorator(
                 decoration: _inputDecoration('Select Skills').copyWith(
-                  suffixIcon: const Icon(Icons.arrow_drop_down_rounded, size: 28, color: Colors.grey),
+                  suffixIcon: const Icon(
+                    Icons.arrow_drop_down_rounded,
+                    size: 28,
+                    color: Colors.grey,
+                  ),
                 ),
                 child: Text(
-                  _selectedRoleSkills.isEmpty ? 'Tap to select skills' : _selectedRoleSkills.join(', '),
+                  _selectedRoleSkills.isEmpty
+                      ? 'Tap to select skills'
+                      : _selectedRoleSkills.join(', '),
                   style: TextStyle(
-                    color: _selectedRoleSkills.isEmpty ? Colors.grey[400] : Colors.black87,
+                    color:
+                        _selectedRoleSkills.isEmpty
+                            ? Colors.grey[400]
+                            : Colors.black87,
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1967,18 +3704,26 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           ],
         ),
         const SizedBox(height: 20),
-        
+
         Align(
           alignment: Alignment.centerRight,
           child: ElevatedButton.icon(
             onPressed: _addRoleDistribution,
             icon: const Icon(Icons.add, size: 18, color: Colors.white),
-            label: const Text('Add Role', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            label: const Text(
+              'Add Role',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF00AA55),
               minimumSize: const Size(120, 44),
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
               elevation: 0,
             ),
           ),
@@ -1995,40 +3740,54 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _roleDistributions.map((item) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6.0),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 4.0),
-                        child: Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF00AA55)),
+              children:
+                  _roleDistributions.map((item) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6.0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4.0),
+                            child: Icon(
+                              Icons.check_circle_rounded,
+                              size: 16,
+                              color: Color(0xFF00AA55),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              item,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF2C3E50),
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: () {
+                              setState(() {
+                                _roleDistributions.remove(item);
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(12),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4.0),
+                              child: Icon(
+                                Icons.delete_outline_rounded,
+                                size: 18,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          item, 
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF2C3E50), height: 1.3),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            _roleDistributions.remove(item);
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: const Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red),
-                        ),
-                      )
-                    ],
-                  ),
-                );
-              }).toList(),
+                    );
+                  }).toList(),
             ),
           ),
         ],
@@ -2046,8 +3805,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     required String defaultUnit,
     required IconData icon,
   }) {
-    final singularName = categoryTitle.replaceAll('TYPES', '').trim().toLowerCase();
-    final addedHeaderLabel = 'Added ${singularName[0].toUpperCase()}${singularName.substring(1)}s:';
+    final singularName =
+        categoryTitle.replaceAll('TYPES', '').trim().toLowerCase();
+    final addedHeaderLabel =
+        'Added ${singularName[0].toUpperCase()}${singularName.substring(1)}s:';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -2101,9 +3862,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
           // Dropdown
           DropdownButtonFormField<String>(
-            value: dropdownItems.contains(_selectedEquipmentTypeForCap) ? _selectedEquipmentTypeForCap : null,
+            value:
+                dropdownItems.contains(_selectedEquipmentTypeForCap)
+                    ? _selectedEquipmentTypeForCap
+                    : null,
             decoration: _inputDecoration(dropdownLabel, icon: icon),
-            items: dropdownItems.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+            items:
+                dropdownItems
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                    .toList(),
             onChanged: (val) {
               setState(() {
                 _selectedEquipmentTypeForCap = val;
@@ -2177,9 +3944,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 child: ElevatedButton(
                   onPressed: () {
                     final rawType = _selectedEquipmentTypeForCap;
-                    final typeName = (rawType == 'Others' && _customEquipmentTypeController.text.trim().isNotEmpty)
-                        ? _customEquipmentTypeController.text.trim()
-                        : rawType;
+                    final typeName =
+                        (rawType == 'Others' &&
+                                _customEquipmentTypeController.text
+                                    .trim()
+                                    .isNotEmpty)
+                            ? _customEquipmentTypeController.text.trim()
+                            : rawType;
                     final capVal = _capacityInputController.text.trim();
 
                     if (typeName == null || typeName.isEmpty) {
@@ -2202,7 +3973,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                     final capFormatted = "$capVal $defaultUnit";
                     setState(() {
                       if (_equipmentCapacityMap.containsKey(typeName)) {
-                        if (!_equipmentCapacityMap[typeName]!.contains(capFormatted)) {
+                        if (!_equipmentCapacityMap[typeName]!.contains(
+                          capFormatted,
+                        )) {
                           _equipmentCapacityMap[typeName]!.add(capFormatted);
                         }
                       } else {
@@ -2248,52 +4021,53 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             Wrap(
               spacing: 8,
               runSpacing: 10,
-              children: _equipmentCapacityMap.entries.expand((entry) {
-                final eqType = entry.key;
-                return entry.value.map((capStr) {
-                  final displayLabel = "$eqType - $capStr";
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFC8E6C9)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          displayLabel,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1B5E20),
-                          ),
+              children:
+                  _equipmentCapacityMap.entries.expand((entry) {
+                    final eqType = entry.key;
+                    return entry.value.map((capStr) {
+                      final displayLabel = "$eqType - $capStr";
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _equipmentCapacityMap[eqType]!.remove(capStr);
-                              if (_equipmentCapacityMap[eqType]!.isEmpty) {
-                                _equipmentCapacityMap.remove(eqType);
-                              }
-                            });
-                          },
-                          child: const Icon(
-                            Icons.cancel,
-                            size: 18,
-                            color: Color(0xFF00AA55),
-                          ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFC8E6C9)),
                         ),
-                      ],
-                    ),
-                  );
-                });
-              }).toList(),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              displayLabel,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1B5E20),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _equipmentCapacityMap[eqType]!.remove(capStr);
+                                  if (_equipmentCapacityMap[eqType]!.isEmpty) {
+                                    _equipmentCapacityMap.remove(eqType);
+                                  }
+                                });
+                              },
+                              child: const Icon(
+                                Icons.cancel,
+                                size: 18,
+                                color: Color(0xFF00AA55),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    });
+                  }).toList(),
             ),
           ],
         ],

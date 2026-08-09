@@ -26,6 +26,8 @@ class BookTransportDetailScreen extends StatefulWidget {
   final String? ownerProfileImage;
   final String? description;
   final String? vehicleNumber;
+  final String? serviceArea;
+  final int? jobsCompleted;
 
   const BookTransportDetailScreen({
     super.key,
@@ -40,6 +42,8 @@ class BookTransportDetailScreen extends StatefulWidget {
     this.ownerProfileImage,
     this.description,
     this.vehicleNumber,
+    this.serviceArea,
+    this.jobsCompleted,
   });
 
   @override
@@ -52,8 +56,8 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   String? get _selectedGoodsType => _goodsTypeController.text.trim().isEmpty ? null : _goodsTypeController.text.trim();
   bool _isKmWise = false;
   bool _isTrolleyHalfDay = false; // For Tractor Trolley: false = Full Day, true = Half Day
-  bool _includeDriver = true;
-  final TextEditingController _kmController = TextEditingController(text: '10');
+  late bool _includeDriver;
+  final TextEditingController _kmController = TextEditingController();
 
   DateTime? _selectedDate;
   final TextEditingController _addressController = TextEditingController();
@@ -217,6 +221,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   void initState() {
     super.initState();
     _includeDriver = widget.driverIncluded != false;
+    _liveJobsCompleted = widget.jobsCompleted ?? 0;
     // Default to Daily-wise if available, otherwise KM-wise
     if (widget.vehicleType == 'Mini Truck' || widget.vehicleType == 'Truck' || widget.rate <= 0) {
       _isKmWise = true;
@@ -228,7 +233,10 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     }
     _loadAddress();
     _fetchAssetBookings();
+    _kmController.addListener(() => setState(() {}));
   }
+
+  int _liveJobsCompleted = 0;
 
   Future<void> _fetchAssetBookings() async {
     setState(() {
@@ -237,8 +245,17 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     try {
       final response = await ApiService().getAssetBookings(widget.assetId);
       final List<dynamic> data = response as List<dynamic>;
+      int completedCount = data.where((b) {
+        final st = (b['status'] ?? '').toString().toUpperCase();
+        return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+      }).length;
       setState(() {
         _existingBookings = data.map((json) => BookingDTO.fromJson(json)).toList();
+        if (completedCount > _liveJobsCompleted || _liveJobsCompleted == 0) {
+          _liveJobsCompleted = (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
+              ? widget.jobsCompleted!
+              : completedCount;
+        }
       });
     } catch (e) {
       debugPrint("Error fetching bookings: $e");
@@ -376,17 +393,17 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   double get _totalPrice {
     double base = 0.0;
     if (widget.vehicleType == 'Tractor Trolley') {
-      // Half day uses pricePerKm field, Full day uses rate
       base = _isTrolleyHalfDay ? (widget.pricePerKm ?? widget.rate / 2) : widget.rate;
     } else if (_isKmWise) {
-      final double kmVal = double.tryParse(_kmController.text) ?? 0.0;
+      final double kmVal = double.tryParse(_kmController.text.trim()) ?? 0.0;
+      if (kmVal <= 0) return 0.0; // No price until distance is entered
       final double rateKm = widget.pricePerKm ?? 20.0;
       base = rateKm * kmVal;
     } else {
       base = widget.rate * _selectedSlots.length;
     }
     if (_includeDriver) {
-      base += widget.driverPrice ?? 300.0;
+      base += widget.driverPrice ?? 0.0;
     }
     return base;
   }
@@ -423,18 +440,51 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
 
   void _confirmBooking() async {
-    bool hasValidPrice = _totalPrice > 0;
-    bool requirementsMet = false;
-    if (_isKmWise) {
-      requirementsMet = _selectedGoodsType != null && _selectedDate != null && _selectedSlots.isNotEmpty && _addressController.text.isNotEmpty && _kmController.text.isNotEmpty && hasValidPrice;
-    } else {
-      requirementsMet = _selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty && hasValidPrice;
+    setState(() {
+      _fieldErrors.clear();
+    });
+
+    if (_selectedDate == null) {
+      UiUtils.showCenteredToast(context, 'Please select a date', isError: true);
+      _scrollToField(_timeSectionKey);
+      return;
     }
 
-    if (requirementsMet) {
-      setState(() {
-        _isSubmitting = true;
-      });
+    if (_selectedSlots.isEmpty) {
+      UiUtils.showCenteredToast(context, 'Please select at least one time slot', isError: true);
+      _scrollToField(_timeSectionKey);
+      return;
+    }
+
+    if (_selectedGoodsType == null) {
+      setState(() => _fieldErrors['goods'] = 'Please select goods type');
+      _scrollToField(_goodsSectionKey);
+      return;
+    }
+
+    if (_addressController.text.trim().isEmpty) {
+      setState(() => _fieldErrors['address'] = 'Please enter delivery location');
+      _scrollToField(_addressSectionKey);
+      return;
+    }
+
+    if (_isKmWise) {
+      final double kmVal = double.tryParse(_kmController.text.trim()) ?? 0.0;
+      if (kmVal <= 0) {
+        setState(() => _fieldErrors['km'] = 'Please enter a distance greater than 0');
+        _scrollToField(_timeSectionKey);
+        return;
+      }
+    }
+
+    if (_totalPrice <= 0) {
+      UiUtils.showCenteredToast(context, 'Total price cannot be zero. Please check details.', isError: true);
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
       // Save address
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_address', _addressController.text);
@@ -511,40 +561,6 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         });
         UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
       }
-    } else {
-      if (_selectedGoodsType != null && _selectedSlots.isNotEmpty && _selectedDate != null && _addressController.text.isNotEmpty && !hasValidPrice) {
-        UiUtils.showCenteredToast(context, 'Total price cannot be zero. Cannot book without cost info.', isError: true);
-        return;
-      }
-      setState(() {
-        _fieldErrors.clear();
-        if (_selectedGoodsType == null) {
-          _fieldErrors['goods'] = AppLocalizations.of(context)!.selectGoodsTypeError;
-        }
-        if (_addressController.text.isEmpty) {
-          _fieldErrors['address'] = 'Please enter address';
-        }
-        if (_selectedDate == null) {
-          _fieldErrors['date'] = AppLocalizations.of(context)!.selectDateError;
-        }
-        if (_selectedSlots.isEmpty) {
-          _fieldErrors['slots'] = 'Please select at least one time slot';
-        }
-      });
-
-      // Scroll to first error
-      if (_fieldErrors.containsKey('goods')) {
-        _scrollToField(_goodsSectionKey);
-      } else if (_fieldErrors.containsKey('address')) {
-        _scrollToField(_addressSectionKey);
-      } else if (_fieldErrors.containsKey('date')) {
-        _scrollToField(_dateSectionKey);
-      } else if (_fieldErrors.containsKey('slots')) {
-        _scrollToField(_timeSectionKey);
-      }
-
-      UiUtils.showCenteredToast(context, AppLocalizations.of(context)!.fillAllDetails, isError: true);
-    }
   }
 
   @override
@@ -664,6 +680,18 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                                   ),
                                 ),
                               ],
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF3E5F5),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$_liveJobsCompleted Jobs Done',
+                                  style: const TextStyle(color: Colors.purple, fontSize: 11, fontWeight: FontWeight.w800),
+                                ),
+                              ),
                             ],
                           ),
                        ],
@@ -672,7 +700,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                 ],
               ),
              ),
-             _buildListingDetailsCard(widget.description, widget.vehicleNumber),
+             _buildListingDetailsCard(widget.description, widget.vehicleNumber, widget.serviceArea),
              const SizedBox(height: 24),
              // Pricing Mode for Tractor Trolley: Full Day / Half Day
              if (widget.vehicleType == 'Tractor Trolley') ...[
@@ -1176,27 +1204,28 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                       keyboardType: TextInputType.number,
                     ),
                     const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: const Color(0xFFC8E6C9)),
+                    if ((double.tryParse(_kmController.text.trim()) ?? 0) > 0)
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: const Color(0xFFC8E6C9)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Estimated Price:',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20)),
+                            ),
+                            Text(
+                              '₹${_totalPrice.toStringAsFixed(0)}',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF00AA55)),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Estimated Price:',
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20)),
-                          ),
-                          Text(
-                            '₹${_totalPrice.toStringAsFixed(0)}',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF00AA55)),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ],
               ),
@@ -1326,6 +1355,8 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         filled: true,
         fillColor: const Color(0xFFF9FBF9),
         contentPadding: const EdgeInsets.all(16),
+        errorText: hasError ? _fieldErrors[errorKey] : null,
+        errorStyle: const TextStyle(fontWeight: FontWeight.w600, color: Colors.red),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
@@ -1334,6 +1365,14 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
           borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Colors.red, width: 1.5),
         ),
       ),
     );
@@ -1394,7 +1433,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     );
   }
 
-  Widget _buildListingDetailsCard(String? description, String? number) {
+  Widget _buildListingDetailsCard(String? description, String? number, String? serviceArea) {
     return Container(
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.all(24),
@@ -1426,6 +1465,20 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
             ],
           ),
           const SizedBox(height: 20),
+          if (serviceArea != null && serviceArea.trim().isNotEmpty) ...[
+            Text(
+              'SERVICE AREA',
+              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              serviceArea,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+            ),
+            const SizedBox(height: 16),
+            Divider(color: Colors.grey[100], height: 1),
+            const SizedBox(height: 16),
+          ],
           if (number != null && number.trim().isNotEmpty) ...[
             Text(
               'VEHICLE NUMBER',
@@ -1446,7 +1499,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            description ?? 'Comfortable and reliable transport logistics description.',
+            (description != null && description.trim().isNotEmpty) ? description : 'Comfortable and reliable transport logistics description.',
             style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w600, height: 1.5),
           ),
         ],

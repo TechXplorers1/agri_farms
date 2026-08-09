@@ -97,28 +97,17 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
     
     setState(() => _isLoading = true);
     try {
-      final response = await OTPWidget.sendOTP({
-        'identifier': '91' + widget.mobileNumber,
-      });
+      await ApiService().sendMsg91Otp(phoneNumber: widget.mobileNumber);
       
-      if (response != null && response['type'] == 'success') {
-        final String newReqId = response['message']?.toString() ?? '';
-        setState(() {
-          _currentVerificationId = newReqId;
-        });
-        _startTimer();
-        if (mounted) {
-          setState(() => _isLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Verification code resent successfully.'),
-              backgroundColor: Color(0xFF00AA55),
-            ),
-          );
-        }
-      } else {
-        final errorMsg = response != null ? (response['message'] ?? 'Failed to send OTP') : 'Failed to send OTP';
-        throw Exception(errorMsg);
+      _startTimer();
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Verification code resent successfully.'),
+            backgroundColor: Color(0xFF00AA55),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {

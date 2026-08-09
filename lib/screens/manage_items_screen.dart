@@ -5,9 +5,14 @@ import 'edit_registered_item_screen.dart';
 import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
 
+/// Mode controls which tabs are shown:
+/// 'rentals'  → Vehicles + Equipment
+/// 'services' → Services + Workers
+/// null / unset → all 4 tabs (used by My Registered Items menu entry)
 class ManageItemsScreen extends StatefulWidget {
   final int initialTabIndex;
-  const ManageItemsScreen({super.key, this.initialTabIndex = 0});
+  final String? mode; // 'rentals' | 'services' | null (all)
+  const ManageItemsScreen({super.key, this.initialTabIndex = 0, this.mode});
 
   @override
   State<ManageItemsScreen> createState() => _ManageItemsScreenState();
@@ -18,11 +23,15 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
   String? _userId;
   bool _isLoading = true;
   bool _isInitialLoading = true;
+  bool _showSpinner = false;
 
   List<dynamic> _vehicles = [];
   List<dynamic> _equipment = [];
   List<dynamic> _services = [];
   List<dynamic> _workerGroups = [];
+
+  bool get _isRentalsMode => widget.mode == 'rentals';
+  bool get _isServicesMode => widget.mode == 'services';
 
   @override
   void initState() {
@@ -31,34 +40,67 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
   }
 
   Future<void> _fetchItems() async {
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted && _isLoading && _isInitialLoading) {
+        setState(() => _showSpinner = true);
+      }
+    });
+
     try {
       final prefs = await SharedPreferences.getInstance();
       _userId = prefs.getString('user_id');
 
       if (_userId != null) {
-        final results = await Future.wait([
-          _apiService.getVehicles(ownerId: _userId),
-          _apiService.getEquipment(ownerId: _userId),
-          _apiService.getServices(ownerId: _userId),
-          _apiService.getWorkerGroups(ownerId: _userId),
-        ]);
-
-        if (mounted) {
-          setState(() {
-            _vehicles = results[0] as List<dynamic>? ?? [];
-            _equipment = results[1] as List<dynamic>? ?? [];
-            _services = results[2] as List<dynamic>? ?? [];
-            _workerGroups = results[3] as List<dynamic>? ?? [];
-          });
+        if (_isRentalsMode) {
+          // Only fetch vehicles + equipment for Rentals screen
+          final results = await Future.wait([
+            _apiService.getVehicles(ownerId: _userId).catchError((_) => <dynamic>[]),
+            _apiService.getEquipment(ownerId: _userId).catchError((_) => <dynamic>[]),
+          ]);
+          if (mounted) {
+            setState(() {
+              _vehicles = results[0] as List<dynamic>? ?? [];
+              _equipment = results[1] as List<dynamic>? ?? [];
+            });
+          }
+        } else if (_isServicesMode) {
+          // Only fetch services + workers for Services screen
+          final results = await Future.wait([
+            _apiService.getServices(ownerId: _userId).catchError((_) => <dynamic>[]),
+            _apiService.getWorkerGroups(ownerId: _userId).catchError((_) => <dynamic>[]),
+          ]);
+          if (mounted) {
+            setState(() {
+              _services = results[0] as List<dynamic>? ?? [];
+              _workerGroups = results[1] as List<dynamic>? ?? [];
+            });
+          }
+        } else {
+          // All mode — fetch everything (used by My Registered Items)
+          final results = await Future.wait([
+            _apiService.getVehicles(ownerId: _userId).catchError((_) => <dynamic>[]),
+            _apiService.getEquipment(ownerId: _userId).catchError((_) => <dynamic>[]),
+            _apiService.getServices(ownerId: _userId).catchError((_) => <dynamic>[]),
+            _apiService.getWorkerGroups(ownerId: _userId).catchError((_) => <dynamic>[]),
+          ]);
+          if (mounted) {
+            setState(() {
+              _vehicles = results[0] as List<dynamic>? ?? [];
+              _equipment = results[1] as List<dynamic>? ?? [];
+              _services = results[2] as List<dynamic>? ?? [];
+              _workerGroups = results[3] as List<dynamic>? ?? [];
+            });
+          }
         }
       }
     } catch (e) {
-      if (mounted) UiUtils.showCustomAlert(context, 'Failed to load items: $e', isError: true);
+      debugPrint('Failed to load items: $e');
     } finally {
       if (mounted) {
         setState(() {
           _isLoading = false;
           _isInitialLoading = false;
+          _showSpinner = false;
         });
       }
     }
@@ -105,15 +147,65 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
     if (result == true) _fetchItems();
   }
 
+  List<Tab> get _tabs {
+    if (_isRentalsMode) return const [Tab(text: 'Vehicles'), Tab(text: 'Equipment')];
+    if (_isServicesMode) return const [Tab(text: 'Services'), Tab(text: 'Workers')];
+    return const [Tab(text: 'Vehicles'), Tab(text: 'Equipment'), Tab(text: 'Services'), Tab(text: 'Workers')];
+  }
+
+  List<Widget> get _tabViews {
+    if (_isRentalsMode) {
+      return [
+        _buildList(_vehicles, 'Vehicle', 'vehicleId', (item) => '${item["vehicleType"]}', (item) {
+          final business = item["ownerBusinessName"] ?? item["ownerName"] ?? '';
+          final num = item["vehicleNumber"] ?? "N/A";
+          final price = item["pricePerKmOrTrip"];
+          return '${business.isNotEmpty ? "$business • " : ""}Num: $num • ₹$price';
+        }),
+        _buildList(_equipment, 'Equipment', 'equipmentId', (item) => '${item["brandModel"]}', (item) {
+          final unit = item["category"] == 'Sprayers' ? '/litre' : '/hr';
+          return '${item["ownerBusinessName"] ?? item["ownerName"] ?? "Provider"} • ${item["category"]} • ₹${item["pricePerHour"]}$unit';
+        }),
+      ];
+    }
+    if (_isServicesMode) {
+      return [
+        _buildList(_services, 'Service', 'serviceId', (item) => '${item["serviceType"]}', (item) => '${item["businessName"]} • ₹${item["priceRate"]}'),
+        _buildList(_workerGroups, 'WorkerGroup', 'groupId', (item) => 'Farm Workers', (item) => '${item["groupName"]} • ${item["maleCount"]}M, ${item["femaleCount"]}F'),
+      ];
+    }
+    return [
+      _buildList(_vehicles, 'Vehicle', 'vehicleId', (item) => '${item["vehicleType"]}', (item) {
+        final business = item["ownerBusinessName"] ?? item["ownerName"] ?? '';
+        final num = item["vehicleNumber"] ?? "N/A";
+        final price = item["pricePerKmOrTrip"];
+        return '${business.isNotEmpty ? "$business • " : ""}Num: $num • ₹$price';
+      }),
+      _buildList(_equipment, 'Equipment', 'equipmentId', (item) => '${item["brandModel"]}', (item) {
+        final unit = item["category"] == 'Sprayers' ? '/litre' : '/hr';
+        return '${item["ownerBusinessName"] ?? item["ownerName"] ?? "Provider"} • ${item["category"]} • ₹${item["pricePerHour"]}$unit';
+      }),
+      _buildList(_services, 'Service', 'serviceId', (item) => '${item["serviceType"]}', (item) => '${item["businessName"]} • ₹${item["priceRate"]}'),
+      _buildList(_workerGroups, 'WorkerGroup', 'groupId', (item) => 'Farm Workers', (item) => '${item["groupName"]} • ${item["maleCount"]}M, ${item["femaleCount"]}F'),
+    ];
+  }
+
+  String get _screenTitle {
+    if (_isRentalsMode) return 'My Rentals';
+    if (_isServicesMode) return 'My Services';
+    return 'Manage Assets';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final tabs = _tabs;
     return DefaultTabController(
-      length: 4,
-      initialIndex: widget.initialTabIndex,
+      length: tabs.length,
+      initialIndex: widget.initialTabIndex.clamp(0, tabs.length - 1),
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F7F2),
         appBar: AppBar(
-          title: const Text('Manage Assets', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20))),
+          title: Text(_screenTitle, style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20))),
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
@@ -133,37 +225,27 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
               decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: Colors.grey[100]!, width: 1)),
               ),
-              child: const TabBar(
-                isScrollable: true,
-                labelColor: Color(0xFF00AA55),
-                indicatorColor: Color(0xFF00AA55),
+              child: TabBar(
+                isScrollable: tabs.length > 2,
+                labelColor: const Color(0xFF00AA55),
+                indicatorColor: const Color(0xFF00AA55),
                 indicatorWeight: 3,
-                unselectedLabelColor: Color(0xFF90A4AE),
-                labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 0.3),
-                unselectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                unselectedLabelColor: const Color(0xFF90A4AE),
+                labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, letterSpacing: 0.3),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                 indicatorSize: TabBarIndicatorSize.label,
-                tabs: [
-                  Tab(text: 'Vehicles'),
-                  Tab(text: 'Equipment'),
-                  Tab(text: 'Services'),
-                  Tab(text: 'Workers'),
-                ],
+                tabs: tabs,
               ),
             ),
           ),
         ),
         body: _isLoading && _isInitialLoading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)))
+            ? (_showSpinner ? const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55))) : const SizedBox.shrink())
             : RefreshIndicator(
                 onRefresh: _fetchItems,
                 color: const Color(0xFF00AA55),
                 child: TabBarView(
-                  children: [
-                    _buildList(_vehicles, 'Vehicle', 'vehicleId', (item) => '${item["vehicleType"]}', (item) => 'Num: ${item["vehicleNumber"] ?? "N/A"} • ₹${item["pricePerKmOrTrip"]}'),
-                    _buildList(_equipment, 'Equipment', 'equipmentId', (item) => '${item["brandModel"]}', (item) => '${item["category"]} • ₹${item["pricePerHour"]}/hr'),
-                    _buildList(_services, 'Service', 'serviceId', (item) => '${item["businessName"]}', (item) => '${item["serviceType"]} • ₹${item["priceRate"]}'),
-                    _buildList(_workerGroups, 'WorkerGroup', 'groupId', (item) => '${item["groupName"]}', (item) => '${item["maleCount"]} Men, ${item["femaleCount"]} Women'),
-                  ],
+                  children: _tabViews,
                 ),
               ),
       ),

@@ -558,149 +558,196 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _showManualLocationDialog() async {
     final prefs = await SharedPreferences.getInstance();
-    String tempHNo = prefs.getString('user_hNo') ?? '';
-    String tempStreet = prefs.getString('user_street') ?? '';
-    String tempArea = prefs.getString('user_area') ?? '';
-    String tempMandal = prefs.getString('user_mandal') ?? '';
-    String tempVillage = prefs.getString('user_village') ?? '';
-    String tempDistrict = prefs.getString('user_district') ?? '';
-    String tempState = prefs.getString('user_state') ?? '';
-    String tempPincode = prefs.getString('user_pincode') ?? '';
+    final hNoController = TextEditingController(text: prefs.getString('user_hNo') ?? '');
+    final streetController = TextEditingController(text: prefs.getString('user_street') ?? '');
+    final areaController = TextEditingController(text: prefs.getString('user_area') ?? '');
+    final villageController = TextEditingController(text: prefs.getString('user_village') ?? '');
+    final mandalController = TextEditingController(text: prefs.getString('user_mandal') ?? '');
+    final districtController = TextEditingController(text: prefs.getString('user_district') ?? '');
+    final stateController = TextEditingController(text: prefs.getString('user_state') ?? '');
+    final pincodeController = TextEditingController(text: prefs.getString('user_pincode') ?? '');
+
+    final formKey = GlobalKey<FormState>();
 
     if (!mounted) return;
-    showDialog(
+    await showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(AppTranslations.translate(context, 'chooseLocation'), style: const TextStyle(fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'H.No / Flat No', 
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+            child: Form(
+              key: formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: hNoController,
+                    decoration: InputDecoration(
+                      labelText: 'H.No / Flat No', 
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                    ),
                   ),
-                  controller: TextEditingController(text: tempHNo),
-                  onChanged: (val) => tempHNo = val,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Street Name', 
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: streetController,
+                    decoration: InputDecoration(
+                      labelText: 'Street Name', 
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                    ),
                   ),
-                  controller: TextEditingController(text: tempStreet),
-                  onChanged: (val) => tempStreet = val,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Area Name', 
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: areaController,
+                    decoration: InputDecoration(
+                      labelText: 'Area Name', 
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                    ),
                   ),
-                  controller: TextEditingController(text: tempArea),
-                  onChanged: (val) => tempArea = val,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: AppTranslations.translate(context, 'village'), 
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: villageController,
+                    decoration: InputDecoration(
+                      labelText: AppTranslations.translate(context, 'village'), 
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Village is required';
+                      }
+                      return null;
+                    },
                   ),
-                  controller: TextEditingController(text: tempVillage),
-                  onChanged: (val) => tempVillage = val,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Mandal', 
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: mandalController,
+                    decoration: InputDecoration(
+                      labelText: 'Mandal', 
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Mandal is required';
+                      }
+                      return null;
+                    },
                   ),
-                  controller: TextEditingController(text: tempMandal),
-                  onChanged: (val) => tempMandal = val,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: AppTranslations.translate(context, 'district'), 
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: districtController,
+                    decoration: InputDecoration(
+                      labelText: AppTranslations.translate(context, 'district'), 
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'District is required';
+                      }
+                      return null;
+                    },
                   ),
-                  controller: TextEditingController(text: tempDistrict),
-                  onChanged: (val) => tempDistrict = val,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'State', 
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: stateController,
+                    decoration: InputDecoration(
+                      labelText: 'State', 
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'State is required';
+                      }
+                      return null;
+                    },
                   ),
-                  controller: TextEditingController(text: tempState),
-                  onChanged: (val) => tempState = val,
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: InputDecoration(
-                    labelText: 'Pincode', 
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: pincodeController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Pincode', 
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))
+                    ),
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Pincode is required';
+                      }
+                      final pin = val.trim();
+                      if (pin.length != 6 || int.tryParse(pin) == null) {
+                        return 'Please enter a valid 6-digit Pincode';
+                      }
+                      return null;
+                    },
                   ),
-                  controller: TextEditingController(text: tempPincode),
-                  onChanged: (val) => tempPincode = val,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(AppTranslations.translate(context, 'cancel'))),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext), 
+              child: Text(AppTranslations.translate(context, 'cancel'))
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _primaryGreen, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryGreen, 
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
+              ),
               onPressed: () async {
-                if (tempVillage.trim().isNotEmpty && tempDistrict.trim().isNotEmpty) {
+                if (formKey.currentState!.validate()) {
+                  final String hNo = hNoController.text.trim();
+                  final String street = streetController.text.trim();
+                  final String area = areaController.text.trim();
+                  final String village = villageController.text.trim();
+                  final String mandal = mandalController.text.trim();
+                  final String district = districtController.text.trim();
+                  final String state = stateController.text.trim();
+                  final String pincode = pincodeController.text.trim();
+
                   final List<String> addressParts = [];
-                  if (tempHNo.trim().isNotEmpty) addressParts.add(tempHNo.trim());
-                  if (tempStreet.trim().isNotEmpty) addressParts.add(tempStreet.trim());
-                  if (tempArea.trim().isNotEmpty) addressParts.add(tempArea.trim());
-                  if (tempMandal.trim().isNotEmpty) addressParts.add(tempMandal.trim());
-                  if (tempVillage.trim().isNotEmpty) addressParts.add(tempVillage.trim());
-                  if (tempDistrict.trim().isNotEmpty) addressParts.add(tempDistrict.trim());
-                  if (tempState.trim().isNotEmpty) addressParts.add(tempState.trim());
-                  if (tempPincode.trim().isNotEmpty) addressParts.add(tempPincode.trim());
+                  if (hNo.isNotEmpty) addressParts.add(hNo);
+                  if (street.isNotEmpty) addressParts.add(street);
+                  if (area.isNotEmpty) addressParts.add(area);
+                  if (village.isNotEmpty) addressParts.add(village);
+                  if (mandal.isNotEmpty) addressParts.add(mandal);
+                  if (district.isNotEmpty) addressParts.add(district);
+                  if (state.isNotEmpty) addressParts.add(state);
+                  if (pincode.isNotEmpty) addressParts.add(pincode);
 
                   final String combinedAddress = addressParts.join(', ');
                   setState(() => _userLocation = combinedAddress);
 
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.setString('user_hNo', tempHNo.trim());
-                  await prefs.setString('user_street', tempStreet.trim());
-                  await prefs.setString('user_area', tempArea.trim());
-                  await prefs.setString('user_mandal', tempMandal.trim());
-                  await prefs.setString('user_village', tempVillage.trim());
-                  await prefs.setString('user_district', tempDistrict.trim());
-                  await prefs.setString('user_state', tempState.trim());
-                  await prefs.setString('user_pincode', tempPincode.trim());
+                  await prefs.setString('user_hNo', hNo);
+                  await prefs.setString('user_street', street);
+                  await prefs.setString('user_area', area);
+                  await prefs.setString('user_village', village);
+                  await prefs.setString('user_mandal', mandal);
+                  await prefs.setString('user_district', district);
+                  await prefs.setString('user_state', state);
+                  await prefs.setString('user_pincode', pincode);
 
                   final userId = prefs.getString('user_id');
                   if (userId != null && userId.isNotEmpty) {
                     try {
                       await ApiService().updateUser(userId, {
-                        'houseNo': tempHNo.trim(),
-                        'street': tempStreet.trim(),
-                        'mandal': tempMandal.trim(),
-                        'village': tempVillage.trim(),
-                        'district': tempDistrict.trim(),
-                        'state': tempState.trim(),
-                        'pincode': tempPincode.trim(),
+                        'houseNo': hNo,
+                        'street': street,
+                        'area': area,
+                        'village': village,
+                        'mandal': mandal,
+                        'district': district,
+                        'state': state,
+                        'pincode': pincode,
                       });
                     } catch (e) {
                       debugPrint('Error updating user location: $e');
                     }
                   }
 
-                  if (context.mounted) Navigator.pop(context);
-                } else {
-                  UiUtils.showCenteredToast(context, 'Village and District are required');
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
                 }
               },
               child: Text(AppTranslations.translate(context, 'save'), style: const TextStyle(color: Colors.white)),
@@ -709,6 +756,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         );
       },
     );
+
+    hNoController.dispose();
+    streetController.dispose();
+    areaController.dispose();
+    villageController.dispose();
+    mandalController.dispose();
+    districtController.dispose();
+    stateController.dispose();
+    pincodeController.dispose();
   }
 
   @override
@@ -872,7 +928,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         controller: _searchController,
         decoration: InputDecoration(
           hintText: AppLocalizations.of(context)!.searchHint,
-          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.w600),
           prefixIcon: Icon(Icons.search, color: Colors.grey[400], size: 22),
           suffixIcon: _searchQuery.isNotEmpty
               ? GestureDetector(onTap: () { _searchController.clear(); }, child: Icon(Icons.close, color: Colors.grey[400], size: 20))

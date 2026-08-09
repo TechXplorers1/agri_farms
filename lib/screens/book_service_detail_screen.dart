@@ -33,6 +33,7 @@ class BookServiceDetailScreen extends StatefulWidget {
   final String? equipmentName;
   final bool? operatorIncluded;
   final double? operatorPrice;
+  final int? jobsCompleted;
 
   const BookServiceDetailScreen({
     super.key,
@@ -47,6 +48,7 @@ class BookServiceDetailScreen extends StatefulWidget {
     this.equipmentName,
     this.operatorIncluded,
     this.operatorPrice,
+    this.jobsCompleted,
   });
 
   @override
@@ -68,6 +70,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
   );
   final TextEditingController _pincodeController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController();
+  bool _isHarvestingHalfDay = false;
   String? _selectedCropType;
   final TextEditingController _customCropTypeController = TextEditingController();
   final List<String> _cropOptions = [
@@ -381,12 +384,15 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     } else {
       _includeOperator = widget.operatorIncluded ?? true;
     }
+    _liveJobsCompleted = widget.jobsCompleted ?? 0;
     _loadAddress();
     _fetchAssetBookings();
     _quantityController.addListener(() {
       if (mounted) setState(() {});
     });
   }
+
+  int _liveJobsCompleted = 0;
 
   Future<void> _fetchAssetBookings() async {
     setState(() {
@@ -395,9 +401,18 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     try {
       final response = await ApiService().getAssetBookings(widget.assetId);
       final List<dynamic> data = response as List<dynamic>;
+      int completedCount = data.where((b) {
+        final st = (b['status'] ?? '').toString().toUpperCase();
+        return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+      }).length;
       setState(() {
         _existingBookings =
             data.map((json) => BookingDTO.fromJson(json)).toList();
+        if (completedCount > _liveJobsCompleted || _liveJobsCompleted == 0) {
+          _liveJobsCompleted = (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
+              ? widget.jobsCompleted!
+              : completedCount;
+        }
       });
     } catch (e) {
       debugPrint("Error fetching bookings: $e");
@@ -783,6 +798,22 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     );
   }
 
+  double get _fullDayHarvestPrice {
+    final match = RegExp(r'([0-9]+(?:\.[0-9]+)?)').firstMatch(widget.priceInfo);
+    if (match != null) {
+      return double.tryParse(match.group(1)!) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  double get _halfDayHarvestPrice {
+    final matches = RegExp(r'([0-9]+(?:\.[0-9]+)?)').allMatches(widget.priceInfo).toList();
+    if (matches.length >= 2) {
+      return double.tryParse(matches[1].group(1)!) ?? (_fullDayHarvestPrice / 2);
+    }
+    return _fullDayHarvestPrice > 0 ? (_fullDayHarvestPrice / 2) : 0.0;
+  }
+
   double get _totalPrice {
     double unitPrice = 0.0;
     try {
@@ -801,9 +832,15 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
     final serviceLower = widget.serviceName.toLowerCase();
     bool isElectrician = serviceLower.contains('electric');
+    bool isHarvesting = serviceLower.contains('harvest');
 
     if (isElectrician) {
       return effectiveRate;
+    }
+
+    if (isHarvesting) {
+      double rate = _isHarvestingHalfDay ? _halfDayHarvestPrice : _fullDayHarvestPrice;
+      return rate + opPrice;
     }
 
     final l10n = AppLocalizations.of(context)!;
@@ -986,21 +1023,11 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       }
 
       if (isPloughing) {
-        if (_selectedPloughEquipmentType != null) {
-          notesMap['Ploughing Equipment Type'] =
-              (_selectedPloughEquipmentType == 'Others' &&
-                      _customPloughEquipmentTypeController.text.isNotEmpty)
-                  ? _customPloughEquipmentTypeController.text
-                  : _selectedPloughEquipmentType;
-        }
-        if (_selectedPloughCapacity != null) {
-          notesMap['Equipment Capacity'] =
-              (_selectedPloughCapacity == 'Custom / Other Capacity' &&
-                      _customPloughCapacityController.text.isNotEmpty)
-                  ? _customPloughCapacityController.text
-                  : _selectedPloughCapacity;
+        if (_selectedFarmerHarvestChips.isNotEmpty) {
+          notesMap['Selected Ploughing Equipment'] = _selectedFarmerHarvestChips.join(', ');
         }
       } else if (isHarvesting) {
+        notesMap['Rental Package'] = _isHarvestingHalfDay ? 'Half Day' : 'Full Day';
         if (_selectedFarmerHarvestChips.isNotEmpty) {
           notesMap['Selected Harvesting Equipment'] = _selectedFarmerHarvestChips.join(', ');
         }
@@ -1274,23 +1301,58 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            widget.priceInfo,
-                            style: const TextStyle(
-                              color: Color(0xFF2E7D32),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F5E9),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                widget.priceInfo,
+                                style: const TextStyle(
+                                  color: Color(0xFF2E7D32),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             ),
-                          ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE3F2FD),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.task_alt_rounded,
+                                    size: 14,
+                                    color: Colors.blue,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '$_liveJobsCompleted Jobs Done',
+                                    style: const TextStyle(
+                                      color: Colors.blue,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -1302,6 +1364,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
               widget.description,
               widget.serialNumber,
               widget.equipmentName,
+              _liveJobsCompleted,
             ),
             const SizedBox(height: 24),
 
@@ -1427,55 +1490,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                       ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildDropdownField(
-                            label: 'Ploughing Equipment Type',
-                            hint: 'Choose equipment type (e.g. MB, Rotavator)',
-                            value: _selectedPloughEquipmentType,
-                            items: PloughingData.equipmentTypes,
-                            errorKey: 'purpose',
-                            icon: Icons.agriculture_rounded,
-                            onChanged:
-                                (val) => setState(() {
-                                  _selectedPloughEquipmentType = val;
-                                  _selectedPloughCapacity = null;
-                                }),
-                          ),
-                          if (_selectedPloughEquipmentType == 'Others') ...[
-                            const SizedBox(height: 20),
-                            _buildTextField(
-                              controller: _customPloughEquipmentTypeController,
-                              label: 'Custom Equipment Type',
-                              hint: 'Specify equipment type...',
-                              errorKey: 'custom_eq',
-                              icon: Icons.edit_note_rounded,
-                            ),
-                          ],
-                          const SizedBox(height: 20),
-                          _buildDropdownField(
-                            label: 'Equipment Capacity / Specification',
-                            hint: 'Choose capacity (e.g. 3 Bottom, 42 Blades)',
-                            value: _selectedPloughCapacity,
-                            items: PloughingData.getCapacities(
-                              _selectedPloughEquipmentType,
-                            ),
-                            errorKey: 'asset',
-                            icon: Icons.straighten_rounded,
-                            onChanged:
-                                (val) => setState(
-                                  () => _selectedPloughCapacity = val,
-                                ),
-                          ),
-                          if (_selectedPloughCapacity ==
-                              'Custom / Other Capacity') ...[
-                            const SizedBox(height: 20),
-                            _buildTextField(
-                              controller: _customPloughCapacityController,
-                              label: 'Custom Capacity / Specs',
-                              hint: 'e.g. 5 Bottom Heavy Duty / 75 HP',
-                              errorKey: 'custom_cap',
-                              icon: Icons.tune_rounded,
-                            ),
-                          ],
+                          _buildFarmerEquipmentChipsCard(widget.equipmentName ?? '', 'Ploughing'),
                         ],
                       )
                       : isHarvesting
@@ -1483,6 +1498,105 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildFarmerEquipmentChipsCard(widget.equipmentName ?? '', 'Harvesting'),
+                          const SizedBox(height: 20),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFE8F5E9)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE8F5E9),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(Icons.timer_rounded, color: Color(0xFF00AA55), size: 20),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Text(
+                                      'Select Rental Package',
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () => setState(() => _isHarvestingHalfDay = false),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                                          decoration: BoxDecoration(
+                                            color: !_isHarvestingHalfDay ? const Color(0xFFE8F5E9) : const Color(0xFFF9FBF9),
+                                            borderRadius: BorderRadius.circular(15),
+                                            border: Border.all(
+                                              color: !_isHarvestingHalfDay ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              const Icon(Icons.wb_sunny_rounded, color: Color(0xFF00AA55), size: 22),
+                                              const SizedBox(height: 6),
+                                              const Text(
+                                                'Full Day',
+                                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                '₹${_fullDayHarvestPrice.toStringAsFixed(0)}',
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: () => setState(() => _isHarvestingHalfDay = true),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                                          decoration: BoxDecoration(
+                                            color: _isHarvestingHalfDay ? const Color(0xFFE8F5E9) : const Color(0xFFF9FBF9),
+                                            borderRadius: BorderRadius.circular(15),
+                                            border: Border.all(
+                                              color: _isHarvestingHalfDay ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              const Icon(Icons.wb_twilight_rounded, color: Color(0xFF00AA55), size: 22),
+                                              const SizedBox(height: 6),
+                                              const Text(
+                                                'Half Day',
+                                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                '₹${_halfDayHarvestPrice.toStringAsFixed(0)}',
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                           const SizedBox(height: 20),
                           _buildDropdownField(
                             label: 'Select Crop to Harvest',
@@ -2996,6 +3110,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     String? description,
     String? number,
     String? equipmentName,
+    int? jobsCompletedCount,
   ) {
     return Container(
       margin: const EdgeInsets.only(top: 20),
@@ -3088,6 +3203,33 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
             const SizedBox(height: 16),
           ],
           Text(
+            'JOBS COMPLETED',
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[500],
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.history_rounded, size: 18, color: Color(0xFF00AA55)),
+              const SizedBox(width: 6),
+              Text(
+                '${jobsCompletedCount ?? 0} Jobs Completed',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2C3E50),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Divider(color: Colors.grey[100], height: 1),
+          const SizedBox(height: 16),
+          Text(
             'DESCRIPTION',
             style: TextStyle(
               fontSize: 10,
@@ -3119,6 +3261,8 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
     if (availableEquipments.isEmpty) {
       if (categoryLabel.contains('Sprayer')) {
         availableEquipments = ['Handheld sprayers - 150 L', 'Knapsack sprayers - 456 L'];
+      } else if (categoryLabel.contains('Ploughing')) {
+        availableEquipments = ['Moldboard Plough - 45 HP', 'Rotary Plough (Rotavator) - 75 HP'];
       } else {
         availableEquipments = ['Combine Harvester - 75 HP', 'Paddy Harvester - 14 Ft'];
       }

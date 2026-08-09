@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:agriculture/l10n/app_localizations.dart';
 import '../utils/booking_manager.dart';
 import '../utils/ui_utils.dart';
@@ -28,6 +29,8 @@ class BookEquipmentDetailScreen extends StatefulWidget {
   final String? ownerProfileImage;
   final String? description;
   final String? serialNumber;
+  final List<String>? attachedEquipments;
+  final int? jobsCompleted;
 
   const BookEquipmentDetailScreen({
     super.key,
@@ -41,10 +44,13 @@ class BookEquipmentDetailScreen extends StatefulWidget {
     this.ownerProfileImage,
     this.description,
     this.serialNumber,
+    this.attachedEquipments,
+    this.jobsCompleted,
   });
 
   @override
-  State<BookEquipmentDetailScreen> createState() => _BookEquipmentDetailScreenState();
+  State<BookEquipmentDetailScreen> createState() =>
+      _BookEquipmentDetailScreenState();
 }
 
 class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
@@ -55,21 +61,6 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   int _durationHours = 1;
   bool _includeOperator = false;
   DateTime? _selectedDate;
-  final Set<String> _selectedFarmerHarvestChips = {};
-  String? _selectedCropType;
-  final TextEditingController _customCropTypeController = TextEditingController();
-  final List<String> _cropOptions = [
-    'Paddy (Rice)',
-    'Wheat',
-    'Maize (Corn)',
-    'Sugarcane',
-    'Cotton',
-    'Groundnut',
-    'Pulses',
-    'Sunflower',
-    'Soybean',
-    'Others',
-  ];
 
   // Address Controllers
   final TextEditingController _houseNoController = TextEditingController();
@@ -78,20 +69,29 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   final TextEditingController _mandalController = TextEditingController();
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _stateController = TextEditingController();
-  final TextEditingController _countryController = TextEditingController(text: 'India');
+  final TextEditingController _countryController = TextEditingController(
+    text: 'India',
+  );
   final TextEditingController _pincodeController = TextEditingController();
   double? _detectedLat;
   double? _detectedLng;
   bool _isGeocodingAddress = false;
 
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _customCropTypeController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final Map<String, String?> _fieldErrors = {};
-  
+
   // GlobalKeys for scrolling
   final GlobalKey _addressSectionKey = GlobalKey();
   final GlobalKey _dateSectionKey = GlobalKey();
   final GlobalKey _timeSectionKey = GlobalKey();
+
+  List<String> _selectedEquipments = [];
+  String? _selectedCapacity;
+  List<String> _displaySprayerTypes = [];
+  Map<String, List<String>> _availableSprayerCapacities = {};
+
   List<BookingDTO> _existingBookings = [];
   bool _isLoadingBookings = false;
   bool _isSubmitting = false;
@@ -142,9 +142,37 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   void initState() {
     super.initState();
     _includeOperator = widget.operatorAvailable;
+    _liveJobsCompleted = widget.jobsCompleted ?? 0;
     _loadAddress();
     _fetchAssetBookings();
+
+    if (widget.equipmentType.contains('Sprayer') &&
+        widget.attachedEquipments != null) {
+      for (var eq in widget.attachedEquipments!) {
+        String typeName = eq.trim();
+        List<String> caps = [];
+        final match = RegExp(r'\(Capacities:(.*?)\)').firstMatch(typeName);
+        if (match != null) {
+          typeName = typeName.split('(Capacities:').first.trim();
+          if (match.group(1) != null) {
+            caps =
+                match
+                    .group(1)!
+                    .split(',')
+                    .map((e) => e.replaceAll('L', '').trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList();
+          }
+        }
+        _displaySprayerTypes.add(typeName);
+        if (caps.isNotEmpty) {
+          _availableSprayerCapacities[typeName] = caps;
+        }
+      }
+    }
   }
+
+  int _liveJobsCompleted = 0;
 
   Future<void> _fetchAssetBookings() async {
     setState(() {
@@ -153,8 +181,18 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     try {
       final response = await ApiService().getAssetBookings(widget.assetId);
       final List<dynamic> data = response as List<dynamic>;
+      int completedCount = data.where((b) {
+        final st = (b['status'] ?? '').toString().toUpperCase();
+        return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+      }).length;
       setState(() {
-        _existingBookings = data.map((json) => BookingDTO.fromJson(json)).toList();
+        _existingBookings =
+            data.map((json) => BookingDTO.fromJson(json)).toList();
+        if (completedCount > _liveJobsCompleted || _liveJobsCompleted == 0) {
+          _liveJobsCompleted = (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
+              ? widget.jobsCompleted!
+              : completedCount;
+        }
       });
     } catch (e) {
       debugPrint("Error fetching bookings: $e");
@@ -200,9 +238,11 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       if (permission == LocationPermission.deniedForever) {
         throw Exception('Location permissions are permanently denied.');
       }
-      
-      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
       setState(() {
         _detectedLat = position.latitude;
         _detectedLng = position.longitude;
@@ -219,14 +259,23 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
       // 1. Try cross-platform geocoding (nominatim)
       try {
-        final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?lat=${position.latitude}&lon=${position.longitude}&format=json');
-        final responseData = await http.get(url, headers: {'User-Agent': 'AgriFarmsApp/1.0'});
+        final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/reverse?lat=${position.latitude}&lon=${position.longitude}&format=json',
+        );
+        final responseData = await http.get(
+          url,
+          headers: {'User-Agent': 'AgriFarmsApp/1.0'},
+        );
         final response = json.decode(responseData.body);
         if (response != null && response['address'] != null) {
           final addr = response['address'];
           houseNo = addr['house_number'];
           street = addr['road'] ?? addr['suburb'] ?? addr['neighbourhood'];
-          village = addr['suburb'] ?? addr['village'] ?? addr['neighbourhood'] ?? addr['city_district'];
+          village =
+              addr['suburb'] ??
+              addr['village'] ??
+              addr['neighbourhood'] ??
+              addr['city_district'];
           district = addr['district'] ?? addr['city'] ?? addr['county'];
           state = addr['state'];
           pincode = addr['postcode'];
@@ -238,20 +287,27 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       }
 
       // 2. Fallback to mobile-specific safely
-      final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+      final isMobile =
+          !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.iOS ||
+              defaultTargetPlatform == TargetPlatform.android);
       if (isMobile) {
         try {
-          List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+          List<Placemark> placemarks = await placemarkFromCoordinates(
+            position.latitude,
+            position.longitude,
+          );
           if (placemarks.isNotEmpty) {
             Placemark place = placemarks.first;
             houseNo ??= place.subThoroughfare;
             street ??= place.thoroughfare ?? place.subLocality;
             village ??= place.subLocality ?? place.locality;
-            district ??= place.subAdministrativeArea ?? place.administrativeArea;
+            district ??=
+                place.subAdministrativeArea ?? place.administrativeArea;
             state ??= place.administrativeArea;
             pincode ??= place.postalCode;
             country ??= place.country;
-            
+
             if (exactAddress == null) {
               exactAddress = [
                 place.street,
@@ -260,7 +316,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                 place.subAdministrativeArea,
                 place.administrativeArea,
                 place.postalCode,
-                place.country
+                place.country,
               ].where((part) => part != null && part.isNotEmpty).join(', ');
             }
           }
@@ -281,15 +337,21 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           _countryController.text = country ?? '';
           _pincodeController.text = pincode ?? '';
         });
-        
+
         UiUtils.showCenteredToast(
-          context, 
-          'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}'
+          context,
+          'Location detected: $exactAddress\nCoords: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}',
         );
-        if (_fieldErrors.containsKey('address')) setState(() => _fieldErrors.remove('address'));
+        if (_fieldErrors.containsKey('address'))
+          setState(() => _fieldErrors.remove('address'));
       }
     } catch (e) {
-      if (mounted) UiUtils.showCenteredToast(context, 'Could not fetch location: $e', isError: true);
+      if (mounted)
+        UiUtils.showCenteredToast(
+          context,
+          'Could not fetch location: $e',
+          isError: true,
+        );
     } finally {
       if (mounted) setState(() => _isFetchingLocation = false);
     }
@@ -302,18 +364,26 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         _districtController.text.isEmpty &&
         _stateController.text.isEmpty &&
         _pincodeController.text.isEmpty) {
-      UiUtils.showCenteredToast(context, 'Please enter address details first.', isError: true);
+      UiUtils.showCenteredToast(
+        context,
+        'Please enter address details first.',
+        isError: true,
+      );
       return;
     }
 
     setState(() => _isGeocodingAddress = true);
     try {
-      String fullAddress = "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
-      
+      String fullAddress =
+          "${_houseNoController.text}, ${_streetController.text}, ${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}, ${_pincodeController.text}";
+
       double? lat, lng;
       // 1. Try mobile native geocoding first safely
       try {
-        final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.android);
+        final isMobile =
+            !kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.iOS ||
+                defaultTargetPlatform == TargetPlatform.android);
         if (isMobile) {
           List<Location> locations = await locationFromAddress(fullAddress);
           if (locations.isNotEmpty) {
@@ -327,8 +397,12 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
       // 2. Try Nominatim/Fallback geocoding (Works on Web!)
       if (lat == null || lng == null) {
-        String fallbackAddress = "${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}";
-        final coords = await GeocodingService.getCoordinates(fullAddress, fallbackAddress: fallbackAddress);
+        String fallbackAddress =
+            "${_villageController.text}, ${_districtController.text}, ${_stateController.text}, ${_countryController.text}";
+        final coords = await GeocodingService.getCoordinates(
+          fullAddress,
+          fallbackAddress: fallbackAddress,
+        );
         if (coords != null) {
           lat = coords['latitude'];
           lng = coords['longitude'];
@@ -342,8 +416,8 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         });
         if (mounted) {
           UiUtils.showCenteredToast(
-            context, 
-            'Coordinates resolved successfully!\nCoords: ${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}'
+            context,
+            'Coordinates resolved successfully!\nCoords: ${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}',
           );
         }
       } else {
@@ -364,7 +438,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       if (data != null && data.text != null && data.text!.isNotEmpty) {
         final addressText = data.text!;
         final parts = addressText.split(',').map((e) => e.trim()).toList();
-        
+
         setState(() {
           if (parts.length >= 7) {
             _houseNoController.text = parts[0];
@@ -406,12 +480,23 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             _fieldErrors.remove('address');
           }
         });
-        UiUtils.showCenteredToast(context, 'Address pasted and filled successfully');
+        UiUtils.showCenteredToast(
+          context,
+          'Address pasted and filled successfully',
+        );
       } else {
-        UiUtils.showCenteredToast(context, 'Clipboard is empty or contains non-text content', isError: true);
+        UiUtils.showCenteredToast(
+          context,
+          'Clipboard is empty or contains non-text content',
+          isError: true,
+        );
       }
     } catch (e) {
-      UiUtils.showCenteredToast(context, 'Failed to paste from clipboard', isError: true);
+      UiUtils.showCenteredToast(
+        context,
+        'Failed to paste from clipboard',
+        isError: true,
+      );
     }
   }
 
@@ -425,7 +510,12 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     final country = prefs.getString('user_country') ?? 'India';
     final pincode = prefs.getString('user_pincode') ?? '';
 
-    if (houseNo.isNotEmpty || street.isNotEmpty || village.isNotEmpty || district.isNotEmpty || state.isNotEmpty || pincode.isNotEmpty) {
+    if (houseNo.isNotEmpty ||
+        street.isNotEmpty ||
+        village.isNotEmpty ||
+        district.isNotEmpty ||
+        state.isNotEmpty ||
+        pincode.isNotEmpty) {
       setState(() {
         _houseNoController.text = houseNo;
         _streetController.text = street;
@@ -440,7 +530,11 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       });
       UiUtils.showCenteredToast(context, 'Profile address loaded');
     } else {
-      UiUtils.showCenteredToast(context, 'No profile address saved. Please update in profile page.', isError: true);
+      UiUtils.showCenteredToast(
+        context,
+        'No profile address saved. Please update in profile page.',
+        isError: true,
+      );
     }
   }
 
@@ -472,7 +566,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     // Price calculation based on number of slots (hours)
     // If no slots selected, 0
     if (_selectedSlots.isEmpty) return 0;
-    
+
     double hours = _selectedSlots.length.toDouble();
     double opPrice = widget.operatorPrice ?? 200.0;
     double operatorCost = _includeOperator ? (opPrice * hours) : 0;
@@ -511,9 +605,14 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   // Real Logic: Check if a slot is blocked
   bool _isSlotBlocked(int hour) {
     if (_selectedDate == null) return false;
-    
-    DateTime slotStart = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, hour);
-    DateTime slotEnd = slotStart.add(const Duration(hours: 1)); 
+
+    DateTime slotStart = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      hour,
+    );
+    DateTime slotEnd = slotStart.add(const Duration(hours: 1));
 
     // Block past time slots for today
     if (slotStart.isBefore(DateTime.now())) {
@@ -521,38 +620,49 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     }
 
     for (var booking in _existingBookings) {
-      if (booking.scheduledStartTime != null && booking.scheduledEndTime != null) {
+      if (booking.scheduledStartTime != null &&
+          booking.scheduledEndTime != null) {
         DateTime bStart = booking.scheduledStartTime!.toLocal();
         DateTime bEnd = booking.scheduledEndTime!.toLocal();
-        
+
         Map<String, dynamic> notes = {};
-        try { notes = jsonDecode(booking.notes ?? '{}'); } catch(_){}
-        
+        try {
+          notes = jsonDecode(booking.notes ?? '{}');
+        } catch (_) {}
+
         List<int> bookedHours = [];
         if (notes.containsKey('slots_list')) {
           try {
-            bookedHours = (notes['slots_list'] as List<dynamic>).map((e) => int.parse(e.toString())).toList();
+            bookedHours =
+                (notes['slots_list'] as List<dynamic>)
+                    .map((e) => int.parse(e.toString()))
+                    .toList();
           } catch (_) {}
         }
-        
+
         bool isOccupiedInThisSlot = false;
-        bool isSameDay = bStart.year == slotStart.year &&
-                         bStart.month == slotStart.month &&
-                         bStart.day == slotStart.day;
-                         
+        bool isSameDay =
+            bStart.year == slotStart.year &&
+            bStart.month == slotStart.month &&
+            bStart.day == slotStart.day;
+
         if (isSameDay) {
           if (bookedHours.isNotEmpty) {
             isOccupiedInThisSlot = bookedHours.contains(hour);
           } else {
-            isOccupiedInThisSlot = slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
+            isOccupiedInThisSlot =
+                slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
           }
         }
 
         if (isOccupiedInThisSlot) {
-           final String status = booking.status?.toUpperCase() ?? '';
-           if (status != 'CANCELLED' && status != 'REJECTED' && status != 'COMPLETED' && status != 'FINISHED') {
-             return true;
-           }
+          final String status = booking.status?.toUpperCase() ?? '';
+          if (status != 'CANCELLED' &&
+              status != 'REJECTED' &&
+              status != 'COMPLETED' &&
+              status != 'FINISHED') {
+            return true;
+          }
         }
       }
     }
@@ -561,18 +671,46 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
   void _onSlotTap(int hour) {
     if (_selectedDate == null) {
-      UiUtils.showCenteredToast(context, 'Please select a date first', isError: true);
+      UiUtils.showCenteredToast(
+        context,
+        'Please select a date first',
+        isError: true,
+      );
       return;
     }
     if (_isSlotBlocked(hour)) {
-      UiUtils.showCenteredToast(context, 'This slot is already booked', isError: true);
+      UiUtils.showCenteredToast(
+        context,
+        'This slot is already booked',
+        isError: true,
+      );
       return;
     }
 
     setState(() {
       if (_selectedSlots.contains(hour)) {
+        if (hour != _selectedSlots.first && hour != _selectedSlots.last) {
+          UiUtils.showCustomAlert(
+            context,
+            'Cannot remove a middle slot. If you want to book a split time, you need to make a new booking.',
+            isError: true,
+          );
+          return;
+        }
         _selectedSlots.remove(hour);
       } else {
+        if (_selectedSlots.isNotEmpty) {
+          _selectedSlots.sort();
+          if (hour != _selectedSlots.first - 1 &&
+              hour != _selectedSlots.last + 1) {
+            UiUtils.showCustomAlert(
+              context,
+              'If you want to book a split time, you need to make a new booking.',
+              isError: true,
+            );
+            return;
+          }
+        }
         _selectedSlots.add(hour);
         _selectedSlots.sort();
       }
@@ -596,19 +734,89 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   }
 
   void _confirmBooking() async {
+    setState(() {
+      _fieldErrors.clear();
+    });
+    bool hasError = false;
+
+    if (_houseNoController.text.isEmpty) {
+      _fieldErrors['houseNo'] = 'Required';
+      hasError = true;
+    }
+    if (_streetController.text.isEmpty) {
+      _fieldErrors['street'] = 'Required';
+      hasError = true;
+    }
+    if (_villageController.text.isEmpty) {
+      _fieldErrors['village'] = 'Required';
+      hasError = true;
+    }
+    if (_mandalController.text.isEmpty) {
+      _fieldErrors['mandal'] = 'Required';
+      hasError = true;
+    }
+    if (_districtController.text.isEmpty) {
+      _fieldErrors['district'] = 'Required';
+      hasError = true;
+    }
+    if (_stateController.text.isEmpty) {
+      _fieldErrors['state'] = 'Required';
+      hasError = true;
+    }
+    if (_pincodeController.text.isEmpty) {
+      _fieldErrors['pincode'] = 'Required';
+      hasError = true;
+    }
+
+    if (_selectedDate == null) {
+      _fieldErrors['date'] = 'Required';
+      hasError = true;
+    }
+    if (_selectedSlots.isEmpty) {
+      _fieldErrors['slots'] = 'Required';
+      hasError = true;
+    }
+
+    if (widget.equipmentType.contains('Sprayer') &&
+        _selectedEquipments.isEmpty) {
+      _fieldErrors['sprayerTypes'] = 'Required';
+      hasError = true;
+      UiUtils.showCenteredToast(
+        context,
+        'Please select at least one sprayer type',
+        isError: true,
+      );
+    }
+
+    if (hasError) {
+      if (!widget.equipmentType.contains('Sprayer') ||
+          _selectedEquipments.isNotEmpty) {
+        UiUtils.showCenteredToast(
+          context,
+          'Please fill all required fields',
+          isError: true,
+        );
+      }
+      return;
+    }
+
     final String fullAddress = [
       _houseNoController.text,
       _streetController.text,
       _villageController.text,
+      _mandalController.text,
       _districtController.text,
       _stateController.text,
       _countryController.text,
-      _pincodeController.text
+      _pincodeController.text,
     ].where((part) => part.isNotEmpty).join(', ');
 
     bool hasValidPrice = _totalPrice > 0;
 
-    if (_selectedSlots.isNotEmpty && _selectedDate != null && fullAddress.isNotEmpty && hasValidPrice) {
+    if (_selectedSlots.isNotEmpty &&
+        _selectedDate != null &&
+        fullAddress.isNotEmpty &&
+        hasValidPrice) {
       setState(() {
         _isSubmitting = true;
       });
@@ -622,15 +830,19 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       await prefs.setString('user_state', _stateController.text);
       await prefs.setString('user_country', _countryController.text);
       await prefs.setString('user_pincode', _pincodeController.text);
-      if (_detectedLat != null) await prefs.setDouble('user_latitude', _detectedLat!);
-      if (_detectedLng != null) await prefs.setDouble('user_longitude', _detectedLng!);
+      if (_detectedLat != null)
+        await prefs.setDouble('user_latitude', _detectedLat!);
+      if (_detectedLng != null)
+        await prefs.setDouble('user_longitude', _detectedLng!);
 
       // Format duration text
       String durationText;
       if (_selectedSlots.length == 1) {
-        durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.first + 1)}';
+        durationText =
+            '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.first + 1)}';
       } else {
-         durationText = '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}';
+        durationText =
+            '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.last + 1)}';
       }
 
       final String? userId = prefs.getString('user_id');
@@ -643,14 +855,26 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         'Location': fullAddress,
         'Duration': durationText,
         'Operator Required': _includeOperator ? 'Yes' : 'No',
+        'Attached Equipments':
+            _selectedEquipments.isNotEmpty
+                ? _selectedEquipments.join(', ')
+                : 'None',
         'slots_list': _selectedSlots,
-        if (_selectedFarmerHarvestChips.isNotEmpty) 'Selected Harvesting Equipment': _selectedFarmerHarvestChips.join(', '),
-        if (_selectedCropType != null) 'Crop Type': (_selectedCropType == 'Others' && _customCropTypeController.text.trim().isNotEmpty) ? _customCropTypeController.text.trim() : _selectedCropType,
         'Notes': _notesController.text,
       };
 
-      DateTime start = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first);
-      DateTime end = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1);
+      DateTime start = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedSlots.first,
+      );
+      DateTime end = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedSlots.last + 1,
+      );
 
       BookingDTO dto = BookingDTO(
         farmerId: userId,
@@ -665,10 +889,10 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         addressText: fullAddress,
         notes: jsonEncode(notesMap),
       );
-      
+
       try {
         final newBooking = await BookingManager().createBooking(dto);
-        
+
         if (!mounted) return;
         setState(() {
           _isSubmitting = false;
@@ -677,29 +901,49 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => BookingConfirmationScreen(
-              bookingId: newBooking.bookingId ?? "ID-Error",
-              bookingTitle: '${widget.equipmentType} Rental',
-            ),
+            builder:
+                (context) => BookingConfirmationScreen(
+                  bookingId: newBooking.bookingId ?? "ID-Error",
+                  bookingTitle: '${widget.equipmentType} Rental',
+                ),
           ),
         );
-      } catch(e) {
+      } catch (e) {
         if (!mounted) return;
         setState(() {
           _isSubmitting = false;
         });
-        UiUtils.showCustomAlert(context, 'Failed to submit booking: $e', isError: true);
+        UiUtils.showCustomAlert(
+          context,
+          'Failed to submit booking: $e',
+          isError: true,
+        );
       }
     } else {
-      if (_selectedSlots.isNotEmpty && _selectedDate != null && fullAddress.isNotEmpty && !hasValidPrice) {
-        UiUtils.showCenteredToast(context, 'Total price cannot be zero. Cannot book without cost info.', isError: true);
+      if (_selectedSlots.isNotEmpty &&
+          _selectedDate != null &&
+          fullAddress.isNotEmpty &&
+          !hasValidPrice) {
+        UiUtils.showCenteredToast(
+          context,
+          'Total price cannot be zero. Cannot book without cost info.',
+          isError: true,
+        );
         return;
       }
       setState(() {
         _fieldErrors.clear();
-        if (fullAddress.isEmpty) {
-          _fieldErrors['address'] = 'Please enter delivery address';
-        }
+        if (_houseNoController.text.isEmpty)
+          _fieldErrors['houseNo'] = 'Required';
+        if (_streetController.text.isEmpty) _fieldErrors['street'] = 'Required';
+        if (_villageController.text.isEmpty)
+          _fieldErrors['village'] = 'Required';
+        if (_mandalController.text.isEmpty) _fieldErrors['mandal'] = 'Required';
+        if (_districtController.text.isEmpty)
+          _fieldErrors['district'] = 'Required';
+        if (_stateController.text.isEmpty) _fieldErrors['state'] = 'Required';
+        if (_pincodeController.text.isEmpty)
+          _fieldErrors['pincode'] = 'Required';
         if (_selectedDate == null) {
           _fieldErrors['date'] = 'Select a start date';
         }
@@ -709,7 +953,16 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       });
 
       // Scroll to first error
-      if (_fieldErrors.containsKey('address')) {
+      final addressFields = [
+        'houseNo',
+        'street',
+        'village',
+        'mandal',
+        'district',
+        'state',
+        'pincode',
+      ];
+      if (addressFields.any((f) => _fieldErrors.containsKey(f))) {
         _scrollToField(_addressSectionKey);
       } else if (_fieldErrors.containsKey('date')) {
         _scrollToField(_dateSectionKey);
@@ -717,11 +970,13 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         _scrollToField(_timeSectionKey);
       }
 
-      UiUtils.showCenteredToast(context, AppLocalizations.of(context)!.fillAllDetails, isError: true);
+      UiUtils.showCenteredToast(
+        context,
+        AppLocalizations.of(context)!.fillAllDetails,
+        isError: true,
+      );
     }
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -729,13 +984,24 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F2),
       appBar: AppBar(
-        title: Text('${l10n.rentNow} ${widget.equipmentType}', style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), fontSize: 18)),
+        title: Text(
+          '${l10n.rentNow} ${widget.equipmentType}',
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF1B5E20),
+            fontSize: 18,
+          ),
+        ),
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1B5E20), size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Color(0xFF1B5E20),
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -752,66 +1018,348 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 4)),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
               child: Row(
                 children: [
-                   GestureDetector(
-                     onTap: () => _showFullImage(context, widget.ownerProfileImage, widget.providerName),
-                     child: Container(
-                       padding: const EdgeInsets.all(3),
-                       decoration: BoxDecoration(
-                         shape: BoxShape.circle,
-                         border: Border.all(color: const Color(0xFF00AA55).withOpacity(0.2), width: 2),
-                       ),
-                       child: CircleAvatar(
-                         radius: 32,
-                         backgroundColor: const Color(0xFFF5F7F2),
-                         backgroundImage: widget.ownerProfileImage != null && widget.ownerProfileImage!.isNotEmpty
-                             ? NetworkImage(ApiConfig.getFullImageUrl(widget.ownerProfileImage))
-                             : null,
-                         child: widget.ownerProfileImage == null || widget.ownerProfileImage!.isEmpty
-                             ? const Icon(Icons.agriculture_rounded, color: Color(0xFF00AA55), size: 32)
-                             : null,
-                       ),
-                     ),
-                   ),
-                   const SizedBox(width: 16),
-                   Expanded(
-                     child: Column(
-                       crossAxisAlignment: CrossAxisAlignment.start,
-                       children: [
-                         Text(
-                           widget.providerName,
-                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF1B5E20), letterSpacing: -0.5),
-                         ),
-                         const SizedBox(height: 4),
-                         Container(
-                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                           decoration: BoxDecoration(
-                             color: const Color(0xFFE8F5E9),
-                             borderRadius: BorderRadius.circular(8),
-                           ),
-                           child: Text(
-                             '₹${widget.rate.toStringAsFixed(0)} / hr',
-                             style: const TextStyle(color: Color(0xFF00AA55), fontSize: 12, fontWeight: FontWeight.w800),
-                           ),
-                         ),
-                       ],
-                     ),
-                   ),
+                  GestureDetector(
+                    onTap:
+                        () => _showFullImage(
+                          context,
+                          widget.ownerProfileImage,
+                          widget.providerName,
+                        ),
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFF00AA55).withOpacity(0.2),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 32,
+                        backgroundColor: const Color(0xFFF5F7F2),
+                        backgroundImage:
+                            widget.ownerProfileImage != null &&
+                                    widget.ownerProfileImage!.isNotEmpty
+                                ? NetworkImage(
+                                  ApiConfig.getFullImageUrl(
+                                    widget.ownerProfileImage,
+                                  ),
+                                )
+                                : null,
+                        child:
+                            widget.ownerProfileImage == null ||
+                                    widget.ownerProfileImage!.isEmpty
+                                ? const Icon(
+                                  Icons.agriculture_rounded,
+                                  color: Color(0xFF00AA55),
+                                  size: 32,
+                                )
+                                : null,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.providerName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
+                            color: Color(0xFF1B5E20),
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F5E9),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '₹${widget.rate.toStringAsFixed(0)} / ${widget.equipmentType.contains('Sprayer') ? 'litre' : 'hr'}',
+                                style: const TextStyle(
+                                  color: Color(0xFF00AA55),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE3F2FD),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.task_alt_rounded,
+                                    size: 13,
+                                    color: Colors.blue,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '$_liveJobsCompleted Jobs Done',
+                                    style: const TextStyle(
+                                      color: Colors.blue,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-            _buildListingDetailsCard(widget.description, widget.serialNumber, widget.equipmentType),
+            _buildListingDetailsCard(
+              widget.description,
+              widget.serialNumber,
+              widget.equipmentType,
+            ),
+            if (widget.equipmentType.contains('Tractor') ||
+                widget.equipmentType.contains('Sprayer')) ...[
+              const SizedBox(height: 24),
+              _buildSectionCard(
+                title:
+                    widget.equipmentType.contains('Sprayer')
+                        ? 'Sprayer Types'
+                        : 'Attached Equipments',
+                icon:
+                    widget.equipmentType.contains('Sprayer')
+                        ? Icons.water_drop_rounded
+                        : Icons.agriculture_rounded,
+                isError:
+                    widget.equipmentType.contains('Sprayer')
+                        ? _fieldErrors.containsKey('sprayerTypes')
+                        : false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (widget.attachedEquipments != null &&
+                        widget.attachedEquipments!.isNotEmpty) ...[
+                      Text(
+                        widget.equipmentType.contains('Sprayer')
+                            ? 'Select the sprayer types you need:'
+                            : 'Select the included equipments you need:',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2C3E50),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 12,
+                        children:
+                            (widget.equipmentType.contains('Sprayer')
+                                    ? _displaySprayerTypes
+                                    : widget.attachedEquipments!)
+                                .map((eq) {
+                                  final isSelected = _selectedEquipments
+                                      .contains(eq);
+                                  return FilterChip(
+                                    label: Text(eq),
+                                    selected: isSelected,
+                                    onSelected: (selected) {
+                                      setState(() {
+                                        if (selected) {
+                                          _selectedEquipments.add(eq);
+                                        } else {
+                                          _selectedEquipments.remove(eq);
+                                          if (_selectedEquipments.isEmpty) {
+                                            _selectedCapacity = null;
+                                          }
+                                        }
+                                      });
+                                    },
+                                    selectedColor: const Color(0xFFE8F5E9),
+                                    checkmarkColor: const Color(0xFF00AA55),
+                                    labelStyle: TextStyle(
+                                      color:
+                                          isSelected
+                                              ? const Color(0xFF1B5E20)
+                                              : Colors.grey[700],
+                                      fontWeight:
+                                          isSelected
+                                              ? FontWeight.w700
+                                              : FontWeight.w600,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      side: BorderSide(
+                                        color:
+                                            isSelected
+                                                ? const Color(0xFF00AA55)
+                                                : Colors.grey[300]!,
+                                      ),
+                                    ),
+                                    backgroundColor: Colors.white,
+                                  );
+                                })
+                                .toList(),
+                      ),
+                      Builder(
+                        builder: (context) {
+                          if (!widget.equipmentType.contains('Sprayer') ||
+                              _selectedEquipments.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+
+                          Set<String> allCaps = {};
+                          for (var selected in _selectedEquipments) {
+                            if (_availableSprayerCapacities.containsKey(
+                              selected,
+                            )) {
+                              allCaps.addAll(
+                                _availableSprayerCapacities[selected]!,
+                              );
+                            }
+                          }
+
+                          if (allCaps.isEmpty) return const SizedBox.shrink();
+
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Available Capacities for selected sprayers:',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF1B5E20),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: () {
+                                  if (_selectedCapacity != null &&
+                                      allCaps.contains(_selectedCapacity)) {
+                                    return [
+                                      InputChip(
+                                        label: Text('$_selectedCapacity L'),
+                                        onDeleted: () {
+                                          setState(() {
+                                            _selectedCapacity = null;
+                                          });
+                                        },
+                                        deleteIconColor: const Color(
+                                          0xFF00AA55,
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFFE8F5E9,
+                                        ),
+                                        labelStyle: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF1B5E20),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          side: const BorderSide(
+                                            color: Color(0xFF00AA55),
+                                          ),
+                                        ),
+                                      ),
+                                    ];
+                                  } else {
+                                    return allCaps
+                                        .map(
+                                          (cap) => ActionChip(
+                                            label: Text(
+                                              '$cap L',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF2C3E50),
+                                              ),
+                                            ),
+                                            onPressed: () {
+                                              setState(() {
+                                                _selectedCapacity = cap;
+                                              });
+                                            },
+                                            backgroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                              side: BorderSide(
+                                                color: Colors.grey[300]!,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        .toList();
+                                  }
+                                }(),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ] else ...[
+                      const Text(
+                        'No attached equipments offered by this provider.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
-             // Location Section
+            // Location Section
             _buildSectionCard(
               key: _addressSectionKey,
               title: 'Lush Delivery Location',
               icon: Icons.location_on_rounded,
-              isError: _fieldErrors.containsKey('address'),
+              isError: [
+                'houseNo',
+                'street',
+                'village',
+                'mandal',
+                'district',
+                'state',
+                'pincode',
+              ].any((f) => _fieldErrors.containsKey(f)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -820,19 +1368,37 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                     children: [
                       const Text(
                         'FARM ADDRESS DETAILS',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF546E7A), letterSpacing: 1.0),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF546E7A),
+                          letterSpacing: 1.0,
+                        ),
                       ),
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.home_rounded, color: Color(0xFF00AA55)),
+                            icon: const Icon(
+                              Icons.home_rounded,
+                              color: Color(0xFF00AA55),
+                            ),
                             tooltip: 'Use Profile Address',
                             onPressed: _useProfileAddress,
                           ),
                           _isFetchingLocation
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55)))
-                            : IconButton(
-                                icon: const Icon(Icons.my_location_rounded, color: Color(0xFF00AA55)),
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF00AA55),
+                                ),
+                              )
+                              : IconButton(
+                                icon: const Icon(
+                                  Icons.my_location_rounded,
+                                  color: Color(0xFF00AA55),
+                                ),
                                 tooltip: 'Auto Detect GPS Location',
                                 onPressed: _fetchCurrentLocation,
                               ),
@@ -849,6 +1415,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           label: 'House No / Door No',
                           hint: 'e.g. 123',
                           icon: Icons.home_outlined,
+                          errorKey: 'houseNo',
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -858,6 +1425,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           label: 'Street / Area Name',
                           hint: 'Street details...',
                           icon: Icons.add_road_rounded,
+                          errorKey: 'street',
                         ),
                       ),
                     ],
@@ -871,6 +1439,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           label: 'Village / Suburb',
                           hint: 'Village name...',
                           icon: Icons.landscape_rounded,
+                          errorKey: 'village',
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -879,7 +1448,8 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           controller: _mandalController,
                           label: 'Mandal',
                           hint: 'Mandal name...',
-                          icon: Icons.maps_home_work_rounded,
+                          icon: Icons.map_rounded,
+                          errorKey: 'mandal',
                         ),
                       ),
                     ],
@@ -893,6 +1463,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           label: 'District',
                           hint: 'District name...',
                           icon: Icons.location_city_rounded,
+                          errorKey: 'district',
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -902,6 +1473,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           label: 'State',
                           hint: 'State name...',
                           icon: Icons.map_outlined,
+                          errorKey: 'state',
                         ),
                       ),
                     ],
@@ -916,16 +1488,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           hint: 'Pincode...',
                           icon: Icons.pin_drop_rounded,
                           keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildAddressInputField(
-                          controller: _countryController,
-                          label: 'Country',
-                          hint: 'India',
-                          icon: Icons.public_rounded,
-                          enabled: false,
+                          errorKey: 'pincode',
                         ),
                       ),
                     ],
@@ -944,21 +1507,34 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                       if (_detectedLat != null && _detectedLng != null)
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE8F5E9),
                               borderRadius: BorderRadius.circular(15),
-                              border: Border.all(color: const Color(0xFFC8E6C9)),
+                              border: Border.all(
+                                color: const Color(0xFFC8E6C9),
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.gps_fixed_rounded, size: 16, color: Color(0xFF2E7D32)),
+                                const Icon(
+                                  Icons.gps_fixed_rounded,
+                                  size: 16,
+                                  color: Color(0xFF2E7D32),
+                                ),
                                 const SizedBox(width: 8),
                                 Flexible(
                                   child: Text(
                                     "Coords: ${_detectedLat!.toStringAsFixed(6)}, ${_detectedLng!.toStringAsFixed(6)}",
-                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF2E7D32),
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -969,21 +1545,34 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                       else
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFFFF3E0),
                               borderRadius: BorderRadius.circular(15),
-                              border: Border.all(color: const Color(0xFFFFE0B2)),
+                              border: Border.all(
+                                color: const Color(0xFFFFE0B2),
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.location_off_rounded, size: 16, color: Colors.orange[800]),
+                                Icon(
+                                  Icons.location_off_rounded,
+                                  size: 16,
+                                  color: Colors.orange[800],
+                                ),
                                 const SizedBox(width: 8),
                                 Flexible(
                                   child: Text(
                                     "No Coordinates Set",
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange[800]),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange[800],
+                                    ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -993,16 +1582,37 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                         ),
                       const SizedBox(width: 12),
                       _isGeocodingAddress
-                        ? const SizedBox(width: 32, height: 32, child: Padding(padding: EdgeInsets.all(6), child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00AA55))))
-                        : ElevatedButton.icon(
+                          ? const SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: Padding(
+                              padding: EdgeInsets.all(6),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF00AA55),
+                              ),
+                            ),
+                          )
+                          : ElevatedButton.icon(
                             onPressed: _geocodeManualAddress,
                             icon: const Icon(Icons.pin_drop_rounded, size: 16),
-                            label: TranslatedText('Get Coordinates', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                            label: TranslatedText(
+                              'Get Coordinates',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF00AA55),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
                               elevation: 0,
                             ),
                           ),
@@ -1012,113 +1622,81 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
               ),
             ),
 
-            if (widget.equipmentType.toLowerCase().contains('harvester') || widget.equipmentType.toLowerCase().contains('harvest')) ...[
-              _buildFarmerHarvestChipsCard(widget.description ?? widget.equipmentType),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFE8F5E9)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.grass_rounded, color: Color(0xFF00AA55), size: 20),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Select Crop to Harvest',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: _selectedCropType,
-                      decoration: InputDecoration(
-                        hintText: 'Choose crop type',
-                        prefixIcon: const Icon(Icons.grass_rounded, color: Color(0xFF00AA55), size: 20),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        filled: true,
-                        fillColor: const Color(0xFFF9FBF9),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: const BorderSide(color: Color(0xFFE8F5E9)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: const BorderSide(color: Color(0xFF00AA55), width: 2),
-                        ),
-                      ),
-                      items: _cropOptions.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                      onChanged: (val) => setState(() => _selectedCropType = val),
-                    ),
-                    if (_selectedCropType == 'Others') ...[
-                      const SizedBox(height: 16),
-                      _buildAddressInputField(
-                        controller: _customCropTypeController,
-                        label: 'Specify Crop Name',
-                        hint: 'Enter your crop name...',
-                        icon: Icons.edit_note_rounded,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-
             // Schedule Section
             _buildSectionCard(
               key: _dateSectionKey,
               title: 'Rental Schedule',
               icon: Icons.calendar_today_rounded,
-              isError: _fieldErrors.containsKey('date') || _fieldErrors.containsKey('slots'),
+              isError:
+                  _fieldErrors.containsKey('date') ||
+                  _fieldErrors.containsKey('slots'),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TranslatedText('Select Rental Date', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                  TranslatedText(
+                    'Select Rental Date',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF2C3E50),
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   GestureDetector(
                     onTap: () async {
                       await _selectDate(context);
-                      if (_selectedDate != null && _fieldErrors.containsKey('date')) {
+                      if (_selectedDate != null &&
+                          _fieldErrors.containsKey('date')) {
                         setState(() => _fieldErrors.remove('date'));
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF9FBF9),
-                        border: Border.all(color: _fieldErrors.containsKey('date') ? Colors.red : const Color(0xFFE8F5E9)),
+                        border: Border.all(
+                          color:
+                              _fieldErrors.containsKey('date')
+                                  ? Colors.red
+                                  : const Color(0xFFE8F5E9),
+                        ),
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_month_rounded, size: 20, color: _selectedDate == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+                          Icon(
+                            Icons.calendar_month_rounded,
+                            size: 20,
+                            color:
+                                _selectedDate == null
+                                    ? Colors.grey[400]
+                                    : const Color(0xFF00AA55),
+                          ),
                           const SizedBox(width: 12),
                           Text(
-                            _selectedDate == null 
-                                ? l10n.chooseDate 
+                            _selectedDate == null
+                                ? l10n.chooseDate
                                 : '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
                             style: TextStyle(
                               fontSize: 15,
-                              color: _selectedDate == null ? Colors.grey[500] : Colors.black87,
-                              fontWeight: _selectedDate == null ? FontWeight.normal : FontWeight.w600,
+                              color:
+                                  _selectedDate == null
+                                      ? Colors.grey[500]
+                                      : Colors.black87,
+                              fontWeight:
+                                  _selectedDate == null
+                                      ? FontWeight.normal
+                                      : FontWeight.w600,
                             ),
                           ),
                           const Spacer(),
-                          const Icon(Icons.expand_more_rounded, color: Color(0xFF00AA55)),
+                          const Icon(
+                            Icons.expand_more_rounded,
+                            color: Color(0xFF00AA55),
+                          ),
                         ],
                       ),
                     ),
@@ -1130,7 +1708,11 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                     children: [
                       const Text(
                         'Select Start Time',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2C3E50),
+                        ),
                       ),
                       if (_selectedSlots.isNotEmpty)
                         TextButton(
@@ -1143,12 +1725,19 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           },
                           style: TextButton.styleFrom(
                             minimumSize: Size.zero,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                           child: TranslatedText(
                             'Clear All',
-                            style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                     ],
@@ -1156,22 +1745,37 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                   if (_selectedDate == null)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
-                      child: TranslatedText('Select a date first to view availability', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
+                      child: TranslatedText(
+                        'Select a date first to view availability',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     )
                   else ...[
                     const SizedBox(height: 16),
                     if (_isLoadingBookings)
-                      const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: Color(0xFF00AA55))))
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF00AA55),
+                          ),
+                        ),
+                      )
                     else
                       GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3, 
-                          childAspectRatio: 2.2, 
-                          crossAxisSpacing: 10, 
-                          mainAxisSpacing: 10,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              childAspectRatio: 2.2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                            ),
                         itemCount: _endHour - _startHour,
                         itemBuilder: (context, index) {
                           int hour = _startHour + index;
@@ -1181,32 +1785,67 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           return InkWell(
                             onTap: () {
                               _onSlotTap(hour);
-                              if (_selectedSlots.isNotEmpty && _fieldErrors.containsKey('slots')) setState(() => _fieldErrors.remove('slots'));
+                              if (_selectedSlots.isNotEmpty &&
+                                  _fieldErrors.containsKey('slots'))
+                                setState(() => _fieldErrors.remove('slots'));
                             },
                             borderRadius: BorderRadius.circular(12),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               decoration: BoxDecoration(
-                                color: isBlocked ? Colors.grey[100] : (isSelected ? const Color(0xFF00AA55) : Colors.white),
+                                color:
+                                    isBlocked
+                                        ? Colors.grey[100]
+                                        : (isSelected
+                                            ? const Color(0xFF00AA55)
+                                            : Colors.white),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: isBlocked ? Colors.transparent : (isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9)),
+                                  color:
+                                      isBlocked
+                                          ? Colors.transparent
+                                          : (isSelected
+                                              ? const Color(0xFF00AA55)
+                                              : const Color(0xFFE8F5E9)),
                                   width: 1.5,
                                 ),
-                                boxShadow: isSelected ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8)] : null,
+                                boxShadow:
+                                    isSelected
+                                        ? [
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFF00AA55,
+                                            ).withOpacity(0.2),
+                                            blurRadius: 8,
+                                          ),
+                                        ]
+                                        : null,
                               ),
                               alignment: Alignment.center,
                               child: FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4.0,
+                                  ),
                                   child: Text(
                                     _formatTimeRange(hour),
                                     style: TextStyle(
-                                      color: isBlocked ? Colors.grey[400] : (isSelected ? Colors.white : const Color(0xFF2C3E50)),
-                                      fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                                      color:
+                                          isBlocked
+                                              ? Colors.grey[400]
+                                              : (isSelected
+                                                  ? Colors.white
+                                                  : const Color(0xFF2C3E50)),
+                                      fontWeight:
+                                          isSelected
+                                              ? FontWeight.w900
+                                              : FontWeight.w700,
                                       fontSize: 11,
-                                      decoration: isBlocked ? TextDecoration.lineThrough : null,
+                                      decoration:
+                                          isBlocked
+                                              ? TextDecoration.lineThrough
+                                              : null,
                                     ),
                                   ),
                                 ),
@@ -1219,7 +1858,14 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
                   if (_selectedSlots.isNotEmpty) ...[
                     const SizedBox(height: 24),
-                    TranslatedText('Selected Slots Details', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                    TranslatedText(
+                      'Selected Slots Details',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2C3E50),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(16),
@@ -1238,30 +1884,49 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                                 children: [
                                   _buildDurationControl(
                                     icon: Icons.remove_rounded,
-                                    onPressed: _selectedSlots.length > 1 ? _removeHour : null,
+                                    onPressed:
+                                        _selectedSlots.length > 1
+                                            ? _removeHour
+                                            : null,
                                   ),
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
                                     child: TranslatedText(
                                       '${_selectedSlots.length} ${_selectedSlots.length == 1 ? 'Hour' : 'Hours'}',
-                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20)),
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF1B5E20),
+                                      ),
                                     ),
                                   ),
                                   _buildDurationControl(
                                     icon: Icons.add_rounded,
-                                    onPressed: _canAddMoreHours() ? _addHour : null,
+                                    onPressed:
+                                        _canAddMoreHours() ? _addHour : null,
                                   ),
                                 ],
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF00AA55).withOpacity(0.1),
+                                  color: const Color(
+                                    0xFF00AA55,
+                                  ).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Text(
                                   '₹${_totalPrice.toStringAsFixed(0)} Est.',
-                                  style: const TextStyle(color: Color(0xFF00AA55), fontWeight: FontWeight.w800, fontSize: 13),
+                                  style: const TextStyle(
+                                    color: Color(0xFF00AA55),
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                             ],
@@ -1270,18 +1935,34 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: _selectedSlots.map((hour) => Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: const Color(0xFFC8E6C9)),
-                              ),
-                              child: Text(
-                                _formatTimeRange(hour),
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
-                              ),
-                            )).toList(),
+                            children:
+                                _selectedSlots
+                                    .map(
+                                      (hour) => Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          border: Border.all(
+                                            color: const Color(0xFFC8E6C9),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          _formatTimeRange(hour),
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF2E7D32),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
                           ),
                         ],
                       ),
@@ -1301,29 +1982,70 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 4),
                     decoration: BoxDecoration(
-                      color: widget.operatorAvailable ? const Color(0xFFF9FBF9) : Colors.grey[100],
+                      color:
+                          widget.operatorAvailable
+                              ? const Color(0xFFF9FBF9)
+                              : Colors.grey[100],
                       borderRadius: BorderRadius.circular(20),
-                      border: widget.operatorAvailable ? null : Border.all(color: Colors.grey[300]!),
+                      border:
+                          widget.operatorAvailable
+                              ? null
+                              : Border.all(color: Colors.grey[300]!),
                     ),
                     child: SwitchListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                      title: TranslatedText('Include Operator', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: widget.operatorAvailable ? const Color(0xFF1B5E20) : Colors.grey[600])),
-                      subtitle: widget.operatorAvailable
-                          ? TranslatedText('+ ₹${(widget.operatorPrice ?? 200.0).toStringAsFixed(0)} / hr extra charge', style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600))
-                          : TranslatedText('Operator not provided by owner', style: TextStyle(fontSize: 12, color: Colors.orange[800], fontWeight: FontWeight.w700)),
-                      value: _includeOperator, 
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
+                      title: TranslatedText(
+                        'Include Operator',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color:
+                              widget.operatorAvailable
+                                  ? const Color(0xFF1B5E20)
+                                  : Colors.grey[600],
+                        ),
+                      ),
+                      subtitle:
+                          widget.operatorAvailable
+                              ? TranslatedText(
+                                '+ ₹${(widget.operatorPrice ?? 200.0).toStringAsFixed(0)} / hr extra charge',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              )
+                              : TranslatedText(
+                                'Operator not provided by owner',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.orange[800],
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                      value: _includeOperator,
                       activeColor: const Color(0xFF00AA55),
-                      onChanged: widget.operatorAvailable 
-                          ? (val) => setState(() => _includeOperator = val)
-                          : (val) {
-                              UiUtils.showCenteredToast(context, 'Operator is not available from owner for this listing.', isError: true);
-                            },
+                      onChanged:
+                          widget.operatorAvailable
+                              ? (val) => setState(() => _includeOperator = val)
+                              : (val) {
+                                UiUtils.showCenteredToast(
+                                  context,
+                                  'Operator is not available from owner for this listing.',
+                                  isError: true,
+                                );
+                              },
                     ),
                   ),
                   if (!widget.operatorAvailable)
                     Container(
                       margin: const EdgeInsets.only(top: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF3E0),
                         borderRadius: BorderRadius.circular(12),
@@ -1331,12 +2053,20 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline_rounded, color: Colors.orange[800], size: 18),
+                          Icon(
+                            Icons.info_outline_rounded,
+                            color: Colors.orange[800],
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: TranslatedText(
                               'Operator not available for this equipment. Machine can be rented without operator.',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange[900]),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.orange[900],
+                              ),
                             ),
                           ),
                         ],
@@ -1368,7 +2098,11 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 30, offset: const Offset(0, 10)),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 30,
+                    offset: const Offset(0, 10),
+                  ),
                 ],
               ),
               child: Column(
@@ -1376,10 +2110,26 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(l10n.totalEstimate, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF546E7A))),
                       Text(
-                        '₹${_totalPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.5),
+                        widget.equipmentType.contains('Sprayer')
+                            ? 'Price (per litre)'
+                            : l10n.totalEstimate,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF546E7A),
+                        ),
+                      ),
+                      Text(
+                        widget.equipmentType.contains('Sprayer')
+                            ? '₹${widget.rate.toStringAsFixed(0)}'
+                            : '₹${_totalPrice.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF1B5E20),
+                          letterSpacing: -0.5,
+                        ),
                       ),
                     ],
                   ),
@@ -1390,7 +2140,11 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
-                        BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                        BoxShadow(
+                          color: const Color(0xFF00AA55).withOpacity(0.3),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                        ),
                       ],
                     ),
                     child: ElevatedButton(
@@ -1399,15 +2153,29 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                         backgroundColor: const Color(0xFF00AA55),
                         foregroundColor: Colors.white,
                         disabledBackgroundColor: Colors.grey[300],
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                         elevation: 0,
                       ),
-                      child: _isSubmitting
-                        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                        : Text(
-                            l10n.rentNow,
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 0.5),
-                          ),
+                      child:
+                          _isSubmitting
+                              ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 3,
+                                ),
+                              )
+                              : Text(
+                                l10n.rentNow,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                     ),
                   ),
                 ],
@@ -1420,15 +2188,30 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     );
   }
 
-  Widget _buildSectionCard({required String title, required IconData icon, required Widget child, GlobalKey? key, bool isError = false}) {
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required Widget child,
+    GlobalKey? key,
+    bool isError = false,
+  }) {
     return Container(
       key: key,
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 4))],
-        border: isError ? Border.all(color: Colors.red.withOpacity(0.5), width: 1.5) : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border:
+            isError
+                ? Border.all(color: Colors.red.withOpacity(0.5), width: 1.5)
+                : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1441,7 +2224,12 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                 const SizedBox(width: 12),
                 TranslatedText(
                   title.toUpperCase(),
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: 1.2),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1B5E20),
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ],
             ),
@@ -1472,32 +2260,57 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         return TextField(
           controller: controller,
           maxLines: maxLines,
-          onChanged: (_) { if (hasError) setState(() => _fieldErrors.remove(errorKey)); },
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, color: Color(0xFF2C3E50)),
+          onChanged: (_) {
+            if (hasError) setState(() => _fieldErrors.remove(errorKey));
+          },
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            color: Color(0xFF2C3E50),
+          ),
           decoration: InputDecoration(
             hintText: translatedHint,
-            hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
-            prefixIcon: Icon(icon, color: hasError ? Colors.red : const Color(0xFF00AA55), size: 20),
+            hintStyle: TextStyle(
+              color: Colors.grey[400],
+              fontWeight: FontWeight.w500,
+            ),
+            prefixIcon: Icon(
+              icon,
+              color: hasError ? Colors.red : const Color(0xFF00AA55),
+              size: 20,
+            ),
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: const Color(0xFFF9FBF9),
             contentPadding: const EdgeInsets.all(16),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide.none,
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              borderSide: BorderSide(color: hasError ? Colors.red.withOpacity(0.5) : Colors.transparent),
+              borderSide: BorderSide(
+                color:
+                    hasError ? Colors.red.withOpacity(0.5) : Colors.transparent,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(15),
-              borderSide: const BorderSide(color: Color(0xFF00AA55), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFF00AA55),
+                width: 1.5,
+              ),
             ),
           ),
         );
-      }
+      },
     );
   }
 
-  Widget _buildDurationControl({required IconData icon, VoidCallback? onPressed}) {
+  Widget _buildDurationControl({
+    required IconData icon,
+    VoidCallback? onPressed,
+  }) {
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(12),
@@ -1505,18 +2318,25 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         width: 36,
         height: 36,
         decoration: BoxDecoration(
-          color: onPressed == null ? Colors.grey[100] : const Color(0xFF00AA55).withOpacity(0.1),
+          color:
+              onPressed == null
+                  ? Colors.grey[100]
+                  : const Color(0xFF00AA55).withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Icon(icon, size: 20, color: onPressed == null ? Colors.grey[400] : const Color(0xFF00AA55)),
+        child: Icon(
+          icon,
+          size: 20,
+          color: onPressed == null ? Colors.grey[400] : const Color(0xFF00AA55),
+        ),
       ),
     );
   }
- 
+
   String _formatTime(int hour) {
-      if (hour == 12) return '12 PM';
-      if (hour > 12) return '${hour - 12} PM';
-      return '$hour AM';
+    if (hour == 12) return '12 PM';
+    if (hour > 12) return '${hour - 12} PM';
+    return '$hour AM';
   }
 
   String _formatTimeRange(int hour) {
@@ -1530,35 +2350,86 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
     bool enabled = true,
+    String? errorKey,
   }) {
+    final bool hasError =
+        errorKey != null && _fieldErrors.containsKey(errorKey);
+    final String? errorText = hasError ? _fieldErrors[errorKey] : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: hasError ? Colors.red : const Color(0xFF2C3E50),
+          ),
         ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: enabled ? const Color(0xFFF9FBF9) : Colors.grey[100],
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: enabled ? const Color(0xFFE8F5E9) : Colors.grey[300]!),
+            border: Border.all(
+              color:
+                  hasError
+                      ? Colors.red
+                      : (enabled ? const Color(0xFFE8F5E9) : Colors.grey[300]!),
+            ),
           ),
           child: TextField(
             controller: controller,
             enabled: enabled,
             keyboardType: keyboardType,
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: enabled ? const Color(0xFF2C3E50) : Colors.grey[700]),
+            onChanged: (_) {
+              if (hasError && errorKey != null) {
+                setState(() => _fieldErrors.remove(errorKey));
+              }
+            },
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: enabled ? const Color(0xFF2C3E50) : Colors.grey[700],
+            ),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500, fontSize: 13),
-              prefixIcon: Icon(icon, color: enabled ? const Color(0xFF00AA55) : Colors.grey[500], size: 18),
+              hintStyle: TextStyle(
+                color: Colors.grey[400],
+                fontWeight: FontWeight.w500,
+                fontSize: 13,
+              ),
+              prefixIcon: Icon(
+                icon,
+                color:
+                    hasError
+                        ? Colors.red
+                        : (enabled
+                            ? const Color(0xFF00AA55)
+                            : Colors.grey[500]),
+                size: 18,
+              ),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
           ),
         ),
+        if (hasError && errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0, left: 4),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                color: Colors.red,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -1567,42 +2438,56 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     if (imageUrl == null || imageUrl.isEmpty) return;
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(20),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: Image.network(
-                  ApiConfig.getFullImageUrl(imageUrl),
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.all(40),
-                    child: const Icon(Icons.broken_image, size: 80, color: Colors.grey),
+      builder:
+          (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(20),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.network(
+                      ApiConfig.getFullImageUrl(imageUrl),
+                      fit: BoxFit.contain,
+                      errorBuilder:
+                          (context, error, stackTrace) => Container(
+                            color: Colors.white,
+                            padding: const EdgeInsets.all(40),
+                            child: const Icon(
+                              Icons.broken_image,
+                              size: 80,
+                              color: Colors.grey,
+                            ),
+                          ),
+                    ),
                   ),
                 ),
-              ),
+                Positioned(
+                  top: 20,
+                  right: 20,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ],
             ),
-            Positioned(
-              top: 20,
-              right: 20,
-              child: IconButton(
-                icon: const Icon(Icons.close_rounded, color: Colors.white, size: 32),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
-  Widget _buildListingDetailsCard(String? description, String? number, String? equipmentName) {
+  Widget _buildListingDetailsCard(
+    String? description,
+    String? number,
+    String? equipmentName,
+  ) {
     return Container(
       margin: const EdgeInsets.only(top: 20),
       padding: const EdgeInsets.all(24),
@@ -1610,7 +2495,11 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: Column(
@@ -1624,12 +2513,21 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                   color: const Color(0xFFF1F8F1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.info_outline_rounded, size: 20, color: Color(0xFF2E7D32)),
+                child: const Icon(
+                  Icons.info_outline_rounded,
+                  size: 20,
+                  color: Color(0xFF2E7D32),
+                ),
               ),
               const SizedBox(width: 14),
               const Text(
                 'LISTING DETAILS',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Color(0xFF1B5E20), letterSpacing: -0.2),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1B5E20),
+                  letterSpacing: -0.2,
+                ),
               ),
             ],
           ),
@@ -1637,12 +2535,21 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           if (equipmentName != null && equipmentName.isNotEmpty) ...[
             Text(
               'EQUIPMENT NAME',
-              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               equipmentName,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2C3E50),
+              ),
             ),
             const SizedBox(height: 16),
             Divider(color: Colors.grey[100], height: 1),
@@ -1651,12 +2558,21 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           if (number != null && number.trim().isNotEmpty) ...[
             Text(
               'SERIAL/REGISTRATION NUMBER',
-              style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               number,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2C3E50),
+              ),
             ),
             const SizedBox(height: 16),
             Divider(color: Colors.grey[100], height: 1),
@@ -1664,102 +2580,25 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           ],
           Text(
             'DESCRIPTION',
-            style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w800, letterSpacing: 0.8),
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[500],
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             description ?? 'High-quality agricultural listing details.',
-            style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w600, height: 1.5),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFarmerHarvestChipsCard(String rawEquipments) {
-    List<String> availableEquipments = [];
-    if (rawEquipments.isNotEmpty) {
-      availableEquipments = rawEquipments.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    }
-    if (availableEquipments.isEmpty) {
-      availableEquipments = ['Combine Harvester', 'Paddy Harvester', 'Reaper Binder'];
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FBF9),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE8F5E9)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.agriculture_rounded, color: Color(0xFF00AA55), size: 20),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Harvesting Equipment Types',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Select harvesting equipment for your requirement:',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 10,
-            children: availableEquipments.map((chipLabel) {
-              final isSelected = _selectedFarmerHarvestChips.contains(chipLabel);
-              return FilterChip(
-                showCheckmark: true,
-                checkmarkColor: const Color(0xFF00AA55),
-                selectedColor: const Color(0xFFE8F5E9),
-                backgroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: isSelected ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
-                    width: 1.5,
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                label: Text(
-                  chipLabel,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                    color: isSelected ? const Color(0xFF1B5E20) : const Color(0xFF4A6572),
-                  ),
-                ),
-                selected: isSelected,
-                onSelected: (selected) {
-                  setState(() {
-                    if (selected) {
-                      _selectedFarmerHarvestChips.add(chipLabel);
-                    } else {
-                      _selectedFarmerHarvestChips.remove(chipLabel);
-                    }
-                  });
-                },
-              );
-            }).toList(),
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[700],
+              fontWeight: FontWeight.w600,
+              height: 1.5,
+            ),
           ),
         ],
       ),
     );
   }
 }
-

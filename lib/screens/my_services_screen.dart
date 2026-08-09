@@ -196,7 +196,7 @@ class _MyServicesScreenState extends State<MyServicesScreen> with SingleTickerPr
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: booking.details.entries.map((e) {
+                      children: booking.details.entries.where((e) => !['slots_list', 'Slots List'].contains(e.key)).map((e) {
                         return Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(

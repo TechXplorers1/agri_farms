@@ -24,6 +24,7 @@ class BookWorkersScreen extends StatefulWidget {
   final int priceMaleHourly;
   final int priceFemaleHourly;
   final List<String> roleDistribution;
+  final int? jobsCompleted;
 
   const BookWorkersScreen({
     super.key,
@@ -37,6 +38,7 @@ class BookWorkersScreen extends StatefulWidget {
     this.priceMaleHourly = 0,
     this.priceFemaleHourly = 0,
     this.roleDistribution = const [],
+    this.jobsCompleted,
   });
 
   @override
@@ -170,6 +172,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       _maleCount = 0; // Default to 0
       _femaleCount = 0; // Default to 0
     }
+    _liveJobsCompleted = widget.jobsCompleted ?? 0;
     _loadAddress();
     _selectedDate = null;
   }
@@ -214,18 +217,32 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
     return '${_formatTime(hour)} - ${_formatTime(hour + 1)}';
   }
 
+  int _liveJobsCompleted = 0;
+
   Future<void> _fetchAssetBookings() async {
     if (_selectedDate == null) return;
     
     setState(() => _isLoadingBookings = true);
     try {
       final bookings = await ApiService().getAssetBookings(widget.assetId);
+      int completedCount = 0;
+      if (bookings is List) {
+        completedCount = bookings.where((b) {
+          final st = (b['status'] ?? '').toString().toUpperCase();
+          return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+        }).length;
+      }
       setState(() {
         _existingBookings = bookings;
         _isLoadingBookings = false;
         _selectedStartHour = null;
         _durationHours = 1;
         _selectedSlots.clear();
+        if (completedCount > _liveJobsCompleted || _liveJobsCompleted == 0) {
+          _liveJobsCompleted = (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
+              ? widget.jobsCompleted!
+              : completedCount;
+        }
       });
       _recalculateAvailability();
     } catch (e) {
@@ -858,11 +875,27 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
                            widget.providerName,
                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF1B5E20), letterSpacing: -0.5),
                          ),
-                         const SizedBox(height: 4),
-                         Text(
-                           l10n.availableWorkers(widget.maxMale, widget.maxFemale),
-                           style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w600),
-                         ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                l10n.availableWorkers(widget.maxMale, widget.maxFemale),
+                                style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE3F2FD),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '$_liveJobsCompleted Jobs Done',
+                                  style: const TextStyle(color: Colors.blue, fontSize: 11, fontWeight: FontWeight.w800),
+                                ),
+                              ),
+                            ],
+                          ),
                        ],
                      ),
                    ),

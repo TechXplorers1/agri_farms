@@ -110,47 +110,27 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
         return parts.isNotEmpty ? parts.join(', ') : defaultVal;
       }
 
-      Map<String, int> completedJobsByAsset = {};
-      Map<String, int> completedJobsByProvider = {};
-
-      try {
-        final allBookingsRaw = await apiService.get('/api/bookings/all');
-        if (allBookingsRaw is List) {
-          for (var b in allBookingsRaw) {
-            final status = (b['status'] ?? '').toString().toUpperCase();
-            if (status == 'COMPLETED' || status == 'FINISHED') {
-              final assetId = b['assetId']?.toString();
-              final providerId = b['providerId']?.toString();
-              if (assetId != null && assetId.isNotEmpty) {
-                completedJobsByAsset[assetId] = (completedJobsByAsset[assetId] ?? 0) + 1;
-              }
-              if (providerId != null && providerId.isNotEmpty) {
-                completedJobsByProvider[providerId] = (completedJobsByProvider[providerId] ?? 0) + 1;
-              }
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('Note: Could not fetch bookings count fallback: $e');
-      }
-
       int parseJobsCompleted(Map<String, dynamic> item, String assetIdKey) {
-        int backendVal = (item['jobsCompleted'] as num?)?.toInt() ?? 0;
-        if (backendVal > 0) return backendVal;
-        
-        final assetId = item[assetIdKey]?.toString() ?? '';
-        final providerId = item['ownerId']?.toString() ?? '';
-        
-        int assetCount = completedJobsByAsset[assetId] ?? 0;
-        int providerCount = completedJobsByProvider[providerId] ?? 0;
-        return assetCount > 0 ? assetCount : providerCount;
+        final val = item['jobsCompleted'] ??
+            item['jobs_completed'] ??
+            item['completedJobs'] ??
+            item['completed_jobs'] ??
+            item['completedJobsCount'] ??
+            item['jobsCompletedCount'] ??
+            item['totalCompletedJobs'] ??
+            item['totalBookings'] ??
+            item['completedCount'];
+        if (val != null) {
+          return int.tryParse(val.toString()) ?? 0;
+        }
+        return 0;
       }
 
       List<ServiceProvider> providers = [];
 
       if (transportTypes.contains(widget.serviceKey)) {
         final vehiclesRaw = await apiService.getVehicles(type: widget.serviceKey) as List;
-        final vehicles = vehiclesRaw.where((v) => v['ownerId']?.toString() != currentUserId).toList();
+        final vehicles = vehiclesRaw;
         
         providers = vehicles.map<ServiceProvider>((v) => TransportListing(
           id: v['vehicleId'].toString(),
@@ -171,20 +151,21 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           price: '₹${v['pricePerKmOrTrip']} / Day',
           pricePerKm: (v['pricePerKm'] as num?)?.toDouble(),
           driverIncluded: v['driverIncluded'] ?? true,
+          operatorPrice: (v['operatorPrice'] as num?)?.toDouble(),
           vehicleNumber: v['vehicleNumber'],
           serviceArea: v['serviceArea'],
           image: v['imageUrl'],
           ownerProfileImage: v['ownerProfileImageUrl'],
-          description: v['brand'] != null ? '${v['brand']} ${v['model'] ?? ""} (Condition: ${v['vehicleCondition'] ?? "Good"})' : 'Comfortable and reliable agricultural logistics transport.',
+          description: v['description'] ?? (v['brand'] != null ? '${v['brand']} ${v['model'] ?? ""} (Condition: ${v['vehicleCondition'] ?? "Good"})' : 'Comfortable and reliable agricultural logistics transport.'),
         )).toList();
       } else if (equipmentTypes.contains(widget.serviceKey)) {
         final equipmentRawAll = await apiService.getEquipment() as List;
         final equipmentRaw = equipmentRawAll.where((e) {
-           final cat = e['category']?.toString().toLowerCase() ?? '';
-           final key = widget.serviceKey.toLowerCase();
-           return cat == key || cat + 's' == key || cat == key + 's';
+           final cat = e['category']?.toString().toLowerCase().trim() ?? '';
+           final key = widget.serviceKey.toLowerCase().trim();
+           return cat.contains(key) || key.contains(cat) || cat == key || cat + 's' == key || cat == key + 's';
         }).toList();
-        final equipment = equipmentRaw.where((e) => e['ownerId']?.toString() != currentUserId).toList();
+        final equipment = equipmentRaw;
 
         providers = equipment.map<ServiceProvider>((e) => EquipmentListing(
           id: e['equipmentId'].toString(),
@@ -209,10 +190,13 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           ownerProfileImage: e['ownerProfileImageUrl'],
           description: e['description'] ?? 'High quality agricultural machinery for hire.',
           vehicleNumber: e['vehicleNumber'],
+          attachedEquipments: e['attachedEquipments'] != null && e['attachedEquipments'].toString().isNotEmpty 
+              ? e['attachedEquipments'].toString().split(',').map((e) => e.trim()).toList()
+              : [],
         )).toList();
       } else if (serviceTypes.contains(widget.serviceKey)) {
          final servicesRaw = await apiService.getServices(type: widget.serviceKey) as List;
-         final services = servicesRaw.where((s) => s['ownerId']?.toString() != currentUserId).toList();
+         final services = servicesRaw;
 
          providers = services.map<ServiceProvider>((s) => ServiceListing(
            id: s['serviceId'].toString(),
@@ -237,8 +221,8 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            description: s['description'] ?? 'Professional agricultural services by experienced operator.',
          )).toList();
       } else if (widget.serviceKey == 'Farm Workers') {
-         final workersRaw = await apiService.getWorkerGroups() as List;
-         final workers = workersRaw.where((w) => w['ownerId']?.toString() != currentUserId).toList();
+         final workers = await apiService.getWorkerGroups() as List;
+         
           providers = workers.map<ServiceProvider>((w) => FarmWorkerListing(
               id: w['groupId'].toString(),
               providerId: w['ownerId']?.toString(),
@@ -436,7 +420,15 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           future: _providersFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55)));
+              return FutureBuilder(
+                future: Future.delayed(const Duration(milliseconds: 300)),
+                builder: (context, delaySnapshot) {
+                  if (delaySnapshot.connectionState == ConnectionState.waiting) {
+                    return const SizedBox.shrink(); // Show nothing briefly for fast loads
+                  }
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFF00AA55))); // Show spinner if late
+                },
+              );
             }
           final allProviders = snapshot.data ?? [];
 
@@ -631,28 +623,12 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   }
 
   Widget _buildFilterDropdown({required String hint, required String? value, required List<String> items, required Function(String?) onChanged, bool isLocation = false}) {
-    return Container(
-      height: 42, padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(color: const Color(0xFFF5F7F5), borderRadius: BorderRadius.circular(10)),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value, isExpanded: true,
-          hint: Row(children: [
-            if (isLocation) const Icon(Icons.location_on, size: 14, color: Color(0xFF00AA55)),
-            if (isLocation) const SizedBox(width: 6),
-            Expanded(child: Text(hint, style: TextStyle(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
-          ]),
-          icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey),
-          items: items.map((s) {
-            String displayText = s;
-            if (s == 'All') {
-              displayText = AppTranslations.translate(context, 'all');
-            }
-            return DropdownMenuItem(value: s, child: Text(displayText, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)));
-          }).toList(),
-          onChanged: onChanged,
-        ),
-      ),
+    return _FilterDropdownButton(
+      hint: hint,
+      value: value,
+      items: items,
+      onChanged: onChanged,
+      isLocation: isLocation,
     );
   }
 
@@ -686,15 +662,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider,
-      onTap: () async {
-        final prefs = await SharedPreferences.getInstance();
-        final currentUserId = prefs.getString('user_id');
-        Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
-          providerName: provider.name, providerId: provider.providerId ?? currentUserId ?? '1', assetId: provider.id,
-          maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
-          priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
-        )));
-      },
+      onTap: () => _showAssetDetails(context, provider),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -702,15 +670,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
           const SizedBox(height: 6),
           _buildWorkerStats(provider, l10n),
           const SizedBox(height: 12),
-          _buildBookFullWidthButton(l10n.bookWorkers, () async {
-             final prefs = await SharedPreferences.getInstance();
-             final currentUserId = prefs.getString('user_id');
-             Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
-               providerName: provider.name, providerId: provider.providerId ?? currentUserId ?? '1', assetId: provider.id,
-               maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
-               priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
-             )));
-          }),
+          _buildBookFullWidthButton(l10n.bookWorkers, () => _showAssetDetails(context, provider)),
         ],
       ),
     );
@@ -720,7 +680,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider, subtitle: provider.equipmentUsed,
-      onTap: () => _navigateToBooking(context, provider),
+      onTap: () => _showAssetDetails(context, provider),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -729,7 +689,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             const SizedBox(width: 4),
             Text('${provider.jobsCompleted} ${AppTranslations.translate(context, 'jobsCompleted')}', style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
-          _buildBookMiniButton(provider.price, () => _navigateToBooking(context, provider)),
+          _buildBookMiniButton(provider.price, () => _showAssetDetails(context, provider)),
         ],
       ),
     );
@@ -739,7 +699,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
       provider: provider, subtitle: '${provider.vehicleType} • ${provider.loadCapacity}',
-      onTap: () => _navigateToBooking(context, provider),
+      onTap: () => _showAssetDetails(context, provider),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -747,12 +707,23 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(children: [
-                Icon(Icons.person_pin_circle_outlined, size: 14, color: Colors.blue[600]),
+                Icon(
+                  Icons.person_pin_circle_outlined,
+                  size: 14,
+                  color: provider.driverIncluded ? Colors.blue[600] : Colors.grey[400],
+                ),
                 const SizedBox(width: 4),
-                Text(l10n.driverIncluded, style: TextStyle(color: Colors.blue[700], fontSize: 12, fontWeight: FontWeight.w600)),
+                Text(
+                  provider.driverIncluded ? l10n.driverIncluded : 'No Driver',
+                  style: TextStyle(
+                    color: provider.driverIncluded ? Colors.blue[700] : Colors.grey[500],
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ]),
               ElevatedButton(
-                onPressed: () => _navigateToBooking(context, provider),
+                onPressed: () => _showAssetDetails(context, provider),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A1A2E),
                   foregroundColor: Colors.white,
@@ -800,8 +771,11 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   Widget _buildEquipmentListingCard(BuildContext context, EquipmentListing provider) {
     var l10n = AppLocalizations.of(context)!;
     return _buildBasePremiumCard(
-      provider: provider, subtitle: provider.brandModel,
-      onTap: () => _navigateToBooking(context, provider),
+      provider: provider, 
+      subtitle: (provider.serviceName == 'Sprayers' && provider.attachedEquipments.isNotEmpty) 
+          ? '${provider.brandModel} • ${provider.attachedEquipments.join(', ')}' 
+          : provider.brandModel,
+      onTap: () => _showAssetDetails(context, provider),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -811,7 +785,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             const SizedBox(width: 8),
             TranslatedText(provider.operatorAvailable ? l10n.withOperatorAvailable : l10n.noOperator, style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500)),
           ]),
-          _buildBookMiniButton(provider.price, () => _navigateToBooking(context, provider)),
+          _buildBookMiniButton(provider.price, () => _showAssetDetails(context, provider)),
         ],
       ),
     );
@@ -989,6 +963,15 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            ownerProfileImage: provider.ownerProfileImage,
            description: provider.description,
            vehicleNumber: provider.vehicleNumber,
+           serviceArea: provider.serviceArea,
+           jobsCompleted: provider.jobsCompleted,
+         )));
+      } else if (provider is FarmWorkerListing) {
+         Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
+           providerName: displayName, providerId: actualProviderId, assetId: provider.id,
+           maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
+           priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
+           jobsCompleted: provider.jobsCompleted,
          )));
       } else if (provider is EquipmentListing) {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookEquipmentDetailScreen(
@@ -1001,7 +984,9 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            operatorAvailable: provider.operatorAvailable,
            ownerProfileImage: provider.ownerProfileImage,
            description: provider.description,
-           serialNumber: (provider.vehicleNumber != null && provider.vehicleNumber!.trim().isNotEmpty) ? provider.vehicleNumber! : provider.id.substring(0, 8).toUpperCase(),
+           serialNumber: (provider.vehicleNumber != null && provider.vehicleNumber!.trim().isNotEmpty) ? provider.vehicleNumber! : null,
+           attachedEquipments: provider.attachedEquipments,
+           jobsCompleted: provider.jobsCompleted,
          )));
       } else {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookServiceDetailScreen(
@@ -1012,10 +997,11 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            priceInfo: priceString,
            ownerProfileImage: provider.ownerProfileImage,
            description: provider.description,
-           serialNumber: provider.id.substring(0, 8).toUpperCase(),
+           serialNumber: null,
            equipmentName: provider is ServiceListing ? provider.equipmentUsed : null,
            operatorIncluded: provider is ServiceListing ? provider.operatorIncluded : true,
            operatorPrice: provider is ServiceListing ? provider.operatorPrice : 0.0,
+           jobsCompleted: provider.jobsCompleted,
          )));
       }
   }
@@ -1052,14 +1038,46 @@ void _showFullImage(BuildContext context, String? imageUrl, String title) {
   ])));
 }
 
-class _AssetDetailModal extends StatelessWidget {
+class _AssetDetailModal extends StatefulWidget {
   final ServiceProvider provider;
   final VoidCallback onBookNow;
   const _AssetDetailModal({required this.provider, required this.onBookNow});
 
   @override
+  State<_AssetDetailModal> createState() => _AssetDetailModalState();
+}
+
+class _AssetDetailModalState extends State<_AssetDetailModal> {
+  late int _jobsCompleted;
+
+  @override
+  void initState() {
+    super.initState();
+    _jobsCompleted = widget.provider.jobsCompleted;
+    _fetchCompletedCount();
+  }
+
+  Future<void> _fetchCompletedCount() async {
+    try {
+      final response = await ApiService().getAssetBookings(widget.provider.id);
+      if (response is List) {
+        int count = response.where((b) {
+          final st = (b['status'] ?? '').toString().toUpperCase();
+          return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+        }).length;
+        if (mounted && count > _jobsCompleted) {
+          setState(() {
+            _jobsCompleted = count;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     var l10n = AppLocalizations.of(context)!;
+    final provider = widget.provider;
     return Container(
       decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(32))),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1097,8 +1115,8 @@ class _AssetDetailModal extends StatelessWidget {
           if (provider is FarmWorkerListing) _buildWorkerDetails(context, provider as FarmWorkerListing),
           if (provider is ServiceListing) _buildServiceDetails(context, provider as ServiceListing),
           const SizedBox(height: 32),
-          SizedBox(width: double.infinity, height: 54, child: ElevatedButton(onPressed: onBookNow, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
-            child: Text((provider is FarmWorkerListing) ? l10n.bookNow : l10n.rentNow, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)))),
+          SizedBox(width: double.infinity, height: 54, child: ElevatedButton(onPressed: widget.onBookNow, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
+            child: Text(l10n.bookNow, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)))),
         ]))),
       ]),
     );
@@ -1107,13 +1125,17 @@ class _AssetDetailModal extends StatelessWidget {
   Widget _buildEquipmentDetails(BuildContext context, EquipmentListing item) {
     return Column(children: [
       _detailRow(Icons.construction_rounded, 'Brand & Model', item.brandModel),
-      _detailRow(Icons.numbers_rounded, 'Vehicle/Reg Number', (item.vehicleNumber != null && item.vehicleNumber!.trim().isNotEmpty) ? item.vehicleNumber! : item.id.substring(0, 8).toUpperCase()),
-      _detailRow(Icons.description_outlined, 'Description', item.description ?? 'High quality agricultural machinery for hire.'),
+      if (item.vehicleNumber != null && item.vehicleNumber!.trim().isNotEmpty)
+        _detailRow(Icons.numbers_rounded, 'Vehicle/Reg Number', item.vehicleNumber!),
+      if (item.attachedEquipments.isNotEmpty)
+        _detailRow(Icons.agriculture_rounded, 'Attached Equipments', item.attachedEquipments.join(', ')),
+      if (item.description != null && item.description!.trim().isNotEmpty)
+        _detailRow(Icons.description_outlined, 'Description', item.description!),
       _detailRow(Icons.info_outline_rounded, 'Condition', item.condition),
       _detailRow(Icons.person_outline_rounded, 'Operator', item.operatorAvailable ? AppTranslations.translate(context, 'available') : 'Not Provided'),
       _detailRow(Icons.payments_outlined, 'Price Rate', item.price),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
-      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
+      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '$_jobsCompleted'),
     ]);
   }
 
@@ -1228,7 +1250,7 @@ class _AssetDetailModal extends StatelessWidget {
       _detailRow(Icons.person_pin_circle_outlined, 'Driver', item.driverIncluded ? 'Included' : 'Self-Drive'),
       pricingWidget,
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
-      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
+      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '$_jobsCompleted'),
     ]);
   }
 
@@ -1236,11 +1258,10 @@ class _AssetDetailModal extends StatelessWidget {
   Widget _buildWorkerDetails(BuildContext context, FarmWorkerListing item) {
     return Column(children: [
       _detailRow(Icons.groups_rounded, 'Total Staff', '${item.maleCount + item.femaleCount} Members'),
-      _detailRow(Icons.numbers_rounded, 'Group Registration Code', item.id.substring(0, 8).toUpperCase()),
       _detailRow(Icons.description_outlined, 'Description', item.description ?? 'Experienced agricultural worker team.'),
       _detailRow(Icons.psychology_outlined, 'Expertise', item.skills),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
-      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
+      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '$_jobsCompleted'),
       const SizedBox(height: 16),
       Wrap(spacing: 8, runSpacing: 8, children: item.roleDistribution.map((r) => Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFF3F7F3), borderRadius: BorderRadius.circular(10)), child: Text(r, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32))))).toList()),
     ]);
@@ -1254,13 +1275,12 @@ class _AssetDetailModal extends StatelessWidget {
 
     return Column(children: [
       _detailRow(Icons.handyman_outlined, 'Tools', item.equipmentUsed),
-      _detailRow(Icons.numbers_rounded, 'Service Reference Number', item.id.substring(0, 8).toUpperCase()),
       _detailRow(Icons.description_outlined, 'Description', item.description ?? (isElectrOrVet ? 'Professional agricultural services.' : 'Professional agricultural services by experienced operator.')),
       if (!isElectrOrVet)
         _detailRow(Icons.person_outline_rounded, 'Operator', item.operatorIncluded ? 'Available' : 'Machine Only'),
       _detailRow(Icons.payments_outlined, costLabel, item.price),
       _detailRow(Icons.location_on_outlined, AppTranslations.translate(context, 'location'), '${item.location} (${item.distance})'),
-      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '${item.jobsCompleted}'),
+      _detailRow(Icons.history_rounded, AppTranslations.translate(context, 'jobsCompletedLabel'), '$_jobsCompleted'),
     ]);
   }
 
@@ -1276,3 +1296,217 @@ class _AssetDetailModal extends StatelessWidget {
     ]));
   }
 }
+
+// ── Inline overlay dropdown ────────────────────────────────────────────────────
+
+class _FilterDropdownButton extends StatefulWidget {
+  final String hint;
+  final String? value;
+  final List<String> items;
+  final Function(String?) onChanged;
+  final bool isLocation;
+
+  const _FilterDropdownButton({
+    required this.hint,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.isLocation = false,
+  });
+
+  @override
+  State<_FilterDropdownButton> createState() => _FilterDropdownButtonState();
+}
+
+class _FilterDropdownButtonState extends State<_FilterDropdownButton> {
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  bool _isOpen = false;
+
+  void _toggleDropdown() {
+    if (_isOpen) {
+      _closeDropdown();
+    } else {
+      _openDropdown();
+    }
+  }
+
+  void _openDropdown() {
+    final RenderBox renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => GestureDetector(
+        // Tap outside to close
+        behavior: HitTestBehavior.translucent,
+        onTap: _closeDropdown,
+        child: Stack(
+          children: [
+            Positioned.fill(child: Container(color: Colors.transparent)),
+            CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              offset: Offset(0, size.height + 4), // gap below the button
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: size.width,
+                  constraints: const BoxConstraints(maxHeight: 240),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.12),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: widget.items.length,
+                      itemBuilder: (ctx, index) {
+                        final item = widget.items[index];
+                        final displayText = item == 'All'
+                            ? AppTranslations.translate(ctx, 'all')
+                            : item;
+                        final isSelected = item == (widget.value ?? 'All');
+
+                        return InkWell(
+                          onTap: () {
+                            _closeDropdown();
+                            widget.onChanged(item == 'All' ? null : item);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFF00AA55).withOpacity(0.07)
+                                  : Colors.white,
+                              border: index < widget.items.length - 1
+                                  ? Border(
+                                      bottom: BorderSide(
+                                        color: Colors.grey[100]!,
+                                        width: 0.8,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    displayText,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? const Color(0xFF00AA55)
+                                          : const Color(0xFF2C3E50),
+                                    ),
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(
+                                    Icons.check_rounded,
+                                    size: 16,
+                                    color: Color(0xFF00AA55),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() => _isOpen = true);
+  }
+
+  void _closeDropdown() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
+    if (mounted) setState(() => _isOpen = false);
+  }
+
+  @override
+  void dispose() {
+    _closeDropdown();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final displayLabel =
+        widget.value == null || widget.value == 'All' ? widget.hint : widget.value!;
+    final isActive = widget.value != null && widget.value != 'All';
+
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: GestureDetector(
+        onTap: _toggleDropdown,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: isActive
+                ? const Color(0xFF00AA55).withOpacity(0.1)
+                : const Color(0xFFF5F7F5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isActive ? const Color(0xFF00AA55) : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              if (widget.isLocation)
+                Icon(
+                  Icons.location_on,
+                  size: 14,
+                  color: isActive ? const Color(0xFF00AA55) : Colors.grey[500],
+                ),
+              if (widget.isLocation) const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  displayLabel,
+                  style: TextStyle(
+                    color: isActive ? const Color(0xFF00AA55) : Colors.grey[600],
+                    fontSize: 13,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              AnimatedRotation(
+                turns: _isOpen ? 0.5 : 0.0,
+                duration: const Duration(milliseconds: 180),
+                child: Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: isActive ? const Color(0xFF00AA55) : Colors.grey,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
