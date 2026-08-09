@@ -24,6 +24,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
   final String providerId;
   final String assetId;
   final double rate; // Rate per hour or day
+  final double? pricePerHalfDay; // For Trolleys
   final double? operatorPrice;
   final bool operatorAvailable;
   final String? ownerProfileImage;
@@ -39,6 +40,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
     required this.providerId,
     required this.assetId,
     required this.rate,
+    this.pricePerHalfDay,
     this.operatorPrice,
     this.operatorAvailable = true,
     this.ownerProfileImage,
@@ -60,6 +62,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   int? _selectedStartHour;
   int _durationHours = 1;
   bool _includeOperator = false;
+  bool _isTrolleyHalfDay = false; // Added for Equipment Trolley Mode
   DateTime? _selectedDate;
 
   // Address Controllers
@@ -78,7 +81,8 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   bool _isGeocodingAddress = false;
 
   final TextEditingController _notesController = TextEditingController();
-  final TextEditingController _customCropTypeController = TextEditingController();
+  final TextEditingController _customCropTypeController =
+      TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final Map<String, String?> _fieldErrors = {};
 
@@ -88,9 +92,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   final GlobalKey _timeSectionKey = GlobalKey();
 
   List<String> _selectedEquipments = [];
-  String? _selectedCapacity;
   List<String> _displaySprayerTypes = [];
-  Map<String, List<String>> _availableSprayerCapacities = {};
 
   List<BookingDTO> _existingBookings = [];
   bool _isLoadingBookings = false;
@@ -150,23 +152,23 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         widget.attachedEquipments != null) {
       for (var eq in widget.attachedEquipments!) {
         String typeName = eq.trim();
-        List<String> caps = [];
         final match = RegExp(r'\(Capacities:(.*?)\)').firstMatch(typeName);
         if (match != null) {
           typeName = typeName.split('(Capacities:').first.trim();
           if (match.group(1) != null) {
-            caps =
+            final caps =
                 match
                     .group(1)!
                     .split(',')
                     .map((e) => e.replaceAll('L', '').trim())
                     .where((e) => e.isNotEmpty)
                     .toList();
+            for (var cap in caps) {
+              _displaySprayerTypes.add('$typeName - $cap L');
+            }
           }
-        }
-        _displaySprayerTypes.add(typeName);
-        if (caps.isNotEmpty) {
-          _availableSprayerCapacities[typeName] = caps;
+        } else {
+          _displaySprayerTypes.add(typeName);
         }
       }
     }
@@ -181,17 +183,19 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
     try {
       final response = await ApiService().getAssetBookings(widget.assetId);
       final List<dynamic> data = response as List<dynamic>;
-      int completedCount = data.where((b) {
-        final st = (b['status'] ?? '').toString().toUpperCase();
-        return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
-      }).length;
+      int completedCount =
+          data.where((b) {
+            final st = (b['status'] ?? '').toString().toUpperCase();
+            return st == 'COMPLETED' || st == 'FINISHED' || st == 'DONE';
+          }).length;
       setState(() {
         _existingBookings =
             data.map((json) => BookingDTO.fromJson(json)).toList();
         if (completedCount > _liveJobsCompleted || _liveJobsCompleted == 0) {
-          _liveJobsCompleted = (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
-              ? widget.jobsCompleted!
-              : completedCount;
+          _liveJobsCompleted =
+              (widget.jobsCompleted != null && widget.jobsCompleted! > 0)
+                  ? widget.jobsCompleted!
+                  : completedCount;
         }
       });
     } catch (e) {
@@ -563,8 +567,14 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   }
 
   double get _totalPrice {
-    // Price calculation based on number of slots (hours)
-    // If no slots selected, 0
+    if (widget.equipmentType.contains('Trolley')) {
+      double base =
+          _isTrolleyHalfDay ? (widget.pricePerHalfDay ?? 0.0) : widget.rate;
+      double opPrice = widget.operatorPrice ?? 200.0;
+      double operatorCost = _includeOperator ? opPrice : 0;
+      return (base + operatorCost) * _equipmentCount;
+    }
+
     if (_selectedSlots.isEmpty) return 0;
 
     double hours = _selectedSlots.length.toDouble();
@@ -772,7 +782,10 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       _fieldErrors['date'] = 'Required';
       hasError = true;
     }
-    if (_selectedSlots.isEmpty) {
+
+    final bool isDailyTrolley =
+        widget.equipmentType.contains('Trolley') && !_isTrolleyHalfDay;
+    if (_selectedSlots.isEmpty && !isDailyTrolley) {
       _fieldErrors['slots'] = 'Required';
       hasError = true;
     }
@@ -788,8 +801,22 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       );
     }
 
+    if (widget.equipmentType.contains('Trolley') &&
+        _selectedEquipments.isEmpty &&
+        widget.attachedEquipments != null &&
+        widget.attachedEquipments!.isNotEmpty) {
+      _fieldErrors['trolleyTypes'] = 'Required';
+      hasError = true;
+      UiUtils.showCenteredToast(
+        context,
+        'Please select a trolley type',
+        isError: true,
+      );
+    }
+
     if (hasError) {
-      if (!widget.equipmentType.contains('Sprayer') ||
+      if ((!widget.equipmentType.contains('Sprayer') &&
+              !widget.equipmentType.contains('Trolley')) ||
           _selectedEquipments.isNotEmpty) {
         UiUtils.showCenteredToast(
           context,
@@ -797,6 +824,15 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
           isError: true,
         );
       }
+      return;
+    }
+
+    if (_totalPrice <= 0) {
+      UiUtils.showCenteredToast(
+        context,
+        'Invalid pricing (0 amount). Cannot proceed with booking.',
+        isError: true,
+      );
       return;
     }
 
@@ -813,7 +849,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
     bool hasValidPrice = _totalPrice > 0;
 
-    if (_selectedSlots.isNotEmpty &&
+    if ((_selectedSlots.isNotEmpty || isDailyTrolley) &&
         _selectedDate != null &&
         fullAddress.isNotEmpty &&
         hasValidPrice) {
@@ -837,7 +873,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
       // Format duration text
       String durationText;
-      if (_selectedSlots.length == 1) {
+      if (isDailyTrolley) {
+        durationText = 'Full Day (9 AM - 6 PM)';
+      } else if (_selectedSlots.length == 1) {
         durationText =
             '${_formatTime(_selectedSlots.first)} - ${_formatTime(_selectedSlots.first + 1)}';
       } else {
@@ -863,18 +901,34 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         'Notes': _notesController.text,
       };
 
-      DateTime start = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedSlots.first,
-      );
-      DateTime end = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedSlots.last + 1,
-      );
+      DateTime start =
+          isDailyTrolley
+              ? DateTime(
+                _selectedDate!.year,
+                _selectedDate!.month,
+                _selectedDate!.day,
+                9,
+              )
+              : DateTime(
+                _selectedDate!.year,
+                _selectedDate!.month,
+                _selectedDate!.day,
+                _selectedSlots.first,
+              );
+      DateTime end =
+          isDailyTrolley
+              ? DateTime(
+                _selectedDate!.year,
+                _selectedDate!.month,
+                _selectedDate!.day,
+                18,
+              )
+              : DateTime(
+                _selectedDate!.year,
+                _selectedDate!.month,
+                _selectedDate!.day,
+                _selectedSlots.last + 1,
+              );
 
       BookingDTO dto = BookingDTO(
         farmerId: userId,
@@ -1145,22 +1199,152 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
               widget.serialNumber,
               widget.equipmentType,
             ),
+            if (widget.equipmentType.contains('Trolley')) ...[
+              const SizedBox(height: 24),
+              _buildSectionCard(
+                title: 'Pricing Mode',
+                icon: Icons.payments_rounded,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select how you want to be billed:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2C3E50),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap:
+                                () => setState(() => _isTrolleyHalfDay = false),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color:
+                                    !_isTrolleyHalfDay
+                                        ? const Color(0xFF00AA55)
+                                        : Colors.white,
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(
+                                  color:
+                                      !_isTrolleyHalfDay
+                                          ? const Color(0xFF00AA55)
+                                          : const Color(0xFFE8F5E9),
+                                  width: 2,
+                                ),
+                                boxShadow:
+                                    !_isTrolleyHalfDay
+                                        ? [
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFF00AA55,
+                                            ).withOpacity(0.2),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ]
+                                        : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Full Day\n(₹${widget.rate.toStringAsFixed(0)})',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color:
+                                      !_isTrolleyHalfDay
+                                          ? Colors.white
+                                          : const Color(0xFF2C3E50),
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap:
+                                () => setState(() => _isTrolleyHalfDay = true),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color:
+                                    _isTrolleyHalfDay
+                                        ? const Color(0xFF00AA55)
+                                        : Colors.white,
+                                borderRadius: BorderRadius.circular(15),
+                                border: Border.all(
+                                  color:
+                                      _isTrolleyHalfDay
+                                          ? const Color(0xFF00AA55)
+                                          : const Color(0xFFE8F5E9),
+                                  width: 2,
+                                ),
+                                boxShadow:
+                                    _isTrolleyHalfDay
+                                        ? [
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFF00AA55,
+                                            ).withOpacity(0.2),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ]
+                                        : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'Half Day\n(₹${(widget.pricePerHalfDay ?? 0.0).toStringAsFixed(0)})',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color:
+                                      _isTrolleyHalfDay
+                                          ? Colors.white
+                                          : const Color(0xFF2C3E50),
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (widget.equipmentType.contains('Tractor') ||
-                widget.equipmentType.contains('Sprayer')) ...[
+                widget.equipmentType.contains('Sprayer') ||
+                widget.equipmentType.contains('Trolley')) ...[
               const SizedBox(height: 24),
               _buildSectionCard(
                 title:
                     widget.equipmentType.contains('Sprayer')
                         ? 'Sprayer Types'
-                        : 'Attached Equipments',
+                        : (widget.equipmentType.contains('Trolley')
+                            ? 'Trolley Types'
+                            : 'Attached Equipments'),
                 icon:
                     widget.equipmentType.contains('Sprayer')
                         ? Icons.water_drop_rounded
-                        : Icons.agriculture_rounded,
+                        : (widget.equipmentType.contains('Trolley')
+                            ? Icons.rv_hookup_rounded
+                            : Icons.agriculture_rounded),
                 isError:
-                    widget.equipmentType.contains('Sprayer')
-                        ? _fieldErrors.containsKey('sprayerTypes')
-                        : false,
+                    (widget.equipmentType.contains('Sprayer') &&
+                        _fieldErrors.containsKey('sprayerTypes')) ||
+                    (widget.equipmentType.contains('Trolley') &&
+                        _fieldErrors.containsKey('trolleyTypes')),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1169,7 +1353,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                       Text(
                         widget.equipmentType.contains('Sprayer')
                             ? 'Select the sprayer types you need:'
-                            : 'Select the included equipments you need:',
+                            : (widget.equipmentType.contains('Trolley')
+                                ? 'Select the trolley type you need:'
+                                : 'Select the included equipments you need:'),
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -1196,9 +1382,6 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                                           _selectedEquipments.add(eq);
                                         } else {
                                           _selectedEquipments.remove(eq);
-                                          if (_selectedEquipments.isEmpty) {
-                                            _selectedCapacity = null;
-                                          }
                                         }
                                       });
                                     },
@@ -1227,109 +1410,6 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                                   );
                                 })
                                 .toList(),
-                      ),
-                      Builder(
-                        builder: (context) {
-                          if (!widget.equipmentType.contains('Sprayer') ||
-                              _selectedEquipments.isEmpty) {
-                            return const SizedBox.shrink();
-                          }
-
-                          Set<String> allCaps = {};
-                          for (var selected in _selectedEquipments) {
-                            if (_availableSprayerCapacities.containsKey(
-                              selected,
-                            )) {
-                              allCaps.addAll(
-                                _availableSprayerCapacities[selected]!,
-                              );
-                            }
-                          }
-
-                          if (allCaps.isEmpty) return const SizedBox.shrink();
-
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 16),
-                              const Text(
-                                'Available Capacities for selected sprayers:',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF1B5E20),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: () {
-                                  if (_selectedCapacity != null &&
-                                      allCaps.contains(_selectedCapacity)) {
-                                    return [
-                                      InputChip(
-                                        label: Text('$_selectedCapacity L'),
-                                        onDeleted: () {
-                                          setState(() {
-                                            _selectedCapacity = null;
-                                          });
-                                        },
-                                        deleteIconColor: const Color(
-                                          0xFF00AA55,
-                                        ),
-                                        backgroundColor: const Color(
-                                          0xFFE8F5E9,
-                                        ),
-                                        labelStyle: const TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xFF1B5E20),
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                          side: const BorderSide(
-                                            color: Color(0xFF00AA55),
-                                          ),
-                                        ),
-                                      ),
-                                    ];
-                                  } else {
-                                    return allCaps
-                                        .map(
-                                          (cap) => ActionChip(
-                                            label: Text(
-                                              '$cap L',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                                color: Color(0xFF2C3E50),
-                                              ),
-                                            ),
-                                            onPressed: () {
-                                              setState(() {
-                                                _selectedCapacity = cap;
-                                              });
-                                            },
-                                            backgroundColor: Colors.white,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              side: BorderSide(
-                                                color: Colors.grey[300]!,
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                        .toList();
-                                  }
-                                }(),
-                              ),
-                            ],
-                          );
-                        },
                       ),
                     ] else ...[
                       const Text(
@@ -1754,7 +1834,73 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                         ),
                       ),
                     )
+                  else if (widget.equipmentType.contains('Trolley') &&
+                      !_isTrolleyHalfDay)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: const Color(0xFFC8E6C9)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.wb_sunny_rounded,
+                              color: Color(0xFF00AA55),
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'Full Day selected. The vehicle will be booked for the entire day.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF1B5E20),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   else ...[
+                    if (widget.equipmentType.contains('Trolley') &&
+                        _isTrolleyHalfDay)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8E1),
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(color: const Color(0xFFFFECB3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.wb_twilight_rounded,
+                                color: Color(0xFFFFA000),
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  'Half Day selected. Please select your preferred slots below.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFFF8F00),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 16),
                     if (_isLoadingBookings)
                       const Center(
@@ -1856,7 +2002,9 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
                       ),
                   ],
 
-                  if (_selectedSlots.isNotEmpty) ...[
+                  if (_selectedSlots.isNotEmpty &&
+                      !(widget.equipmentType.contains('Trolley') &&
+                          !_isTrolleyHalfDay)) ...[
                     const SizedBox(height: 24),
                     TranslatedText(
                       'Selected Slots Details',

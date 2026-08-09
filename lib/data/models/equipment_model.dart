@@ -4,6 +4,7 @@ class Equipment {
   final String? category;
   final String? brandModel;
   final double? pricePerHour;
+  final double? pricePerHalfDay;
   final bool? operatorAvailable;
   final String? location;
   String? houseNo;
@@ -34,6 +35,7 @@ class Equipment {
     this.category,
     this.brandModel,
     this.pricePerHour,
+    this.pricePerHalfDay,
     this.operatorAvailable,
     this.location,
     this.houseNo,
@@ -66,6 +68,7 @@ class Equipment {
       category: json['category'],
       brandModel: json['brandModel'],
       pricePerHour: (json['pricePerHour'] as num?)?.toDouble(),
+      pricePerHalfDay: (json['pricePerHalfDay'] as num?)?.toDouble(),
       operatorAvailable: json['operatorAvailable'],
       location: json['location'],
       houseNo: json['houseNo'],
@@ -99,6 +102,7 @@ class Equipment {
       'category': category,
       'brandModel': brandModel,
       'pricePerHour': pricePerHour,
+      'pricePerHalfDay': pricePerHalfDay,
       'operatorAvailable': operatorAvailable,
       'location': location,
       'houseNo': houseNo,

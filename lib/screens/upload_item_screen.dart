@@ -300,8 +300,12 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       TextEditingController(); // Name / Title
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _pricePerKmController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _otherSprayerTypeController =
+      TextEditingController();
+  final TextEditingController _equipmentHalfDayPriceController =
+      TextEditingController(); // Added for Equipment Trolleys Half Day Price
   final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
 
   // Address Detail Controllers
   final TextEditingController _houseNoController = TextEditingController();
@@ -349,6 +353,19 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     'Chisel Plow',
     'Rotavator (Rotary Tiller)',
     'Disc Harrow',
+    'Other',
+  ];
+
+  // Trolley Types
+  final List<String> _selectedTrolleyTypes = [];
+  final TextEditingController _otherTrolleyTypeController =
+      TextEditingController();
+  bool _isOtherTrolleyTypeSelected = false;
+  final List<String> _availableTrolleyTypes = [
+    '2-Wheel Hydraulic',
+    '4-Wheel Hydraulic',
+    '2-Wheel Non-Tipping',
+    '4-Wheel Non-Tipping',
     'Other',
   ];
 
@@ -513,6 +530,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     _currentOtherSprayerTypeController.dispose();
     _currentSprayerCapacityController.dispose();
     _malePriceController.dispose();
+    _femalePriceHourlyController.dispose();
+    _otherSprayerTypeController.dispose();
+    _otherTrolleyTypeController.dispose();
+    _equipmentHalfDayPriceController.dispose();
     _femalePriceController.dispose();
     _roleCountController.dispose();
     _operatorPriceController.dispose();
@@ -857,6 +878,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
       _fieldErrors['price'] = 'Enter price';
       hasError = true;
     }
+    if (_selectedEquipmentType == 'Trolleys' &&
+        _equipmentHalfDayPriceController.text.isEmpty) {
+      _fieldErrors['price_halfday'] = 'Enter half day price';
+      hasError = true;
+    }
+    if (_operatorAvailable && _operatorPriceController.text.isEmpty) {
+      _fieldErrors['operator_price'] = 'Enter operator price';
+      hasError = true;
+    }
     if (_houseNoController.text.isEmpty) {
       _fieldErrors['houseNo'] = 'Required';
       hasError = true;
@@ -899,6 +929,17 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             _priceController.text.replaceAll(RegExp(r'[^0-9.]'), ''),
           ) ??
           0.0;
+      double parsedPriceHalfDay = 0.0;
+      if (_selectedEquipmentType == 'Trolleys') {
+        parsedPriceHalfDay =
+            double.tryParse(
+              _equipmentHalfDayPriceController.text.replaceAll(
+                RegExp(r'[^0-9.]'),
+                '',
+              ),
+            ) ??
+            0.0;
+      }
 
       String brandModelVal = _brandModelController.text;
       if (_selectedEquipmentType == 'Harvesters' ||
@@ -932,7 +973,8 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 ? _selectedModel
                 : brandModelVal,
         'conditionStatus': _condition,
-        'pricePerHour': parsedPrice,
+        'pricePerHour': parsedPrice, // Used as Full Day for Trolleys
+        'pricePerHalfDay': parsedPriceHalfDay, // Used for Trolleys Half Day
         'operatorAvailable': _operatorAvailable,
         'operatorPrice':
             _operatorAvailable
@@ -1061,6 +1103,14 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         }
       }
 
+      return finalEquipments;
+    } else if (_selectedEquipmentType == 'Trolleys') {
+      List<String> finalEquipments = List.from(_selectedTrolleyTypes);
+      finalEquipments.remove('Other');
+      if (_isOtherTrolleyTypeSelected &&
+          _otherTrolleyTypeController.text.trim().isNotEmpty) {
+        finalEquipments.add(_otherTrolleyTypeController.text.trim());
+      }
       return finalEquipments;
     }
     return [];
@@ -1722,7 +1772,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             children: [
               if (_selectedTransportType == 'Tractor Trolley') ...[
                 _buildTextField(
-                  'Full Day Price',
+                  'Day-wise Price',
                   _priceController,
                   'e.g. 1500',
                   keyboardType: TextInputType.number,
@@ -1821,7 +1871,11 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
     if (_selectedTransportType == 'Tractor Trolley') {
       if (!hasPrice) {
-        _fieldErrors['price'] = 'Enter Full Day price';
+        _fieldErrors['price'] = 'Enter Day-wise price';
+        hasError = true;
+      }
+      if (!hasPriceKm) {
+        _fieldErrors['price_km'] = 'Enter Half Day price';
         hasError = true;
       }
     } else if (_selectedTransportType == 'Mini Truck' ||
@@ -1836,6 +1890,11 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         _fieldErrors['price_km'] = 'Enter daily price or KM-wise rate';
         hasError = true;
       }
+    }
+
+    if (_driverIncluded && _operatorPriceController.text.isEmpty) {
+      _fieldErrors['driver_price'] = 'Enter driver price';
+      hasError = true;
     }
 
     if (hasError) {
@@ -1975,6 +2034,18 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             _priceController.text.replaceAll(RegExp(r'[^0-9.]'), ''),
           ) ??
           0.0;
+      double parsedPriceHalfDay = 0.0;
+      if (widget.category == 'Equipment' &&
+          _selectedEquipmentType == 'Trolleys') {
+        parsedPriceHalfDay =
+            double.tryParse(
+              _equipmentHalfDayPriceController.text.replaceAll(
+                RegExp(r'[^0-9.]'),
+                '',
+              ),
+            ) ??
+            0.0;
+      }
 
       final String sType = _selectedServiceType ?? widget.category;
       final bool hasOperator =
@@ -2332,6 +2403,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                       _operatorPriceController,
                       'e.g. ₹300 / day',
                       keyboardType: TextInputType.number,
+                      errorKey: 'operator_price',
                       icon: Icons.person_add_rounded,
                     ),
                   ],
@@ -2369,11 +2441,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             items:
                 _availablePloughTypes
                     .map(
-                      (t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis)),
+                      (t) => DropdownMenuItem(
+                        value: t,
+                        child: Text(t, overflow: TextOverflow.ellipsis),
+                      ),
                     )
                     .toList(),
-            onChanged:
-                (v) => setState(() => _currentSelectedPloughType = v),
+            onChanged: (v) => setState(() => _currentSelectedPloughType = v),
           ),
           if (_currentSelectedPloughType == 'Other') ...[
             const SizedBox(height: 16),
@@ -2395,9 +2469,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   _currentPloughCapacityController,
                   'e.g. 45',
                   keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   icon: Icons.straighten_rounded,
                 ),
               ),
@@ -2408,11 +2480,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   value: _selectedPloughCapacityUnit,
                   isExpanded: true,
                   decoration: _inputDecoration('Unit'),
-                  items: _ploughCapacityUnits
-                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                      .toList(),
+                  items:
+                      _ploughCapacityUnits
+                          .map(
+                            (u) => DropdownMenuItem(value: u, child: Text(u)),
+                          )
+                          .toList(),
                   onChanged: (val) {
-                    if (val != null) setState(() => _selectedPloughCapacityUnit = val);
+                    if (val != null)
+                      setState(() => _selectedPloughCapacityUnit = val);
                   },
                 ),
               ),
@@ -2443,12 +2519,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                     final capText =
                         _currentPloughCapacityController.text.trim();
                     if (capText.isNotEmpty) {
-                      final formattedCap = '$capText $_selectedPloughCapacityUnit';
+                      final formattedCap =
+                          '$capText $_selectedPloughCapacityUnit';
                       setState(() {
                         if (!_ploughCapacitiesMap.containsKey(type)) {
                           _ploughCapacitiesMap[type] = [];
                         }
-                        if (!_ploughCapacitiesMap[type]!.contains(formattedCap)) {
+                        if (!_ploughCapacitiesMap[type]!.contains(
+                          formattedCap,
+                        )) {
                           _ploughCapacitiesMap[type]!.add(formattedCap);
                         }
 
@@ -2523,9 +2602,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                         side: const BorderSide(color: Color(0xFFC8E6C9)),
                         onDeleted: () {
                           setState(() {
-                            _ploughCapacitiesMap[entry.key]!.remove(
-                              capacity,
-                            );
+                            _ploughCapacitiesMap[entry.key]!.remove(capacity);
                             if (_ploughCapacitiesMap[entry.key]!.isEmpty) {
                               _ploughCapacitiesMap.remove(entry.key);
                             }
@@ -2567,11 +2644,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             items:
                 _availableHarvestTypes
                     .map(
-                      (t) => DropdownMenuItem(value: t, child: Text(t, overflow: TextOverflow.ellipsis)),
+                      (t) => DropdownMenuItem(
+                        value: t,
+                        child: Text(t, overflow: TextOverflow.ellipsis),
+                      ),
                     )
                     .toList(),
-            onChanged:
-                (v) => setState(() => _currentSelectedHarvestType = v),
+            onChanged: (v) => setState(() => _currentSelectedHarvestType = v),
           ),
           if (_currentSelectedHarvestType == 'Other') ...[
             const SizedBox(height: 16),
@@ -2593,9 +2672,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   _currentHarvestCapacityController,
                   'e.g. 45',
                   keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   icon: Icons.straighten_rounded,
                 ),
               ),
@@ -2606,11 +2683,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   value: _selectedHarvestCapacityUnit,
                   isExpanded: true,
                   decoration: _inputDecoration('Unit'),
-                  items: _harvestCapacityUnits
-                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                      .toList(),
+                  items:
+                      _harvestCapacityUnits
+                          .map(
+                            (u) => DropdownMenuItem(value: u, child: Text(u)),
+                          )
+                          .toList(),
                   onChanged: (val) {
-                    if (val != null) setState(() => _selectedHarvestCapacityUnit = val);
+                    if (val != null)
+                      setState(() => _selectedHarvestCapacityUnit = val);
                   },
                 ),
               ),
@@ -2641,12 +2722,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                     final capText =
                         _currentHarvestCapacityController.text.trim();
                     if (capText.isNotEmpty) {
-                      final formattedCap = '$capText $_selectedHarvestCapacityUnit';
+                      final formattedCap =
+                          '$capText $_selectedHarvestCapacityUnit';
                       setState(() {
                         if (!_harvestCapacitiesMap.containsKey(type)) {
                           _harvestCapacitiesMap[type] = [];
                         }
-                        if (!_harvestCapacitiesMap[type]!.contains(formattedCap)) {
+                        if (!_harvestCapacitiesMap[type]!.contains(
+                          formattedCap,
+                        )) {
                           _harvestCapacitiesMap[type]!.add(formattedCap);
                         }
 
@@ -2721,9 +2805,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                         side: const BorderSide(color: Color(0xFFC8E6C9)),
                         onDeleted: () {
                           setState(() {
-                            _harvestCapacitiesMap[entry.key]!.remove(
-                              capacity,
-                            );
+                            _harvestCapacitiesMap[entry.key]!.remove(capacity);
                             if (_harvestCapacitiesMap[entry.key]!.isEmpty) {
                               _harvestCapacitiesMap.remove(entry.key);
                             }
@@ -3042,6 +3124,280 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             ),
           ),
 
+        if (_selectedEquipmentType == 'Trolleys')
+          _buildSectionCard(
+            title: 'Trolley Types',
+            icon: Icons.rv_hookup_rounded,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select the available trolley types:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF2C3E50),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children:
+                      _availableTrolleyTypes.map((equipment) {
+                        final isSelected = _selectedTrolleyTypes.contains(
+                          equipment,
+                        );
+                        return InputChip(
+                          label: Text(equipment),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFFE8F5E9),
+                          showCheckmark: false,
+                          deleteIconColor: const Color(0xFF00AA55),
+                          labelStyle: TextStyle(
+                            color:
+                                isSelected
+                                    ? const Color(0xFF1B5E20)
+                                    : const Color(0xFF2C3E50),
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color:
+                                  isSelected
+                                      ? const Color(0xFF00AA55)
+                                      : Colors.grey[300]!,
+                            ),
+                          ),
+                          backgroundColor: Colors.white,
+                          onSelected: (bool selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedTrolleyTypes.add(equipment);
+                                if (equipment == 'Other')
+                                  _isOtherTrolleyTypeSelected = true;
+                              } else {
+                                _selectedTrolleyTypes.remove(equipment);
+                                if (equipment == 'Other') {
+                                  _isOtherTrolleyTypeSelected = false;
+                                  _otherTrolleyTypeController.clear();
+                                }
+                              }
+                            });
+                          },
+                          onDeleted:
+                              isSelected
+                                  ? () {
+                                    setState(() {
+                                      _selectedTrolleyTypes.remove(equipment);
+                                      if (equipment == 'Other') {
+                                        _isOtherTrolleyTypeSelected = false;
+                                        _otherTrolleyTypeController.clear();
+                                      }
+                                    });
+                                  }
+                                  : null,
+                        );
+                      }).toList(),
+                ),
+                if (_isOtherTrolleyTypeSelected) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          'Other Trolley Type',
+                          _otherTrolleyTypeController,
+                          'e.g. 6-Wheel Hydraulic',
+                          icon: Icons.edit_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2.0),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final text =
+                                _otherTrolleyTypeController.text.trim();
+                            if (text.isNotEmpty) {
+                              setState(() {
+                                if (!_availableTrolleyTypes.contains(text)) {
+                                  _availableTrolleyTypes.insert(
+                                    _availableTrolleyTypes.length - 1,
+                                    text,
+                                  );
+                                }
+                                if (!_selectedTrolleyTypes.contains(text)) {
+                                  _selectedTrolleyTypes.add(text);
+                                }
+                                _otherTrolleyTypeController.clear();
+                                _selectedTrolleyTypes.remove('Other');
+                                _isOtherTrolleyTypeSelected = false;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AA55),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            minimumSize: const Size(0, 54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                          child: const Text(
+                            'Add',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+        if (_selectedEquipmentType == 'Trolleys')
+          _buildSectionCard(
+            title: 'Trolley Types',
+            icon: Icons.rv_hookup_rounded,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Select the available trolley types:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF2C3E50),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8.0,
+                  runSpacing: 8.0,
+                  children:
+                      _availableTrolleyTypes.map((equipment) {
+                        final isSelected = _selectedTrolleyTypes.contains(
+                          equipment,
+                        );
+                        return InputChip(
+                          label: Text(equipment),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFFE8F5E9),
+                          showCheckmark: false,
+                          deleteIconColor: const Color(0xFF00AA55),
+                          labelStyle: TextStyle(
+                            color:
+                                isSelected
+                                    ? const Color(0xFF1B5E20)
+                                    : const Color(0xFF2C3E50),
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color:
+                                  isSelected
+                                      ? const Color(0xFF00AA55)
+                                      : Colors.grey[300]!,
+                            ),
+                          ),
+                          backgroundColor: Colors.white,
+                          onSelected: (bool selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedTrolleyTypes.add(equipment);
+                                if (equipment == 'Other')
+                                  _isOtherTrolleyTypeSelected = true;
+                              } else {
+                                _selectedTrolleyTypes.remove(equipment);
+                                if (equipment == 'Other') {
+                                  _isOtherTrolleyTypeSelected = false;
+                                  _otherTrolleyTypeController.clear();
+                                }
+                              }
+                            });
+                          },
+                          onDeleted:
+                              isSelected
+                                  ? () {
+                                    setState(() {
+                                      _selectedTrolleyTypes.remove(equipment);
+                                      if (equipment == 'Other') {
+                                        _isOtherTrolleyTypeSelected = false;
+                                        _otherTrolleyTypeController.clear();
+                                      }
+                                    });
+                                  }
+                                  : null,
+                        );
+                      }).toList(),
+                ),
+                if (_isOtherTrolleyTypeSelected) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: _buildTextField(
+                          'Other Trolley Type',
+                          _otherTrolleyTypeController,
+                          'e.g. 6-Wheel Hydraulic',
+                          icon: Icons.edit_rounded,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2.0),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final text =
+                                _otherTrolleyTypeController.text.trim();
+                            if (text.isNotEmpty) {
+                              setState(() {
+                                if (!_availableTrolleyTypes.contains(text)) {
+                                  _availableTrolleyTypes.insert(
+                                    _availableTrolleyTypes.length - 1,
+                                    text,
+                                  );
+                                }
+                                if (!_selectedTrolleyTypes.contains(text)) {
+                                  _selectedTrolleyTypes.add(text);
+                                }
+                                _otherTrolleyTypeController.clear();
+                                _selectedTrolleyTypes.remove('Other');
+                                _isOtherTrolleyTypeSelected = false;
+                              });
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00AA55),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            minimumSize: const Size(0, 54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
+                          child: const Text(
+                            'Add',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
         if (_selectedEquipmentType == 'Sprayers')
           _buildSectionCard(
             title: 'Sprayer Types',
@@ -3221,15 +3577,36 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
           icon: Icons.fact_check_rounded,
           child: Column(
             children: [
-              _buildTextField(
-                l10n.rentalPrice,
-                _priceController,
-                _selectedEquipmentType == 'Sprayers'
-                    ? 'e.g. ₹50 / litre'
-                    : 'e.g. ₹500 / hour',
-                errorKey: 'price',
-                icon: Icons.payments_rounded,
-              ),
+              if (_selectedEquipmentType == 'Trolleys') ...[
+                _buildTextField(
+                  'Full Day Price',
+                  _priceController,
+                  'e.g. 1500',
+                  errorKey: 'price',
+                  icon: Icons.wb_sunny_rounded,
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 20),
+                _buildTextField(
+                  'Half Day Price',
+                  _equipmentHalfDayPriceController,
+                  'e.g. 800',
+                  errorKey: 'price_halfday',
+                  icon: Icons.wb_twilight_rounded,
+                  keyboardType: TextInputType.number,
+                ),
+              ] else ...[
+                _buildTextField(
+                  l10n.rentalPrice,
+                  _priceController,
+                  _selectedEquipmentType == 'Sprayers'
+                      ? 'e.g. ₹50 / litre'
+                      : 'e.g. ₹500 / hour',
+                  errorKey: 'price',
+                  icon: Icons.payments_rounded,
+                  keyboardType: TextInputType.number,
+                ),
+              ],
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 value: _condition,
@@ -3272,6 +3649,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   _operatorPriceController,
                   'e.g. ₹300 / day',
                   keyboardType: TextInputType.number,
+                  errorKey: 'operator_price',
                   icon: Icons.person_add_rounded,
                 ),
               ],
@@ -3324,7 +3702,11 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                         color: const Color(0xFFE8F5E9),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(icon, size: 18, color: const Color(0xFF00AA55)),
+                      child: Icon(
+                        icon,
+                        size: 18,
+                        color: const Color(0xFF00AA55),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

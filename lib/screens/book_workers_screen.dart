@@ -1380,6 +1380,7 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
               ),
               child: Column(
                 children: [
+                  _buildSelectedWorkersSummary(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -1589,6 +1590,87 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
         ),
         child: Icon(icon, size: 20, color: isDisabled ? Colors.grey[400] : const Color(0xFF00AA55)),
       ),
+    );
+  }
+
+  Widget _buildSelectedWorkersSummary() {
+    List<Widget> summaryItems = [];
+    
+    if (widget.roleDistribution.isNotEmpty) {
+      _selectedRoleCounts.forEach((role, count) {
+        if (count > 0) {
+          final skill = _getSkillForRole(role);
+          final gender = _getGenderForRole(role);
+          summaryItems.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      '$count x $skill',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700], fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(gender, style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+          );
+        }
+      });
+    } else {
+      if (_maleCount > 0) {
+        summaryItems.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text('$_maleCount x Male Workers', style: TextStyle(fontSize: 13, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 12),
+                Text('Male', style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+        );
+      }
+      if (_femaleCount > 0) {
+        summaryItems.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text('$_femaleCount x Female Workers', style: TextStyle(fontSize: 13, color: Colors.grey[700], fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 12),
+                Text('Female', style: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+        );
+      }
+    }
+
+    if (summaryItems.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Selected Workers', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+        const SizedBox(height: 12),
+        ...summaryItems,
+        const Divider(height: 30),
+      ],
     );
   }
 }

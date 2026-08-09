@@ -21,6 +21,7 @@ class BookTransportDetailScreen extends StatefulWidget {
   final String assetId;
   final double rate; // Rate per trip or per km usually, simplifying to 'per trip' for now
   final double? pricePerKm;
+  final double? pricePerHour;
   final bool? driverIncluded;
   final double? driverPrice;
   final String? ownerProfileImage;
@@ -37,6 +38,7 @@ class BookTransportDetailScreen extends StatefulWidget {
     required this.assetId,
     required this.rate,
     this.pricePerKm,
+    this.pricePerHour,
     this.driverIncluded,
     this.driverPrice,
     this.ownerProfileImage,
@@ -52,10 +54,9 @@ class BookTransportDetailScreen extends StatefulWidget {
 
 class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
-  final TextEditingController _goodsTypeController = TextEditingController();
-  String? get _selectedGoodsType => _goodsTypeController.text.trim().isEmpty ? null : _goodsTypeController.text.trim();
+  final TextEditingController _goodsTypeController = TextEditingController();  String? get _selectedGoodsType => _goodsTypeController.text.trim().isEmpty ? null : _goodsTypeController.text.trim();
   bool _isKmWise = false;
-  bool _isTrolleyHalfDay = false; // For Tractor Trolley: false = Full Day, true = Half Day
+  bool _isTrolleyHalfDay = false; // For Tractor Trolley: false = Daily Mode, true = Hourly Mode
   late bool _includeDriver;
   final TextEditingController _kmController = TextEditingController();
 
@@ -226,7 +227,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
     if (widget.vehicleType == 'Mini Truck' || widget.vehicleType == 'Truck' || widget.rate <= 0) {
       _isKmWise = true;
     } else if (widget.vehicleType == 'Tractor Trolley') {
-      _isKmWise = false; // Tractor Trolley uses Full/Half Day, not KM
+      _isKmWise = false; // Tractor Trolley uses Daily/Hourly
       _isTrolleyHalfDay = false;
     } else if (widget.rate > 0) {
       _isKmWise = false;
@@ -393,7 +394,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
   double get _totalPrice {
     double base = 0.0;
     if (widget.vehicleType == 'Tractor Trolley') {
-      base = _isTrolleyHalfDay ? (widget.pricePerKm ?? widget.rate / 2) : widget.rate;
+      base = _isTrolleyHalfDay ? (widget.pricePerKm ?? (widget.rate / 2)) : widget.rate;
     } else if (_isKmWise) {
       final double kmVal = double.tryParse(_kmController.text.trim()) ?? 0.0;
       if (kmVal <= 0) return 0.0; // No price until distance is entered
@@ -450,7 +451,8 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       return;
     }
 
-    if (_selectedSlots.isEmpty) {
+    final bool isDailyTrolley = widget.vehicleType == 'Tractor Trolley' && !_isTrolleyHalfDay;
+    if (_selectedSlots.isEmpty && !_isKmWise && !isDailyTrolley) {
       UiUtils.showCenteredToast(context, 'Please select at least one time slot', isError: true);
       _scrollToField(_timeSectionKey);
       return;
@@ -495,6 +497,8 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
       String formattedTime;
       if (_isKmWise) {
         formattedTime = 'KM-wise Booking (${_kmController.text} KM)';
+      } else if (isDailyTrolley) {
+        formattedTime = 'Daily Mode Booking (9 AM - 6 PM)';
       } else {
         if (_selectedSlots.length == 1) {
           formattedTime = _formatTimeRange(_selectedSlots.first);
@@ -510,16 +514,16 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
         'Location': _addressController.text,
         'Goods Type': _selectedGoodsType,
         'Time': formattedTime,
-        'Booking Mode': _isKmWise ? 'KM-wise' : 'Daily-wise',
+        'Booking Mode': _isKmWise ? 'KM-wise' : (isDailyTrolley ? 'Daily Mode' : 'Hourly Mode'),
         if (_isKmWise) 'Estimated KM': _kmController.text,
-        if (!_isKmWise) 'slots_list': _selectedSlots,
+        if (!_isKmWise && !isDailyTrolley) 'slots_list': _selectedSlots,
         'Driver Required': _includeDriver ? 'Yes' : 'No',
       };
 
-      DateTime start = _isKmWise 
+      DateTime start = (_isKmWise || isDailyTrolley)
           ? DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 9) 
           : DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.first);
-      DateTime end = _isKmWise 
+      DateTime end = (_isKmWise || isDailyTrolley)
           ? DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, 18) 
           : DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedSlots.last + 1);
 
@@ -715,72 +719,72 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
                      ),
                      const SizedBox(height: 12),
-                     Row(
-                       children: [
-                         Expanded(
-                           child: GestureDetector(
-                             onTap: () => setState(() => _isTrolleyHalfDay = false),
-                             child: AnimatedContainer(
-                               duration: const Duration(milliseconds: 200),
-                               padding: const EdgeInsets.symmetric(vertical: 14),
-                               decoration: BoxDecoration(
-                                 color: !_isTrolleyHalfDay ? const Color(0xFF00AA55) : Colors.white,
-                                 borderRadius: BorderRadius.circular(15),
-                                 border: Border.all(
-                                   color: !_isTrolleyHalfDay ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
-                                   width: 2,
-                                 ),
-                                 boxShadow: !_isTrolleyHalfDay
-                                     ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
-                                     : null,
-                               ),
-                               alignment: Alignment.center,
-                               child: Text(
-                                 'Full Day\n(₹${widget.rate.toStringAsFixed(0)})',
-                                 textAlign: TextAlign.center,
-                                 style: TextStyle(
-                                   color: !_isTrolleyHalfDay ? Colors.white : const Color(0xFF2C3E50),
-                                   fontWeight: FontWeight.w900,
-                                   fontSize: 13,
-                                 ),
-                               ),
-                             ),
-                           ),
-                         ),
-                         const SizedBox(width: 12),
-                         Expanded(
-                           child: GestureDetector(
-                             onTap: () => setState(() => _isTrolleyHalfDay = true),
-                             child: AnimatedContainer(
-                               duration: const Duration(milliseconds: 200),
-                               padding: const EdgeInsets.symmetric(vertical: 14),
-                               decoration: BoxDecoration(
-                                 color: _isTrolleyHalfDay ? const Color(0xFF00AA55) : Colors.white,
-                                 borderRadius: BorderRadius.circular(15),
-                                 border: Border.all(
-                                   color: _isTrolleyHalfDay ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
-                                   width: 2,
-                                 ),
-                                 boxShadow: _isTrolleyHalfDay
-                                     ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
-                                     : null,
-                               ),
-                               alignment: Alignment.center,
-                               child: Text(
-                                 'Half Day\n(₹${(widget.pricePerKm ?? widget.rate / 2).toStringAsFixed(0)})',
-                                 textAlign: TextAlign.center,
-                                 style: TextStyle(
-                                   color: _isTrolleyHalfDay ? Colors.white : const Color(0xFF2C3E50),
-                                   fontWeight: FontWeight.w900,
-                                   fontSize: 13,
-                                 ),
-                               ),
-                             ),
-                           ),
-                         ),
-                       ],
-                     ),
-                   ],
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _isTrolleyHalfDay = false),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: !_isTrolleyHalfDay ? const Color(0xFF00AA55) : Colors.white,
+                                  borderRadius: BorderRadius.circular(15),
+                                  border: Border.all(
+                                    color: !_isTrolleyHalfDay ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
+                                    width: 2,
+                                  ),
+                                  boxShadow: !_isTrolleyHalfDay
+                                      ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
+                                      : null,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  'Full Day\n(₹${widget.rate.toStringAsFixed(0)})',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: !_isTrolleyHalfDay ? Colors.white : const Color(0xFF2C3E50),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _isTrolleyHalfDay = true),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                decoration: BoxDecoration(
+                                  color: _isTrolleyHalfDay ? const Color(0xFF00AA55) : Colors.white,
+                                  borderRadius: BorderRadius.circular(15),
+                                  border: Border.all(
+                                    color: _isTrolleyHalfDay ? const Color(0xFF00AA55) : const Color(0xFFE8F5E9),
+                                    width: 2,
+                                  ),
+                                  boxShadow: _isTrolleyHalfDay
+                                      ? [BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4))]
+                                      : null,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  'Half Day\n(₹${(widget.pricePerKm ?? widget.rate / 2).toStringAsFixed(0)})',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: _isTrolleyHalfDay ? Colors.white : const Color(0xFF2C3E50),
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                  ),
                ),
                const SizedBox(height: 24),
@@ -1073,6 +1077,54 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                         padding: const EdgeInsets.only(top: 8),
                         child: Text('Select a date first to view availability', style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500)),
                       )
+                    else if (widget.vehicleType == 'Tractor Trolley' && !_isTrolleyHalfDay)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(color: const Color(0xFFC8E6C9)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.wb_sunny_rounded, color: const Color(0xFF00AA55), size: 24),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  'Full Day selected. The vehicle will be booked for the entire day.',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1B5E20)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (widget.vehicleType == 'Tractor Trolley' && _isTrolleyHalfDay)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8E1),
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(color: const Color(0xFFFFECB3)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.wb_twilight_rounded, color: const Color(0xFFFFA000), size: 24),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text(
+                                  'Half Day selected. Please select your preferred slots below.',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFFF8F00)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
                     else ...[
                       const SizedBox(height: 16),
                       if (_isLoadingBookings)
@@ -1132,7 +1184,7 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
                         ),
                     ],
 
-                    if (_selectedSlots.isNotEmpty && !_isKmWise) ...[
+                    if (_selectedSlots.isNotEmpty && !_isKmWise && !(widget.vehicleType == 'Tractor Trolley' && !_isTrolleyHalfDay)) ...[
                       const SizedBox(height: 24),
                       const Text('Selected Slots Details', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                       const SizedBox(height: 12),
