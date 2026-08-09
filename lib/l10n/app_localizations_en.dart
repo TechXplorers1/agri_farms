@@ -15,7 +15,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get namaste => 'Namaste';
 
   @override
-  String get searchHint => 'Search seeds, tractor, spraying...';
+  String get searchHint => 'Search tractor, spraying...';
 
   @override
   String get bookServices => 'Book Services';
@@ -434,10 +434,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get femaleWorkers => 'Female Workers';
 
   @override
-  String get priceMale => 'Price/Male (₹)';
+  String get priceMale => 'Price/Male (â‚¹)';
 
   @override
-  String get priceFemale => 'Price/Female (₹)';
+  String get priceFemale => 'Price/Female (â‚¹)';
 
   @override
   String get dailyWage => 'Daily Wage';
@@ -512,7 +512,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filter => 'Filter';
 
   @override
-  String get chooseMake => 'Choose Make';
+  String get chooseMake => 'Choose Brand';
 
   @override
   String get chooseType => 'Choose Type';

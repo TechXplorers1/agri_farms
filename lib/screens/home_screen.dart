@@ -872,7 +872,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         controller: _searchController,
         decoration: InputDecoration(
           hintText: AppLocalizations.of(context)!.searchHint,
-          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
+          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.w600),
           prefixIcon: Icon(Icons.search, color: Colors.grey[400], size: 22),
           suffixIcon: _searchQuery.isNotEmpty
               ? GestureDetector(onTap: () { _searchController.clear(); }, child: Icon(Icons.close, color: Colors.grey[400], size: 20))
