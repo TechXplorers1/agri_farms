@@ -2,7 +2,8 @@ enum Environment { dev, prod }
 
 class ApiConfig {
   // Switches environment based on compile-time ENV variable (defaults to dev)
-  static const Environment env = Environment.dev;
+  static const Environment env = Environment.prod;
+
 
   // Development base API endpoint
   // Use localhost when running Flutter on Chrome (web) - same machine as backend
