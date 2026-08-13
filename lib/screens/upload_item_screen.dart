@@ -587,6 +587,10 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
         }
       }
     }
+    
+    if (widget.category == 'Sprayers' || _selectedEquipmentType == 'Sprayers' || widget.defaultSubtype == 'Sprayers') {
+      _operatorAvailable = true;
+    }
   }
 
   Future<void> _fillWithProfileLocation() async {
@@ -847,9 +851,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
     if (_selectedEquipmentType != null) {
       // Make selection is no longer mandatory
     }
-    if (_brandModelController.text.isEmpty) {
-      _fieldErrors['brandModel'] = 'Enter brand/model';
-      hasError = true;
+    if (_selectedEquipmentType != 'Harvesters' && 
+        _selectedEquipmentType != 'Sprayers' && 
+        widget.category != 'Harvesters' && 
+        widget.category != 'Sprayers' && 
+        widget.category != 'Harvesting') {
+      if (_brandModelController.text.isEmpty) {
+        _fieldErrors['brandModel'] = 'Enter brand/model';
+        hasError = true;
+      }
     }
     if (_selectedEquipmentType == 'Sprayers') {
       bool hasPendingSprayer =
@@ -2863,6 +2873,9 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                     _selectedMake = null;
                     _selectedModel = null;
                     _brandModelController.clear();
+                    if (v == 'Sprayers') {
+                      _operatorAvailable = true;
+                    }
                   });
                 },
               ),
@@ -2881,8 +2894,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                   widget.category == 'Harvesting') ...[
                 _buildHarvestCapacitySection(),
                 const SizedBox(height: 20),
-              ] else if (_selectedEquipmentType == 'Sprayers' ||
-                  widget.category == 'Sprayers' ||
+              ] else if (widget.category == 'Sprayers' ||
                   widget.category == 'Drone Spraying') ...[
                 _buildEquipmentCapacitySection(
                   categoryTitle: 'SPRAYER TYPES',
@@ -2969,13 +2981,15 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 keyboardType: TextInputType.number,
                 icon: Icons.calendar_today_rounded,
               ),
-              const SizedBox(height: 20),
-              _buildTextField(
-                l10n.vehicleNumber,
-                _vehicleNumberController,
-                'e.g. TN 37 BY 1234 (Optional)',
-                icon: Icons.numbers_rounded,
-              ),
+              if (_selectedEquipmentType != 'Sprayers') ...[
+                const SizedBox(height: 20),
+                _buildTextField(
+                  l10n.vehicleNumber,
+                  _vehicleNumberController,
+                  'e.g. TN 37 BY 1234 (Optional)',
+                  icon: Icons.numbers_rounded,
+                ),
+              ],
             ],
           ),
         ),
@@ -3262,142 +3276,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
             ),
           ),
 
-        if (_selectedEquipmentType == 'Trolleys')
-          _buildSectionCard(
-            title: 'Trolley Types',
-            icon: Icons.rv_hookup_rounded,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Select the available trolley types:',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF2C3E50),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8.0,
-                  runSpacing: 8.0,
-                  children:
-                      _availableTrolleyTypes.map((equipment) {
-                        final isSelected = _selectedTrolleyTypes.contains(
-                          equipment,
-                        );
-                        return InputChip(
-                          label: Text(equipment),
-                          selected: isSelected,
-                          selectedColor: const Color(0xFFE8F5E9),
-                          showCheckmark: false,
-                          deleteIconColor: const Color(0xFF00AA55),
-                          labelStyle: TextStyle(
-                            color:
-                                isSelected
-                                    ? const Color(0xFF1B5E20)
-                                    : const Color(0xFF2C3E50),
-                            fontWeight:
-                                isSelected ? FontWeight.w700 : FontWeight.w500,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(
-                              color:
-                                  isSelected
-                                      ? const Color(0xFF00AA55)
-                                      : Colors.grey[300]!,
-                            ),
-                          ),
-                          backgroundColor: Colors.white,
-                          onSelected: (bool selected) {
-                            setState(() {
-                              if (selected) {
-                                _selectedTrolleyTypes.add(equipment);
-                                if (equipment == 'Other')
-                                  _isOtherTrolleyTypeSelected = true;
-                              } else {
-                                _selectedTrolleyTypes.remove(equipment);
-                                if (equipment == 'Other') {
-                                  _isOtherTrolleyTypeSelected = false;
-                                  _otherTrolleyTypeController.clear();
-                                }
-                              }
-                            });
-                          },
-                          onDeleted:
-                              isSelected
-                                  ? () {
-                                    setState(() {
-                                      _selectedTrolleyTypes.remove(equipment);
-                                      if (equipment == 'Other') {
-                                        _isOtherTrolleyTypeSelected = false;
-                                        _otherTrolleyTypeController.clear();
-                                      }
-                                    });
-                                  }
-                                  : null,
-                        );
-                      }).toList(),
-                ),
-                if (_isOtherTrolleyTypeSelected) ...[
-                  const SizedBox(height: 16),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                          'Other Trolley Type',
-                          _otherTrolleyTypeController,
-                          'e.g. 6-Wheel Hydraulic',
-                          icon: Icons.edit_rounded,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2.0),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            final text =
-                                _otherTrolleyTypeController.text.trim();
-                            if (text.isNotEmpty) {
-                              setState(() {
-                                if (!_availableTrolleyTypes.contains(text)) {
-                                  _availableTrolleyTypes.insert(
-                                    _availableTrolleyTypes.length - 1,
-                                    text,
-                                  );
-                                }
-                                if (!_selectedTrolleyTypes.contains(text)) {
-                                  _selectedTrolleyTypes.add(text);
-                                }
-                                _otherTrolleyTypeController.clear();
-                                _selectedTrolleyTypes.remove('Other');
-                                _isOtherTrolleyTypeSelected = false;
-                              });
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00AA55),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            minimumSize: const Size(0, 54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                          child: const Text(
-                            'Add',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
-          ),
+
 
         if (_selectedEquipmentType == 'Sprayers')
           _buildSectionCard(
@@ -3417,6 +3296,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   value: _currentSelectedSprayerType,
                   decoration: _inputDecoration(
                     'Sprayer Type',
@@ -4246,6 +4126,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
           // Dropdown
           DropdownButtonFormField<String>(
+            isExpanded: true,
             value:
                 dropdownItems.contains(_selectedEquipmentTypeForCap)
                     ? _selectedEquipmentTypeForCap

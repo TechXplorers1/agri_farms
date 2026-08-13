@@ -320,11 +320,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final type = notification['type'] ?? '';
     final isRead = (notification['read'] ?? notification['isRead']) == true;
     final isNavigable = type == 'booking_request' || type == 'booking_status_update' || type == 'booking_cancelled';
+    
+    final titleLower = (notification['title'] ?? '').toString().toLowerCase();
+    final isRejected = titleLower.contains('rejected') || titleLower.contains('declined') || type == 'booking_cancelled';
 
     Color accentColor = const Color(0xFF00AA55);
     IconData icon = Icons.notifications_rounded;
     
-    if (type == 'booking_request') {
+    if (isRejected) {
+       accentColor = const Color(0xFFC62828);
+       icon = Icons.cancel_outlined;
+    } else if (type == 'booking_request') {
        accentColor = const Color(0xFF1565C0);
        icon = Icons.handshake_rounded;
     } else if (type == 'booking_status_update') {
@@ -381,7 +387,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             style: TextStyle(
                               fontSize: 15, 
                               fontWeight: isRead ? FontWeight.w700 : FontWeight.w900, 
-                              color: const Color(0xFF2C3E50),
+                              color: isRejected ? const Color(0xFFC62828) : const Color(0xFF2C3E50),
                               letterSpacing: -0.2
                             )
                           ),
@@ -396,7 +402,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     const SizedBox(height: 6),
                     Text(
                       notification['message'] ?? '', 
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600], height: 1.4, fontWeight: FontWeight.w500)
+                      style: TextStyle(fontSize: 13, color: isRejected ? const Color(0xFFC62828) : Colors.grey[600], height: 1.4, fontWeight: FontWeight.w500)
                     ),
                     const SizedBox(height: 14),
                     Row(
