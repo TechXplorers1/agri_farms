@@ -146,6 +146,15 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _capacityController = TextEditingController();
     _ownerBusinessNameController = TextEditingController(text: widget.itemData['ownerBusinessName']?.toString() ?? '');
     _descriptionController = TextEditingController(text: widget.itemData['description']?.toString() ?? '');
+    _equipmentUsedController = TextEditingController(text: widget.itemData['equipmentUsed']?.toString() ?? '');
+    _houseNoController = TextEditingController(text: widget.itemData['houseNo']?.toString() ?? '');
+    _streetController = TextEditingController(text: widget.itemData['street']?.toString() ?? '');
+    _villageController = TextEditingController(text: widget.itemData['village']?.toString() ?? '');
+    _mandalController = TextEditingController(text: widget.itemData['mandal']?.toString() ?? '');
+    _districtController = TextEditingController(text: widget.itemData['district']?.toString() ?? '');
+    _stateController = TextEditingController(text: widget.itemData['state']?.toString() ?? '');
+    _countryController = TextEditingController(text: widget.itemData['country']?.toString() ?? '');
+    _pincodeController = TextEditingController(text: widget.itemData['pincode']?.toString() ?? '');
     _maleCountController = TextEditingController();
     _femaleCountController = TextEditingController();
     _malePriceHourlyController = TextEditingController();
@@ -299,6 +308,15 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
     _capacityController.dispose();
     _ownerBusinessNameController.dispose();
     _descriptionController.dispose();
+    _equipmentUsedController.dispose();
+    _houseNoController.dispose();
+    _streetController.dispose();
+    _villageController.dispose();
+    _mandalController.dispose();
+    _districtController.dispose();
+    _stateController.dispose();
+    _countryController.dispose();
+    _pincodeController.dispose();
     _serviceAreaController.dispose();
     _operatorPriceController.dispose();
     _otherAttachedEquipmentController.dispose();
@@ -979,8 +997,8 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
                         defaultUnit: 'HP',
                         icon: Icons.agriculture_rounded,
                       ),
-                    ] else if (_secondaryController.text == 'Sprayers' ||
-                        _secondaryController.text == 'Drone Spraying') ...[
+                    ] else if (_secondaryController.text ==
+                        'Drone Spraying') ...[
                       _buildEquipmentCapacitySection(
                         categoryTitle: 'SPRAYER TYPES',
                         subtitle: 'Add sprayers and their capacities:',
@@ -2783,6 +2801,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
 
           // Dropdown
           DropdownButtonFormField<String>(
+            isExpanded: true,
             value:
                 dropdownItems.contains(_selectedEquipmentTypeForCap)
                     ? _selectedEquipmentTypeForCap
