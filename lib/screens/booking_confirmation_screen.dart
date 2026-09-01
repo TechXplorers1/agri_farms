@@ -173,7 +173,7 @@ class _BookingConfirmationScreenState extends State<BookingConfirmationScreen> w
                                    color: const Color(0xFF00AA55).withOpacity(0.1),
                                    shape: BoxShape.circle,
                                  ),
-                                 child: const Icon(Icons.eco_rounded, size: 64, color: Color(0xFF00AA55)),
+                                 child: Image.asset('assets/images/logo.png', width: 64, height: 64),
                                ),
                                const SizedBox(height: 8),
                                const Icon(Icons.check_circle_rounded, size: 28, color: Colors.orangeAccent),

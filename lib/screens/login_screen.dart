@@ -209,10 +209,12 @@ class _AuthScreenState extends State<AuthScreen> {
                               BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 30),
                             ],
                           ),
-                          child: const Icon(
-                            Icons.eco_rounded,
-                            size: 48,
-                            color: Color(0xFF00AA55),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 14),
