@@ -862,9 +862,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             children: [
               Row(children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  clipBehavior: Clip.hardEdge,
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.eco, color: Color(0xFF2E7D32), size: 26),
+                  child: Transform.scale(
+                    scale: 1.6,
+                    child: Image.asset('assets/images/logo.png', width: 36, height: 36),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 const Text('Agri Farms', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 0.3)),

@@ -56,10 +56,10 @@ class _LanguageSelectionScreenState extends State<LanguageSelectionScreen> {
                           BoxShadow(color: const Color(0xFF00AA55).withOpacity(0.15), blurRadius: 30, offset: const Offset(0, 10)),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.eco_rounded,
-                        size: 50,
-                        color: Color(0xFF00AA55),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        width: 50,
+                        height: 50,
                       ),
                     ),
                     const SizedBox(height: 24),

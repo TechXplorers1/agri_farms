@@ -360,10 +360,10 @@ Widget _buildTomatoFallbackWidget(double size) {
         ),
         Positioned(
           top: size * 0.05,
-          child: Icon(
-            Icons.eco_rounded,
-            size: size * 0.45,
-            color: const Color(0xFF4CAF50),
+          child: Image.asset(
+            'assets/images/logo.png',
+            width: size * 0.45,
+            height: size * 0.45,
           ),
         ),
       ],

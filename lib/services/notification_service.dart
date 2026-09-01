@@ -40,7 +40,7 @@ class _NotificationHelper {
 
   static Future<void> showLocalNotification(RemoteMessage message) async {
     const AndroidInitializationSettings androidInit =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('ic_notification');
     const InitializationSettings initSettings =
         InitializationSettings(android: androidInit);
     await _plugin.initialize(initSettings);
@@ -67,7 +67,7 @@ class _NotificationHelper {
           channelDescription: _channel.description,
           importance: Importance.max,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+          icon: 'ic_notification',
         ),
       ),
       payload: payloadString,
@@ -130,7 +130,7 @@ class NotificationService {
 
     // Step 4: Initialize local notifications plugin
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+        AndroidInitializationSettings('ic_notification');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
 
@@ -265,7 +265,7 @@ class NotificationService {
           channelDescription: _channel.description,
           importance: Importance.max,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+          icon: 'ic_notification',
           color: const Color(0xFF00AA55),
         ),
       ),
