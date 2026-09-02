@@ -1627,7 +1627,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                     _transportTypes
                         .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                         .toList(),
-                onChanged: (v) {
+                onChanged: widget.defaultSubtype != null ? null : (v) {
                   setState(() {
                     _selectedTransportType = v;
                     _selectedVehicleMake = null;
@@ -2241,7 +2241,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                             (s) => DropdownMenuItem(value: s, child: Text(s)),
                           )
                           .toList(),
-                  onChanged: (val) {
+                  onChanged: widget.defaultSubtype != null ? null : (val) {
                     setState(() => _selectedServiceType = val);
                   },
                 )
@@ -2867,7 +2867,7 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
                     _equipmentCategories
                         .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                         .toList(),
-                onChanged: (v) {
+                onChanged: widget.defaultSubtype != null ? null : (v) {
                   setState(() {
                     _selectedEquipmentType = v;
                     _selectedMake = null;

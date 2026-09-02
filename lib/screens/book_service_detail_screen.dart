@@ -346,7 +346,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       } else {
         if (_selectedSlots.contains(hour)) {
           if (hour != _selectedSlots.first && hour != _selectedSlots.last) {
-             UiUtils.showCustomAlert(context, 'Cannot remove a middle slot. If you want to book a split time, you need to make a new booking.', isError: true);
+             UiUtils.showCustomAlert(context, "Cannot remove a middle slot. You can't book the same provider's time slots splittingly. If you need the same provider, you need to go for a new booking.", isError: true);
              return;
           }
           _selectedSlots.remove(hour);
@@ -354,7 +354,7 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
           if (_selectedSlots.isNotEmpty) {
              _selectedSlots.sort();
              if (hour != _selectedSlots.first - 1 && hour != _selectedSlots.last + 1) {
-                UiUtils.showCustomAlert(context, 'If you want to book a split time, you need to make a new booking.', isError: true);
+                UiUtils.showCustomAlert(context, "You can't book the same provider's time slots splittingly. If you need the same provider, you need to go for a new booking.", isError: true);
                 return;
              }
           }

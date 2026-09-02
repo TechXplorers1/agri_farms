@@ -139,7 +139,7 @@ class _ProviderRequestsScreenState extends State<ProviderRequestsScreen> {
           ),
           IconButton(
             icon: Icon(
-              _filterDate == null ? Icons.calendar_month_rounded : Icons.filter_alt_off_rounded,
+              _filterDate == null ? Icons.filter_alt_rounded : Icons.filter_alt_off_rounded,
               color: const Color(0xFF00AA55),
             ),
             onPressed: () async {

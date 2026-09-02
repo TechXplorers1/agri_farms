@@ -336,7 +336,7 @@ class _AuthScreenState extends State<AuthScreen> {
                               items: _getRoles(context).map((String role) {
                                 return DropdownMenuItem<String>(
                                   value: role,
-                                  child: Text(role, style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
+                                  child: Text(role == 'Owner' ? 'Vendor' : role, style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF2C3E50))),
                                 );
                               }).toList(),
                               onChanged: (String? newValue) {
