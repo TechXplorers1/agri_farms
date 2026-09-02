@@ -27,11 +27,9 @@ void main() {
     
     // Initialize Firebase and Notifications
     try {
-      if (kIsWeb) {
-        await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
-      } else {
-        await Firebase.initializeApp();
-      }
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       await NotificationService().init();
     } catch (e) {
       debugPrint('Firebase/Notifications initialization failed: $e');

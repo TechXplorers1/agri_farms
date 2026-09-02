@@ -14,14 +14,17 @@ import '../screens/generic_history_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../utils/booking_manager.dart';
 import 'api_service.dart';
-
+import '../firebase_options.dart';
 /// Must be top-level — runs in a separate isolate
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   print('Background FCM message: ${message.messageId}');
-  // Show local notification for background messages
-  await _NotificationHelper.showLocalNotification(message);
+  
+  // Show local notification only if the system didn't automatically show one
+  if (message.notification == null) {
+    await _NotificationHelper.showLocalNotification(message);
+  }
 }
 
 /// Helper so background handler can call show
@@ -45,8 +48,7 @@ class _NotificationHelper {
         InitializationSettings(android: androidInit);
     await _plugin.initialize(initSettings);
 
-    await _plugin
-        .resolvePlatformSpecificImplementation<
+    await _plugin        .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_channel);
 
