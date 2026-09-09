@@ -207,6 +207,23 @@ class ApiService {
     return await put('${ApiConfig.users}/$userId', userData);
   }
 
+  /// Permanently deletes the user account and all associated data.
+  /// Called from ProfileScreen when user requests account deletion.
+  /// Backend must delete: PostgreSQL user record, Keycloak account, S3 images, bookings.
+  /// Required by Google Play Store User Data Policy (mandatory since Dec 2023).
+  Future<void> deleteUser(String userId) async {
+    final url = Uri.parse('$baseUrl${ApiConfig.users}/$userId');
+    try {
+      final headers = await _getHeaders();
+      final response = await http.delete(url, headers: headers);
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to delete account: ${response.statusCode} — ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting account: $e');
+    }
+  }
+
   Future<dynamic> getUserStats(String userId) async {
     return await get('${ApiConfig.users}/$userId/stats');
   }

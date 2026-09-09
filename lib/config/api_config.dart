@@ -39,10 +39,14 @@ class ApiConfig {
   static const String inventoryWorkerGroups = '/api/inventory/worker-groups';
   static const String notifications = '/api/notifications';
 
-  // MSG91 Widget configuration for OTP
-  static const String msg91WidgetId = '6a6470ebe285710a1e0ead72';
-  // Replace this with your actual MSG91 Auth Token from the 'Tokens' section of the MSG91 dashboard
-  static const String msg91AuthToken = '551740AvEkrLHO5I6a63711bP1'; // using the one from application.yml
+  // MSG91 Widget ID (used only if widget-based OTP flow is enabled in the UI)
+  // The MSG91 Auth Token has been removed from client code — it lives on the backend ONLY.
+  // Backend handles all MSG91 API calls via /api/auth/msg91/send-otp and verify-otp.
+  // Play Store policy: Never expose auth tokens in app source (can be extracted from APK).
+  static const String msg91WidgetId = String.fromEnvironment(
+    'MSG91_WIDGET_ID',
+    defaultValue: '6a6470ebe285710a1e0ead72', // set via --dart-define=MSG91_WIDGET_ID=xxx
+  );
 
   static String getFullImageUrl(String? path) {
     if (path == null || path.isEmpty) return '';
