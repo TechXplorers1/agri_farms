@@ -1,0 +1,26 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# key.properties — Agri Farms Release Signing Configuration
+# ──────────────────────────────────────────────────────────────────────────────
+# CRITICAL: This file contains your release keystore credentials.
+#           NEVER commit this file to git. It is listed in .gitignore.
+#           Losing the keystore file means you CANNOT update the app on Play Store.
+#
+# HOW TO GENERATE THE KEYSTORE (one-time setup):
+# ───────────────────────────────────────────────
+# Run this command in your terminal (replace <your-password> with a strong password):
+#
+#   keytool -genkey -v ^
+#     -keystore agrifarms-upload-key.jks ^
+#     -keyalg RSA -keysize 2048 -validity 10000 ^
+#     -alias agrifarms-key ^
+#     -storepass <your-password> ^
+#     -keypass <your-password> ^
+#     -dname "CN=Agri Farms, OU=Mobile, O=AgriFarms, L=India, S=TamilNadu, C=IN"
+#
+# Then copy agrifarms-upload-key.jks to the android/ folder and fill in below.
+# ──────────────────────────────────────────────────────────────────────────────
+
+storePassword=REPLACE_WITH_YOUR_STORE_PASSWORD
+keyPassword=REPLACE_WITH_YOUR_KEY_PASSWORD
+keyAlias=agrifarms-key
+storeFile=agrifarms-upload-key.jks

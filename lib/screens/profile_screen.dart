@@ -430,6 +430,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _buildDividerLine(),
               _buildListTile(Icons.description_outlined, l10n.termsPrivacy, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const TermsPrivacyScreen()))),
             ]),
+            const SizedBox(height: 20),
+            // ──────────────────────────────────────────────────────────────────
+            // DANGER ZONE — Required by Google Play Store (User Data Policy)
+            // All apps with user accounts MUST provide in-app account deletion.
+            // ──────────────────────────────────────────────────────────────────
+            _buildSectionHeader('Danger Zone'),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.red[100]!, width: 1),
+                boxShadow: [BoxShadow(color: Colors.red.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4))],
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(10)),
+                  child: Icon(Icons.delete_forever_rounded, color: Colors.red[700], size: 20),
+                ),
+                title: Text('Delete Account', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.red[700])),
+                subtitle: Text('Permanently remove your account and all data', style: TextStyle(fontSize: 12, color: Colors.red[300])),
+                trailing: const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey),
+                onTap: () => _showDeleteAccountDialog(context),
+              ),
+            ),
             const SizedBox(height: 32),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -741,5 +768,191 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       },
     );
+  }
+  /// ─── Delete Account ────────────────────────────────────────────────────────
+  /// Required by Google Play Store User Data Policy (mandatory since Dec 2023).
+  /// Shows a 2-step confirmation before permanently deleting the account.
+  void _showDeleteAccountDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.red[50], shape: BoxShape.circle),
+                child: Icon(Icons.delete_forever_rounded, color: Colors.red[700], size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Text('Delete Account', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'This will permanently delete:',
+                style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey[800], fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              ..._deleteWarnings().map((w) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.remove_circle_outline, color: Colors.red[400], size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(w, style: TextStyle(fontSize: 13, color: Colors.grey[700]))),
+                  ],
+                ),
+              )),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(10)),
+                child: Text(
+                  '⚠️ This action is permanent and cannot be undone.',
+                  style: TextStyle(fontSize: 13, color: Colors.red[700], fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _confirmDeleteAccount(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[600],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Text('Yes, Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  List<String> _deleteWarnings() => [
+    'Your profile and personal information',
+    'All your bookings and history',
+    'Your equipment / service listings',
+    'Your profile photo and uploaded images',
+  ];
+
+  /// Second confirmation step before final deletion.
+  void _confirmDeleteAccount(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: Colors.white,
+          title: const Text('Are you absolutely sure?', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Color(0xFF2C3E50))),
+          content: const Text(
+            'Type "DELETE" in your mind and tap the red button. All your data will be erased from our servers within 30 days.',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _performAccountDeletion(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Text('DELETE MY ACCOUNT', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.8)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Calls the backend DELETE /api/users/{userId}, clears local data, logs user out.
+  Future<void> _performAccountDeletion(BuildContext context) async {
+    // Show loading overlay
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFF00AA55)),
+        ),
+      );
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('user_id');
+
+      if (userId != null && userId.isNotEmpty) {
+        // Clear FCM token on backend before deletion
+        await NotificationService().clearFCMToken();
+        // Call backend to delete user account and all associated data
+        await ApiService().deleteUser(userId);
+      }
+
+      // Clear all local tokens and preferences
+      await ApiService().clearTokens();
+      await prefs.clear();
+
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Your account has been deleted successfully.'),
+            backgroundColor: Color(0xFF2E7D32),
+          ),
+        );
+        // Navigate to login screen and clear all routes
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Deletion Failed', style: TextStyle(fontWeight: FontWeight.w900)),
+            content: Text(
+              'We could not delete your account right now. Please contact support@agrifarms.in\n\nError: $e',
+              style: const TextStyle(fontSize: 13),
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55)),
+                child: const Text('OK', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 }

@@ -237,7 +237,7 @@ class ProviderManager extends ChangeNotifier {
             price: eq.category == 'Sprayers'
                 ? '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / litre'
                 : '₹${eq.pricePerHour?.toStringAsFixed(0) ?? 0} / hour',
-            operatorAvailable: eq.operatorAvailable ?? false,
+            operatorAvailable: eq.operatorAvailable ?? true,
             operatorPrice: eq.operatorPrice ?? 0.0,
             pricePerHalfDay: eq.pricePerHalfDay,
             condition: 'Good', // Default

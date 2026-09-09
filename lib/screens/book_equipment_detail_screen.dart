@@ -61,7 +61,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
   final int _endHour = 20;
   int? _selectedStartHour;
   int _durationHours = 1;
-  bool _includeOperator = false;
+  bool _includeOperator = true;
   bool _isTrolleyHalfDay = false; // Added for Equipment Trolley Mode
   DateTime? _selectedDate;
 
@@ -709,7 +709,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
         if (hour != _selectedSlots.first && hour != _selectedSlots.last) {
           UiUtils.showCustomAlert(
             context,
-            'Cannot remove a middle slot. If you want to book a split time, you need to make a new booking.',
+            "Cannot remove a middle slot. You can't book the same provider's time slots splittingly. If you need the same provider, you need to go for a new booking.",
             isError: true,
           );
           return;
@@ -722,7 +722,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
               hour != _selectedSlots.last + 1) {
             UiUtils.showCustomAlert(
               context,
-              'If you want to book a split time, you need to make a new booking.',
+              "You can't book the same provider's time slots splittingly. If you need the same provider, you need to go for a new booking.",
               isError: true,
             );
             return;
@@ -1436,7 +1436,7 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
             // Location Section
             _buildSectionCard(
               key: _addressSectionKey,
-              title: 'Lush Delivery Location',
+              title: 'Delivery Location',
               icon: Icons.location_on_rounded,
               isError: [
                 'houseNo',

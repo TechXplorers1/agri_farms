@@ -1829,7 +1829,7 @@ class _EditRegisteredItemScreenState extends State<EditRegisteredItemScreen> {
               ),
 
             _buildSectionCard(
-              title: 'Lush Location',
+              title: 'Location',
               icon: Icons.location_on_outlined,
               child: Column(
                 children: [

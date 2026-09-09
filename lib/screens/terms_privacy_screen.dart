@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'login_screen.dart';
 
 class TermsPrivacyScreen extends StatefulWidget {
@@ -18,7 +19,6 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('terms_accepted', true);
     if (!mounted) return;
-    
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const AuthScreen()),
     );
@@ -61,7 +61,7 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       offset: const Offset(0, -4),
                       blurRadius: 10,
                     ),
@@ -124,6 +124,9 @@ class _TermsPrivacyScreenState extends State<TermsPrivacyScreen> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Terms of Service Tab
+// ─────────────────────────────────────────────────────────────────────────────
 class _TermsOfServiceTab extends StatelessWidget {
   const _TermsOfServiceTab();
 
@@ -134,29 +137,39 @@ class _TermsOfServiceTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
-          Text(
-            'Terms of Service',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          Text('Terms of Service', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          SizedBox(height: 4),
+          Text('Last updated: September 2026', style: TextStyle(fontSize: 12, color: Colors.grey)),
           SizedBox(height: 16),
           Text(
             '1. Acceptance of Terms\n'
-            'By accessing and using this application, you accept and agree to be bound by the terms and provision of this agreement.\n\n'
-            
-            '2. Use of License\n'
-            'Permission is granted to temporarily download one copy of the materials (information or software) on Agri Farms\' application for personal, non-commercial transitory viewing only.\n\n'
-            
-            '3. User Account\n'
-            'To use certain features of the app, you may be required to register for an account. You agree to keep your password confidential and will be responsible for all use of your account and password.\n\n'
-            
-            '4. Services\n'
-            'The application facilitates connection between farmers, equipment owners, and service providers. We act as an intermediary platform and are not directly responsible for the quality of varied services provided by third parties.\n\n'
-            
-            '5. Booking and Cancellation\n'
-            'Bookings made through the platform are subject to availability. Cancellations may be subject to fees as per the specific service provider\'s policy.\n\n'
-            
-            '6. Disclaimer\n'
-            'The materials on Agri Farms\' application are provided on an \'as is\' basis. Agri Farms makes no warranties, expressed or implied, and hereby disclaims and negates all other warranties including, without limitation, implied warranties or conditions of merchantability.',
+            'By downloading and using the Agri Farms application, you agree to be bound by these Terms of Service. If you do not agree, do not use the app.\n\n'
+            '2. Eligibility\n'
+            'You must be at least 18 years old to use Agri Farms. By registering, you confirm you meet this requirement.\n\n'
+            '3. User Roles\n'
+            'The platform supports two roles:\n'
+            '• Farmer: Can browse and book equipment, services, transport, and farm workers.\n'
+            '• Owner/Vendor: Can list and manage equipment, services, transport, or worker groups for booking.\n\n'
+            '4. Account Registration\n'
+            'You must register using a valid Indian mobile number. OTP verification is required. You are responsible for maintaining the security of your account.\n\n'
+            '5. Bookings and Cancellations\n'
+            'Bookings made through Agri Farms are subject to the service provider\'s availability and pricing. Cancellation policies vary by provider. Agri Farms acts as a marketplace intermediary only.\n\n'
+            '6. User Conduct\n'
+            'You agree not to:\n'
+            '• Post false or misleading listings\n'
+            '• Harass or harm other users\n'
+            '• Use the platform for any unlawful purpose\n'
+            '• Attempt to reverse-engineer the app\n\n'
+            '7. Content and Listings\n'
+            'You retain ownership of content you upload. By uploading, you grant Agri Farms a license to display it within the app. We may remove content that violates these terms.\n\n'
+            '8. Account Deletion\n'
+            'You can permanently delete your account from Profile > Danger Zone > Delete Account. Your data will be erased from our servers within 30 days. You may also request deletion at: https://agrifarms.in/account-deletion\n\n'
+            '9. Disclaimer\n'
+            'Agri Farms is a marketplace platform. We are not directly responsible for the quality, safety, or legality of services provided by third-party vendors.\n\n'
+            '10. Termination\n'
+            'We reserve the right to suspend or terminate accounts that violate these terms.\n\n'
+            '11. Contact\n'
+            'For any queries: support@agrifarms.in',
             style: TextStyle(fontSize: 14, height: 1.6, color: Colors.black87),
           ),
         ],
@@ -165,8 +178,19 @@ class _TermsOfServiceTab extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Privacy Policy Tab — Play Store compliant: discloses all data collected,
+// all third-party sharing (MSG91, Firebase, AWS), and deletion rights.
+// ─────────────────────────────────────────────────────────────────────────────
 class _PrivacyPolicyTab extends StatelessWidget {
   const _PrivacyPolicyTab();
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -174,63 +198,84 @@ class _PrivacyPolicyTab extends StatelessWidget {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            'AgriFarms Privacy & Transparency Policy',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF00AA55)),
+        children: [
+          const Text('Privacy Policy', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          const Text('Last updated: September 2026', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 16),
+          const Text(
+            '1. What Information We Collect\n'
+            'We collect the following personal data when you use Agri Farms:\n\n'
+            '• Mobile Phone Number — for OTP-based identity verification during login and registration.\n\n'
+            '• Full Name — provided during registration; displayed on your profile and to service providers you book.\n\n'
+            '• Location (GPS) — collected while using the app to find nearby equipment, services, and workers. We collect precise GPS coordinates only while the app is in the foreground. We do NOT track location in the background.\n\n'
+            '• Profile Photo & Listing Images — photos you upload are stored securely on AWS S3 and displayed within the app only.\n\n'
+            '• Device Token (Firebase FCM) — a push notification identifier assigned by Firebase, used only to send you booking updates. Not used for advertising.\n\n'
+            '• Address Details — village, district, state, and pincode entered on your profile; used to auto-fill location fields.\n\n'
+
+            '2. How We Use Your Information\n'
+            '• To create and maintain your account\n'
+            '• To verify your identity via OTP\n'
+            '• To match you with nearby services and equipment\n'
+            '• To send booking confirmation and status push notifications\n'
+            '• To display your profile to service providers during a booking\n'
+            '• To improve app performance and fix issues\n\n'
+
+            '3. Who We Share Your Data With\n'
+            'We share data only with trusted service partners required to operate Agri Farms:\n\n'
+            '• MSG91 (India) — receives your phone number to deliver OTP SMS.\n'
+            '  Privacy policy: https://msg91.com/privacy-policy\n\n'
+            '• Google Firebase — receives your device FCM token to deliver push notifications.\n'
+            '  Privacy policy: https://firebase.google.com/support/privacy\n\n'
+            '• Amazon Web Services (AWS S3) — stores your uploaded images in a secure cloud bucket.\n'
+            '  Privacy policy: https://aws.amazon.com/privacy\n\n'
+            'We do NOT sell your personal data. We do NOT share data with advertisers.\n\n'
+
+            '4. Data Retention\n'
+            'Your data is retained while your account is active. When you delete your account:\n'
+            '• Profile data is permanently deleted within 30 days\n'
+            '• Booking records may be retained up to 1 year for legal/tax compliance\n'
+            '• Images are deleted from AWS S3 within 30 days\n\n'
+
+            '5. Your Rights & Data Deletion\n'
+            'You have the right to:\n'
+            '• Access the data we hold about you\n'
+            '• Request correction of inaccurate data\n'
+            '• Request permanent deletion of your account\n\n'
+            'To delete your account: open the app → Profile → Danger Zone → Delete Account.\n'
+            'Or submit a request at: https://agrifarms.in/account-deletion\n\n'
+
+            '6. Security\n'
+            '• All API communication uses HTTPS (TLS)\n'
+            '• Authentication tokens are stored in encrypted device storage\n'
+            '• Our backend is hosted on AWS with strict access controls\n\n'
+
+            '7. Children\'s Privacy\n'
+            'Agri Farms is not intended for users under 18. We do not knowingly collect data from minors.\n\n'
+
+            '8. Changes to this Policy\n'
+            'We will notify you of significant changes via push notification or in-app message.\n\n'
+
+            '9. Contact Us',
+            style: TextStyle(fontSize: 14, height: 1.6, color: Colors.black87),
           ),
-          SizedBox(height: 4),
-          Text(
-            'Google Play Store Verified & Compliant | Effective Date: August 27, 2026',
-            style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => _openUrl('mailto:support@agrifarms.in'),
+            child: const Text(
+              '📧  support@agrifarms.in',
+              style: TextStyle(fontSize: 14, color: Color(0xFF00AA55), fontWeight: FontWeight.bold),
+            ),
           ),
-          SizedBox(height: 16),
-          Text(
-            '1. Application Overview & Scope\n'
-            'AgriFarms ("we", "our", or "us") operates a multi-sided agricultural technology platform connecting farmers, tractor/machinery rental providers, transport vehicle owners, and farm worker group leaders. We are committed to absolute transparency regarding how user data is collected, used, shared, protected, and deleted.\n\n'
-
-            '2. Detailed Data Collection Inventory\n'
-            'To provide location-based agricultural equipment matching, transport booking, and workforce hiring, we collect:\n'
-            '• Personal Identifiable Information (PII): Full Name, 10-digit Phone Number, Email Address, Profile Picture, User Role (Farmer, Equipment Owner, Worker Group Leader, Admin), and Complete Address (House No, Street, Village, Mandal, District, State, Pincode).\n'
-            '• Precise & Approximate Location Data: Foreground and background GPS coordinates (Latitude & Longitude) to calculate proximity distance in km between farmers and available machinery, reverse-geocoded Village & District names, and field pickup/delivery addresses.\n'
-            '• Asset & Vehicle Information: Tractor/Machine specifications (Brand, Model, Horsepower, Condition, Attached Implements), Vehicle Registration Numbers, Load Capacity (Tons), Hourly/Daily Rental Pricing, Worker Group Headcount (Male/Female), and Daily Wages.\n'
-            '• Transactional & Booking Data: Scheduled start/end times, land acreage, crop type, field instructions, booking status history, cancellation reasons, and ratings/reviews.\n'
-            '• Device & Technical Data: Firebase Push Notification Tokens (FCM), locale/language preferences, notification toggles, uploaded machinery photos, and crop disease photos.\n\n'
-
-            '3. Third-Party Service Providers & SDK Disclosures\n'
-            'We disclose the following integrated 3rd-party services:\n'
-            '• MSG91 Gateway: Sends 4-digit SMS OTPs for phone authentication via secure HTTPS.\n'
-            '• Google Firebase (Auth & FCM): Phone token verification and real-time push notification delivery.\n'
-            '• AWS S3 (Amazon Web Services): Encrypted cloud storage for user profile photos and equipment images.\n'
-            '• Keycloak OIDC Server: Enterprise single sign-on identity management and user synchronization.\n'
-            '• OpenStreetMap / Nominatim / Geolocator: Geocoding GPS coordinates to Village/District names.\n\n'
-
-            '4. Information Sharing Boundaries Between Users\n'
-            '• Shared to Farmers: Tractor/Vehicle specifications, Rental rates, Operator availability, Overall rating (e.g. 4.8★), Business Name, Proximity distance (km), Village and District.\n'
-            '  *Boundary: Vendor\'s exact house number and personal street address are NOT displayed on public marketplace listings.\n'
-            '• Shared to Providers upon Booking: Farmer\'s Full Name, Phone Number (for dispatch contact), Field Location Address, Field GPS Coordinates, Scheduled Date/Time, Crop Type, and Acreage.\n'
-            '  *Boundary: Providers can ONLY view farmer details for bookings submitted directly for their own listed assets. Providers cannot search or browse unbooked farmer profiles.\n\n'
-
-            '5. Data Security & Encrypted Storage\n'
-            '• Encryption in Transit: All API traffic uses industry-standard TLS 1.3 / HTTPS.\n'
-            '• Secure Mobile Storage: Access tokens are encrypted on mobile hardware using flutter_secure_storage (iOS Keychain and Android KeyStore AES-256 encryption).\n'
-            '• Database Protection: Enterprise PostgreSQL database storage with Role-Based Access Control (RBAC) and parameterized queries.\n'
-            '• Path Sanitization: Image uploads undergo file path sanitization to block directory traversal attacks.\n\n'
-
-            '6. Inactive User Policy & Automatic Disabling\n'
-            '• Automatic Availability Disabling: When an account status is set to Inactive, Deactivated, Suspended, or Banned, all equipment, transport vehicles, services, and worker groups owned by that user are AUTOMATICALLY set to inactive (isAvailable = false), immediately hiding them from public search.\n'
-            '• Retention Window: Active user data is retained during active account use. Accounts inactive for 180+ days are archived. Accounts inactive for 365+ days undergo PII anonymization or purging.\n\n'
-
-            '7. User Rights & Account Deletion Request\n'
-            'In compliance with Google Play Store Data Safety policies, you have the right to access, correct, or request complete deletion of your account and personal data.\n'
-            '• In-App Deletion: Navigate to Profile Settings -> Delete Account.\n'
-            '• Email Deletion Request: Send an email to support@agrifarms.in with the subject line "Account Deletion Request" and your registered phone number. Requests are processed within 7 business days.\n\n'
-
-            '8. Contact Information & Data Protection Officer\n'
-            'Email: support@agrifarms.in\n'
-            'Jurisdiction: Andhra Pradesh, India',
-            style: TextStyle(fontSize: 13, height: 1.6, color: Colors.black87),
+          const SizedBox(height: 6),
+          GestureDetector(
+            onTap: () => _openUrl('https://agrifarms.in/privacy-policy'),
+            child: const Text(
+              '🌐  agrifarms.in/privacy-policy',
+              style: TextStyle(fontSize: 14, color: Color(0xFF00AA55), fontWeight: FontWeight.bold),
+            ),
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );

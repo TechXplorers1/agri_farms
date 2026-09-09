@@ -22,3 +22,37 @@
         </trust-anchors>
     </debug-overrides>
 </network-security-config>
+
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network Security Config — Play Store Compliant
+  ================================================
+  - Production (api-prod.agrifarms.in): HTTPS only, no cleartext allowed.
+  - Dev local IP (192.168.x.x): Cleartext allowed ONLY in debug builds.
+    This block is safely ignored on production/release builds.
+-->
+<network-security-config>
+
+    <!-- Production domain: HTTPS only, full certificate validation -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">agrifarms.in</domain>
+        <domain includeSubdomains="true">api-prod.agrifarms.in</domain>
+        <domain includeSubdomains="true">auth-prod.agrifarms.in</domain>
+    </domain-config>
+
+    <!-- Allow cleartext ONLY for local development (192.168.x.x) in debug builds -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </debug-overrides>
+
+    <!-- Default: all other domains must use HTTPS -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+
+</network-security-config>
