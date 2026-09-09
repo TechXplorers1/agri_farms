@@ -412,6 +412,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final result = await Navigator.of(context).push(MaterialPageRoute(builder: (context) => const LanguageSelectionScreen(isFromProfile: true)));
                 if (result == true) _loadProfileData();
               }),
+              _buildDividerLine(),
+              _buildListTile(
+                Icons.delete_forever_rounded,
+                'Delete Account',
+                subtitle: 'Permanently remove account and data',
+                iconColor: Colors.red[700],
+                iconBgColor: Colors.red[50],
+                textColor: Colors.red[700],
+                onTap: () => _showDeleteAccountConfirmationDialog(context),
+              ),
             ]),
             const SizedBox(height: 20),
             _buildSectionHeader(l10n.support),
@@ -529,15 +539,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildListTile(IconData icon, String title, {String? subtitle, String? trailingText, VoidCallback? onTap}) {
+  Widget _buildListTile(
+    IconData icon,
+    String title, {
+    String? subtitle,
+    String? trailingText,
+    VoidCallback? onTap,
+    Color? iconColor,
+    Color? iconBgColor,
+    Color? textColor,
+  }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, color: const Color(0xFF2E7D32), size: 20),
+        decoration: BoxDecoration(color: iconBgColor ?? const Color(0xFFE8F5E9), borderRadius: BorderRadius.circular(10)),
+        child: Icon(icon, color: iconColor ?? const Color(0xFF2E7D32), size: 20),
       ),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50))),
+      title: Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: textColor ?? const Color(0xFF2C3E50))),
       subtitle: subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[500])) : null,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -552,6 +571,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildDividerLine() => const Divider(height: 1, indent: 64, endIndent: 20, thickness: 0.8, color: Color(0xFFF1F1F1));
+
+  void _showDeleteAccountConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.delete_forever_rounded, color: Colors.red[700], size: 22),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Delete Account',
+                style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to permanently delete your account? All your personal profile information, listings, and activity history will be deleted. This action cannot be undone.',
+            style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey, fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                AppTranslations.translate(context, 'cancel'),
+                style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext); // Close confirmation dialog
+                
+                // Show loading indicator
+                if (context.mounted) {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(color: Colors.red),
+                    ),
+                  );
+                }
+
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  final userId = prefs.getString('user_id');
+                  if (userId != null && userId.isNotEmpty) {
+                    await ApiService().deleteUser(userId);
+                  }
+                } catch (e) {
+                  debugPrint('Error deleting account on backend: $e');
+                }
+
+                await NotificationService().clearFCMToken();
+                await ApiService().clearTokens();
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+                
+                if (context.mounted) {
+                  Navigator.pop(context); // Close loader
+                  UiUtils.showCenteredToast(context, 'Your account has been deleted.');
+                  Navigator.pushAndRemoveUntil(
+                    context, 
+                    MaterialPageRoute(builder: (context) => const AuthScreen()), 
+                    (route) => false,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Text('Delete Permanently', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void _showLogoutConfirmationDialog(BuildContext context) {
     var l10n = AppLocalizations.of(context)!;

@@ -2,13 +2,12 @@ enum Environment { dev, prod }
 
 class ApiConfig {
   // Switches environment based on compile-time ENV variable (defaults to dev)
-  static const Environment env = Environment.dev;
-
+  static const Environment env = Environment.prod;
 
   // Development base API endpoint
   // Use localhost when running Flutter on Chrome (web) - same machine as backend
   // Use your machine's local IP (e.g. http://192.168.29.237:8081) for physical Android/iOS devices
-  static const String devBaseUrl = 'http://192.168.29.237:8081';
+  static const String devBaseUrl = 'http://192.168.29.57:8081';
 
   // Production base API endpoint (AWS ECS Load Balancer / Custom Domain)
   // Override at build time using: --dart-define=API_URL=https://your-load-balancer-url
@@ -42,7 +41,8 @@ class ApiConfig {
   // MSG91 Widget configuration for OTP
   static const String msg91WidgetId = '6a6470ebe285710a1e0ead72';
   // Replace this with your actual MSG91 Auth Token from the 'Tokens' section of the MSG91 dashboard
-  static const String msg91AuthToken = '551740AvEkrLHO5I6a63711bP1'; // using the one from application.yml
+  static const String msg91AuthToken =
+      '551740AvEkrLHO5I6a63711bP1'; // using the one from application.yml
 
   static String getFullImageUrl(String? path) {
     if (path == null || path.isEmpty) return '';

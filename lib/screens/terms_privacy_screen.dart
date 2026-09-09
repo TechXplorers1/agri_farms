@@ -176,30 +176,60 @@ class _PrivacyPolicyTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
           Text(
-            'Privacy Policy',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            'AgriFarms Privacy & Transparency Policy',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF00AA55)),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Google Play Store Verified & Compliant | Effective Date: August 27, 2026',
+            style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w600),
           ),
           SizedBox(height: 16),
           Text(
-            '1. Information Collection\n'
-            'We collect information from you when you register on our site, place an order, subscribe to our newsletter, respond to a survey or fill out a form.\n\n'
-            
-            '2. Use of Information\n'
-            'Any of the information we collect from you may be used in one of the following ways: \n'
-            '- To personalize your experience\n'
-            '- To improve our application\n'
-            '- To improve customer service\n'
-            '- To process transactions\n\n'
-            
-            '3. Information Protection\n'
-            'We implement a variety of security measures to maintain the safety of your personal information when you place an order or enter, submit, or access your personal information.\n\n'
-            
-            '4. Disclosure to Third Parties\n'
-            'We do not sell, trade, or otherwise transfer to outside parties your personally identifiable information. This does not include trusted third parties who assist us in operating our application, conducting our business, or servicing you, so long as those parties agree to keep this information confidential.\n\n'
-            
-            '5. Changes to our Privacy Policy\n'
-            'If we decide to change our privacy policy, we will post those changes on this page.',
-            style: TextStyle(fontSize: 14, height: 1.6, color: Colors.black87),
+            '1. Application Overview & Scope\n'
+            'AgriFarms ("we", "our", or "us") operates a multi-sided agricultural technology platform connecting farmers, tractor/machinery rental providers, transport vehicle owners, and farm worker group leaders. We are committed to absolute transparency regarding how user data is collected, used, shared, protected, and deleted.\n\n'
+
+            '2. Detailed Data Collection Inventory\n'
+            'To provide location-based agricultural equipment matching, transport booking, and workforce hiring, we collect:\n'
+            '• Personal Identifiable Information (PII): Full Name, 10-digit Phone Number, Email Address, Profile Picture, User Role (Farmer, Equipment Owner, Worker Group Leader, Admin), and Complete Address (House No, Street, Village, Mandal, District, State, Pincode).\n'
+            '• Precise & Approximate Location Data: Foreground and background GPS coordinates (Latitude & Longitude) to calculate proximity distance in km between farmers and available machinery, reverse-geocoded Village & District names, and field pickup/delivery addresses.\n'
+            '• Asset & Vehicle Information: Tractor/Machine specifications (Brand, Model, Horsepower, Condition, Attached Implements), Vehicle Registration Numbers, Load Capacity (Tons), Hourly/Daily Rental Pricing, Worker Group Headcount (Male/Female), and Daily Wages.\n'
+            '• Transactional & Booking Data: Scheduled start/end times, land acreage, crop type, field instructions, booking status history, cancellation reasons, and ratings/reviews.\n'
+            '• Device & Technical Data: Firebase Push Notification Tokens (FCM), locale/language preferences, notification toggles, uploaded machinery photos, and crop disease photos.\n\n'
+
+            '3. Third-Party Service Providers & SDK Disclosures\n'
+            'We disclose the following integrated 3rd-party services:\n'
+            '• MSG91 Gateway: Sends 4-digit SMS OTPs for phone authentication via secure HTTPS.\n'
+            '• Google Firebase (Auth & FCM): Phone token verification and real-time push notification delivery.\n'
+            '• AWS S3 (Amazon Web Services): Encrypted cloud storage for user profile photos and equipment images.\n'
+            '• Keycloak OIDC Server: Enterprise single sign-on identity management and user synchronization.\n'
+            '• OpenStreetMap / Nominatim / Geolocator: Geocoding GPS coordinates to Village/District names.\n\n'
+
+            '4. Information Sharing Boundaries Between Users\n'
+            '• Shared to Farmers: Tractor/Vehicle specifications, Rental rates, Operator availability, Overall rating (e.g. 4.8★), Business Name, Proximity distance (km), Village and District.\n'
+            '  *Boundary: Vendor\'s exact house number and personal street address are NOT displayed on public marketplace listings.\n'
+            '• Shared to Providers upon Booking: Farmer\'s Full Name, Phone Number (for dispatch contact), Field Location Address, Field GPS Coordinates, Scheduled Date/Time, Crop Type, and Acreage.\n'
+            '  *Boundary: Providers can ONLY view farmer details for bookings submitted directly for their own listed assets. Providers cannot search or browse unbooked farmer profiles.\n\n'
+
+            '5. Data Security & Encrypted Storage\n'
+            '• Encryption in Transit: All API traffic uses industry-standard TLS 1.3 / HTTPS.\n'
+            '• Secure Mobile Storage: Access tokens are encrypted on mobile hardware using flutter_secure_storage (iOS Keychain and Android KeyStore AES-256 encryption).\n'
+            '• Database Protection: Enterprise PostgreSQL database storage with Role-Based Access Control (RBAC) and parameterized queries.\n'
+            '• Path Sanitization: Image uploads undergo file path sanitization to block directory traversal attacks.\n\n'
+
+            '6. Inactive User Policy & Automatic Disabling\n'
+            '• Automatic Availability Disabling: When an account status is set to Inactive, Deactivated, Suspended, or Banned, all equipment, transport vehicles, services, and worker groups owned by that user are AUTOMATICALLY set to inactive (isAvailable = false), immediately hiding them from public search.\n'
+            '• Retention Window: Active user data is retained during active account use. Accounts inactive for 180+ days are archived. Accounts inactive for 365+ days undergo PII anonymization or purging.\n\n'
+
+            '7. User Rights & Account Deletion Request\n'
+            'In compliance with Google Play Store Data Safety policies, you have the right to access, correct, or request complete deletion of your account and personal data.\n'
+            '• In-App Deletion: Navigate to Profile Settings -> Delete Account.\n'
+            '• Email Deletion Request: Send an email to support@agrifarms.in with the subject line "Account Deletion Request" and your registered phone number. Requests are processed within 7 business days.\n\n'
+
+            '8. Contact Information & Data Protection Officer\n'
+            'Email: support@agrifarms.in\n'
+            'Jurisdiction: Andhra Pradesh, India',
+            style: TextStyle(fontSize: 13, height: 1.6, color: Colors.black87),
           ),
         ],
       ),

@@ -207,6 +207,10 @@ class ApiService {
     return await put('${ApiConfig.users}/$userId', userData);
   }
 
+  Future<dynamic> deleteUser(String userId) async {
+    return await delete('${ApiConfig.users}/$userId');
+  }
+
   Future<dynamic> getUserStats(String userId) async {
     return await get('${ApiConfig.users}/$userId/stats');
   }
