@@ -13,90 +13,57 @@ class ApiService {
 
   ApiService({String? baseUrl}) : baseUrl = baseUrl ?? ApiConfig.baseUrl;
 
+  /// Reads a value from secure storage, with a SharedPreferences fallback for Flutter Web.
+  /// FlutterSecureStorage silently returns null on Web (Chrome), breaking auth headers.
+  Future<String?> _secureRead(String key) async {
+    // Try SecureStorage first (works on Android/iOS)
+    String? val = await _secureStorage.read(key: key);
+    if (val != null && val.isNotEmpty) return val;
+    // Fallback to SharedPreferences (works on Web)
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('secure_$key');
+  }
+
+  Future<void> _secureWrite(String key, String value) async {
+    await _secureStorage.write(key: key, value: value);
+    // Also persist to SharedPreferences as Web fallback
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('secure_$key', value);
+  }
+
+  Future<void> _secureDelete(String key) async {
+    await _secureStorage.delete(key: key);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('secure_$key');
+  }
+
   Future<String?> _getValidAccessToken() async {
-    final accessToken = await _secureStorage.read(key: 'access_token');
-    final refreshToken = await _secureStorage.read(key: 'refresh_token');
-    final expiryStr = await _secureStorage.read(key: 'access_token_expiry');
+    final accessToken = await _secureRead('access_token');
+    final expiryStr = await _secureRead('access_token_expiry');
 
-    if (accessToken == null) return null;
+    if (accessToken == null || accessToken.isEmpty) return null;
 
+    // Token is valid if not expired (local JWTs are 30-day, rarely expire)
     if (expiryStr != null) {
-      final expiry = DateTime.parse(expiryStr);
-      if (expiry.difference(DateTime.now()).inSeconds > 15) {
+      try {
+        final expiry = DateTime.parse(expiryStr);
+        if (expiry.difference(DateTime.now()).inSeconds > 15) {
+          return accessToken;
+        }
+      } catch (_) {
+        // If expiry is unparseable, return the token anyway
         return accessToken;
       }
     }
 
-    if (refreshToken != null) {
-      // 1. Try refreshing using standard HTTP POST endpoint (cross-platform, works flawlessly on Web & Mobile)
-      try {
-        final tokenUrl = Uri.parse('${ApiConfig.keycloakIssuer}/protocol/openid-connect/token');
-        final response = await http.post(
-          tokenUrl,
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: {
-            'grant_type': 'refresh_token',
-            'client_id': ApiConfig.keycloakClientId,
-            'refresh_token': refreshToken,
-          },
-        );
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          final newAccessToken = data['access_token'];
-          final newRefreshToken = data['refresh_token'];
-          final expiresIn = data['expires_in'] ?? 300;
-          final expiry = DateTime.now().add(Duration(seconds: expiresIn));
-
-          if (newAccessToken != null) {
-            await _secureStorage.write(key: 'access_token', value: newAccessToken);
-            if (newRefreshToken != null) {
-              await _secureStorage.write(key: 'refresh_token', value: newRefreshToken);
-            }
-            await _secureStorage.write(key: 'access_token_expiry', value: expiry.toIso8601String());
-            return newAccessToken;
-          }
-        } else {
-          print('HTTP token refresh failed: ${response.statusCode} - ${response.body}');
-        }
-      } catch (e) {
-        print('Error refreshing token via HTTP: $e');
-      }
-
-      // 2. Fallback to FlutterAppAuth token refresh (primarily for native mobile platforms)
-      try {
-        final result = await _appAuth.token(TokenRequest(
-          ApiConfig.keycloakClientId,
-          ApiConfig.keycloakRedirectUri,
-          issuer: ApiConfig.keycloakIssuer,
-          refreshToken: refreshToken,
-          scopes: ApiConfig.keycloakScopes,
-        ));
-        if (result != null && result.accessToken != null) {
-          await _secureStorage.write(key: 'access_token', value: result.accessToken);
-          if (result.refreshToken != null) {
-            await _secureStorage.write(key: 'refresh_token', value: result.refreshToken);
-          }
-          if (result.accessTokenExpirationDateTime != null) {
-            await _secureStorage.write(
-              key: 'access_token_expiry',
-              value: result.accessTokenExpirationDateTime!.toIso8601String(),
-            );
-          }
-          return result.accessToken;
-        }
-      } catch (e) {
-        print('Error refreshing token via AppAuth fallback: $e');
-        await clearTokens();
-      }
-    }
-    return null;
+    // Return the token even without expiry info (local JWTs don't use Keycloak refresh)
+    return accessToken;
   }
 
   Future<void> clearTokens() async {
-    await _secureStorage.delete(key: 'access_token');
-    await _secureStorage.delete(key: 'refresh_token');
-    await _secureStorage.delete(key: 'access_token_expiry');
+    await _secureDelete('access_token');
+    await _secureDelete('refresh_token');
+    await _secureDelete('access_token_expiry');
   }
 
   Future<Map<String, String>> _getHeaders({bool isJson = false}) async {
@@ -239,13 +206,13 @@ class ApiService {
       final responseData = json.decode(response.body) as Map<String, dynamic>;
       
       if (responseData['access_token'] != null) {
-        await _secureStorage.write(key: 'access_token', value: responseData['access_token']);
+        await _secureWrite('access_token', responseData['access_token']);
         if (responseData['refresh_token'] != null) {
-          await _secureStorage.write(key: 'refresh_token', value: responseData['refresh_token']);
+          await _secureWrite('refresh_token', responseData['refresh_token']);
         }
         final expiresIn = responseData['expires_in'] ?? 300;
         final expiry = DateTime.now().add(Duration(seconds: expiresIn));
-        await _secureStorage.write(key: 'access_token_expiry', value: expiry.toIso8601String());
+        await _secureWrite('access_token_expiry', expiry.toIso8601String());
       } else {
         await clearTokens();
       }
@@ -301,13 +268,13 @@ class ApiService {
       final responseData = json.decode(response.body) as Map<String, dynamic>;
       
       if (responseData['access_token'] != null) {
-        await _secureStorage.write(key: 'access_token', value: responseData['access_token']);
+        await _secureWrite('access_token', responseData['access_token']);
         if (responseData['refresh_token'] != null) {
-          await _secureStorage.write(key: 'refresh_token', value: responseData['refresh_token']);
+          await _secureWrite('refresh_token', responseData['refresh_token']);
         }
         final expiresIn = responseData['expires_in'] ?? 300;
         final expiry = DateTime.now().add(Duration(seconds: expiresIn));
-        await _secureStorage.write(key: 'access_token_expiry', value: expiry.toIso8601String());
+        await _secureWrite('access_token_expiry', expiry.toIso8601String());
       } else {
         await clearTokens();
       }
@@ -567,14 +534,14 @@ class ApiService {
     });
     
     if (response != null && response['access_token'] != null) {
-      await _secureStorage.write(key: 'access_token', value: response['access_token']);
+      await _secureWrite('access_token', response['access_token']);
       if (response['refresh_token'] != null) {
-        await _secureStorage.write(key: 'refresh_token', value: response['refresh_token']);
+        await _secureWrite('refresh_token', response['refresh_token']);
       }
       
       final expiresIn = response['expires_in'] ?? 300;
       final expiry = DateTime.now().add(Duration(seconds: expiresIn));
-      await _secureStorage.write(key: 'access_token_expiry', value: expiry.toIso8601String());
+      await _secureWrite('access_token_expiry', expiry.toIso8601String());
 
       // Save credentials locally in SharedPreferences for UI consumption
       final prefs = await SharedPreferences.getInstance();

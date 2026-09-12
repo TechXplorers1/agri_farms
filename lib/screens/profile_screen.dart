@@ -83,7 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           int servicesVal = stats['servicesCount'] ?? 0;
 
           final userRoleVal = userData['role'] ?? _userRole;
-          if (['owner', 'provider'].contains(userRoleVal.toString().toLowerCase())) {
+          if (['owner', 'provider', 'vendor'].contains(userRoleVal.toString().toLowerCase())) {
             try {
               final response = await apiService.getProviderBookings(userId);
               final List<dynamic> providerBookings = response as List<dynamic>? ?? [];
@@ -331,7 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Icons.shopping_bag_outlined,
                             const Color(0xFF2E7D32),
                             onTap: () {
-                              if (['owner', 'provider'].contains(_userRole.toLowerCase())) {
+                              if (['owner', 'provider', 'vendor'].contains(_userRole.toLowerCase())) {
                                 Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ProviderRequestsScreen()));
                               } else {
                                 Navigator.of(context).push(MaterialPageRoute(builder: (context) => const GenericHistoryScreen(
@@ -342,7 +342,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             },
                           ),
                         ),
-                        if (['owner', 'provider'].contains(_userRole.toLowerCase())) ...[
+                        if (['owner', 'provider', 'vendor'].contains(_userRole.toLowerCase())) ...[
                           _buildDivider(),
                           Expanded(
                             child: _buildStatItem(
@@ -393,7 +393,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final result = await Navigator.of(context).push(MaterialPageRoute(builder: (context) => const EditProfileScreen()));
                 if (result == true) _loadProfileData();
               }),
-              if (['owner', 'provider'].contains(_userRole.toLowerCase())) ...[
+              if (['owner', 'provider', 'vendor'].contains(_userRole.toLowerCase())) ...[
                 _buildDividerLine(),
                 _buildListTile(Icons.inventory_2_outlined, AppTranslations.translate(context, 'myRegisteredItems'), onTap: () {
                   Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageItemsScreen()));
@@ -412,16 +412,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final result = await Navigator.of(context).push(MaterialPageRoute(builder: (context) => const LanguageSelectionScreen(isFromProfile: true)));
                 if (result == true) _loadProfileData();
               }),
-              _buildDividerLine(),
-              _buildListTile(
-                Icons.delete_forever_rounded,
-                'Delete Account',
-                subtitle: 'Permanently remove account and data',
-                iconColor: Colors.red[700],
-                iconBgColor: Colors.red[50],
-                textColor: Colors.red[700],
-                onTap: () => _showDeleteAccountConfirmationDialog(context),
-              ),
+
             ]),
             const SizedBox(height: 20),
             _buildSectionHeader(l10n.support),
@@ -656,23 +647,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (userId != null && userId.isNotEmpty) {
                     await ApiService().deleteUser(userId);
                   }
+
+                  await NotificationService().clearFCMToken();
+                  await ApiService().clearTokens();
+                  await prefs.clear();
+                  
+                  if (context.mounted) {
+                    Navigator.pop(context); // Close loader
+                    UiUtils.showCenteredToast(context, 'Your account has been deleted.');
+                    Navigator.pushAndRemoveUntil(
+                      context, 
+                      MaterialPageRoute(builder: (context) => const AuthScreen()), 
+                      (route) => false,
+                    );
+                  }
                 } catch (e) {
                   debugPrint('Error deleting account on backend: $e');
-                }
-
-                await NotificationService().clearFCMToken();
-                await ApiService().clearTokens();
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.clear();
-                
-                if (context.mounted) {
-                  Navigator.pop(context); // Close loader
-                  UiUtils.showCenteredToast(context, 'Your account has been deleted.');
-                  Navigator.pushAndRemoveUntil(
-                    context, 
-                    MaterialPageRoute(builder: (context) => const AuthScreen()), 
-                    (route) => false,
-                  );
+                  if (context.mounted) {
+                    Navigator.pop(context); // Close loader
+                    UiUtils.showCenteredToast(context, 'Failed to delete account. Please try again.');
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -771,8 +765,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
   /// ─── Delete Account ────────────────────────────────────────────────────────
   /// Required by Google Play Store User Data Policy (mandatory since Dec 2023).
-  /// Shows a 2-step confirmation before permanently deleting the account.
+  /// Shows a single confirmation dialog tailored to the user's role.
   void _showDeleteAccountDialog(BuildContext context) {
+    final bool isVendor = ['owner', 'provider', 'vendor']
+        .contains(_userRole.toLowerCase());
+
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -787,7 +784,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Icon(Icons.delete_forever_rounded, color: Colors.red[700], size: 22),
               ),
               const SizedBox(width: 12),
-              const Text('Delete Account', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18)),
+              const Text('Delete Account',
+                  style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF2C3E50), fontSize: 18)),
             ],
           ),
           content: Column(
@@ -799,7 +797,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: TextStyle(fontWeight: FontWeight.w700, color: Colors.grey[800], fontSize: 14),
               ),
               const SizedBox(height: 8),
-              ..._deleteWarnings().map((w) => Padding(
+              ..._deleteWarnings(isVendor).map((w) => Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Row(
                   children: [
@@ -828,7 +826,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(dialogContext);
-                _confirmDeleteAccount(context);
+                _performAccountDeletion(context);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red[600],
@@ -844,54 +842,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  List<String> _deleteWarnings() => [
-    'Your profile and personal information',
-    'All your bookings and history',
-    'Your equipment / service listings',
-    'Your profile photo and uploaded images',
-  ];
-
-  /// Second confirmation step before final deletion.
-  void _confirmDeleteAccount(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          backgroundColor: Colors.white,
-          title: const Text('Are you absolutely sure?', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Color(0xFF2C3E50))),
-          content: const Text(
-            'Type "DELETE" in your mind and tap the red button. All your data will be erased from our servers within 30 days.',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text('Cancel', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(dialogContext);
-                _performAccountDeletion(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red[700],
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-              child: const Text('DELETE MY ACCOUNT', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.8)),
-            ),
-          ],
-        );
-      },
-    );
+  List<String> _deleteWarnings(bool isVendor) {
+    if (isVendor) {
+      return [
+        'Your profile and personal information',
+        'All your equipment / vehicle / service listings',
+        'All orders and booking history',
+        'Your profile photo and uploaded images',
+      ];
+    }
+    return [
+      'Your profile and personal information',
+      'All your booking and rental history',
+      'Your profile photo and uploaded images',
+    ];
   }
+
 
   /// Calls the backend DELETE /api/users/{userId}, clears local data, logs user out.
   Future<void> _performAccountDeletion(BuildContext context) async {
+    // Capture navigator before any async gap to avoid 'deactivated widget' error
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+
     // Show loading overlay
-    if (context.mounted) {
+    if (mounted) {
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -906,48 +881,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final userId = prefs.getString('user_id');
 
       if (userId != null && userId.isNotEmpty) {
-        // Clear FCM token on backend before deletion
-        await NotificationService().clearFCMToken();
-        // Call backend to delete user account and all associated data
+        // IMPORTANT: Call backend DELETE first — BEFORE clearing any local tokens.
+        // The JWT token stored locally is required as the Authorization header.
+        // Clearing it beforehand causes 403 Forbidden on the DELETE request.
         await ApiService().deleteUser(userId);
+
+        // After successful backend deletion, silently try to clear FCM token
+        // on backend. Ignore failure — user is already deleted on server.
+        try {
+          await NotificationService().clearFCMToken();
+        } catch (_) {
+          // Intentionally ignored — user record is already deleted
+        }
       }
 
-      // Clear all local tokens and preferences
+      // Only after backend confirms deletion — clear all local tokens and prefs
       await ApiService().clearTokens();
       await prefs.clear();
 
-      if (context.mounted) {
-        Navigator.pop(context); // Close loading
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Your account has been deleted successfully.'),
-            backgroundColor: Color(0xFF2E7D32),
-          ),
-        );
-        // Navigate to login screen and clear all routes
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const AuthScreen()),
-          (route) => false,
-        );
-      }
+      // Close loading dialog, then navigate away
+      navigator.pop(); // close loading spinner
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Your account has been deleted successfully.'),
+          backgroundColor: Color(0xFF2E7D32),
+        ),
+      );
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthScreen()),
+        (route) => false,
+      );
     } catch (e) {
-      if (context.mounted) {
-        Navigator.pop(context); // Close loading
+      navigator.pop(); // close loading spinner
+      if (mounted) {
         showDialog(
           context: context,
           builder: (_) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: const Text('Deletion Failed', style: TextStyle(fontWeight: FontWeight.w900)),
             content: Text(
-              'We could not delete your account right now. Please contact support@agrifarms.in\n\nError: $e',
+              'We could not delete your account right now. Please contact support@agrifarms.in',
               style: const TextStyle(fontSize: 13),
             ),
             actions: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55)),
-                child: const Text('OK', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00AA55),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('OK', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           ),

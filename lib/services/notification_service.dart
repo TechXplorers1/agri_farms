@@ -302,14 +302,10 @@ class NotificationService {
     }
 
     try {
-      final response = await http.put(
-        Uri.parse('$_backendUrl/$userId/fcm-token'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'fcmToken': ''}), // Empty string to clear it
-      );
-      if (response.statusCode == 200) {
-        print('FCM token forcefully cleared in backend for user $userId');
-      }
+      // Use ApiService so the JWT Authorization header is included.
+      // Raw http.put without auth returns 403 on this protected endpoint.
+      await ApiService().updateUser(userId, {'fcmToken': ''});
+      print('FCM token forcefully cleared in backend for user $userId');
     } catch (e) {
       print('Error clearing FCM token: $e');
     }
