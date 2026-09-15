@@ -12,6 +12,7 @@ import 'package:geolocator/geolocator.dart';
 import '../utils/location_helper.dart';
 import '../models/location_filter_model.dart';
 import '../utils/translated_text.dart';
+import '../widgets/location_disclosure_dialog.dart';
 
 class BookWorkersScreen extends StatefulWidget {
   final String providerName;
@@ -543,6 +544,12 @@ class _BookWorkersScreenState extends State<BookWorkersScreen> {
       }
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (!mounted) return;
+        final proceed = await LocationDisclosureDialog.show(context);
+        if (proceed != true) {
+          if (mounted) setState(() => _isFetchingLocation = false);
+          return;
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           if (mounted) UiUtils.showCenteredToast(context, 'Location permission denied.', isError: true);

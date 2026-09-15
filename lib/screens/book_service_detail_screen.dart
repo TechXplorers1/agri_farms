@@ -21,6 +21,7 @@ import '../data/harvesting_data.dart';
 import 'package:flutter/foundation.dart'
     show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'dart:async';
+import '../widgets/location_disclosure_dialog.dart';
 
 class BookServiceDetailScreen extends StatefulWidget {
   final String providerName;
@@ -587,6 +588,13 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
       }
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (mounted) {
+          final bool agreed = await LocationDisclosureDialog.show(context);
+          if (!agreed) {
+            setState(() => _isFetchingLocation = false);
+            return;
+          }
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           if (mounted)

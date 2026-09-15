@@ -18,6 +18,7 @@ import 'package:geocoding/geocoding.dart';
 import '../utils/location_helper.dart';
 import '../utils/translated_text.dart';
 import '../services/geocoding_service.dart';
+import '../widgets/location_disclosure_dialog.dart';
 
 class BookEquipmentDetailScreen extends StatefulWidget {
   final String providerName;
@@ -261,6 +262,13 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
       }
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (mounted) {
+          final bool agreed = await LocationDisclosureDialog.show(context);
+          if (!agreed) {
+            setState(() => _isFetchingLocation = false);
+            return;
+          }
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           throw Exception('Location permissions are denied');

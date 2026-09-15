@@ -26,6 +26,8 @@ import '../models/location_filter_model.dart';
 import '../services/geocoding_service.dart';
 import '../utils/location_helper.dart';
 import '../data/vehicle_data.dart';
+import '../utils/moderation_helper.dart';
+import '../widgets/location_disclosure_dialog.dart';
 
 class ServiceProvidersScreen extends StatefulWidget {
   final String serviceKey;
@@ -56,6 +58,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   @override
   void initState() {
     super.initState();
+    ModerationHelper.init();
     _initTargetLocation();
   }
 
@@ -357,7 +360,12 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             if (serviceEnabled) {
               LocationPermission permission = await Geolocator.checkPermission();
               if (permission == LocationPermission.denied) {
-                permission = await Geolocator.requestPermission();
+                if (mounted) {
+                  final bool agreed = await LocationDisclosureDialog.show(context);
+                  if (agreed) {
+                    permission = await Geolocator.requestPermission();
+                  }
+                }
               }
               if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
                 Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
@@ -657,7 +665,12 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
               matchesSearch = matched;
             }
 
-            return matchesMake && matchesLocation && matchesDistance && matchesSearch;
+            final bool isModerated = ModerationHelper.isBlockedOrReported(
+              provider.providerId ?? provider.id,
+              provider.id,
+            );
+
+            return !isModerated && matchesMake && matchesLocation && matchesDistance && matchesSearch;
           }).toList();
 
           return Column(
@@ -1249,7 +1262,13 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
 
   void _showAssetDetails(BuildContext context, ServiceProvider provider) {
     showModalBottomSheet(context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
-      builder: (_) => _AssetDetailModal(provider: provider, onBookNow: () { Navigator.pop(context); _navigateToBooking(context, provider); }));
+      builder: (_) => _AssetDetailModal(
+        provider: provider, 
+        onBookNow: () { Navigator.pop(context); _navigateToBooking(context, provider); },
+        onReported: () {
+          setState(() {});
+        },
+      ));
   }
 
   void _navigateToBooking(BuildContext context, ServiceProvider provider) async {
@@ -1362,7 +1381,8 @@ void _showFullImage(BuildContext context, String? imageUrl, String title) {
 class _AssetDetailModal extends StatefulWidget {
   final ServiceProvider provider;
   final VoidCallback onBookNow;
-  const _AssetDetailModal({required this.provider, required this.onBookNow});
+  final VoidCallback? onReported;
+  const _AssetDetailModal({required this.provider, required this.onBookNow, this.onReported});
 
   @override
   State<_AssetDetailModal> createState() => _AssetDetailModalState();
@@ -1428,6 +1448,28 @@ class _AssetDetailModalState extends State<_AssetDetailModal> {
             ])),
             Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Colors.amber[50], borderRadius: BorderRadius.circular(12)),
               child: Row(children: [const Icon(Icons.star_rounded, size: 18, color: Colors.amber), const SizedBox(width: 4), Text(provider.rating.toString(), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14))])),
+            const SizedBox(width: 6),
+            IconButton(
+              icon: Icon(Icons.flag_outlined, size: 20, color: Colors.grey[500]),
+              tooltip: 'Report Listing',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () {
+                ModerationHelper.showReportDialog(
+                  context,
+                  itemId: provider.id,
+                  itemName: provider.serviceName,
+                  providerId: provider.providerId ?? provider.id,
+                  providerName: (provider.businessName != null && provider.businessName!.isNotEmpty)
+                      ? provider.businessName!
+                      : (provider.ownerName ?? provider.name),
+                  onReported: () {
+                    Navigator.pop(context);
+                    widget.onReported?.call();
+                  },
+                );
+              },
+            ),
           ]),
           const SizedBox(height: 24),
           const Divider(height: 1),
@@ -1439,6 +1481,31 @@ class _AssetDetailModalState extends State<_AssetDetailModal> {
           const SizedBox(height: 32),
           SizedBox(width: double.infinity, height: 54, child: ElevatedButton(onPressed: widget.onBookNow, style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00AA55), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), elevation: 0),
             child: Text(l10n.bookNow, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)))),
+          const SizedBox(height: 12),
+          Center(
+            child: TextButton.icon(
+              icon: Icon(Icons.flag_outlined, size: 15, color: Colors.grey[500]),
+              label: Text(
+                'Report this listing or provider',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w600),
+              ),
+              onPressed: () {
+                ModerationHelper.showReportDialog(
+                  context,
+                  itemId: provider.id,
+                  itemName: provider.serviceName,
+                  providerId: provider.providerId ?? provider.id,
+                  providerName: (provider.businessName != null && provider.businessName!.isNotEmpty)
+                      ? provider.businessName!
+                      : (provider.ownerName ?? provider.name),
+                  onReported: () {
+                    Navigator.pop(context);
+                    widget.onReported?.call();
+                  },
+                );
+              },
+            ),
+          ),
         ]))),
       ]),
     );
@@ -1998,6 +2065,13 @@ class _LocationSelectorModalState extends State<_LocationSelectorModal> {
       }
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (mounted) {
+          final bool agreed = await LocationDisclosureDialog.show(context);
+          if (!agreed) {
+            setState(() => _isDetectingGps = false);
+            return;
+          }
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           if (mounted) UiUtils.showCenteredToast(context, 'Location permission denied.', isError: true);

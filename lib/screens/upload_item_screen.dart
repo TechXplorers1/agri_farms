@@ -20,6 +20,7 @@ import '../utils/ui_utils.dart';
 import '../utils/location_helper.dart';
 import '../data/ploughing_data.dart';
 import '../data/harvesting_data.dart';
+import '../widgets/location_disclosure_dialog.dart';
 
 class UploadItemScreen extends StatefulWidget {
   final String
@@ -83,6 +84,13 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (mounted) {
+          final bool agreed = await LocationDisclosureDialog.show(context);
+          if (!agreed) {
+            setState(() => _isFetchingLocation = false);
+            return;
+          }
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           UiUtils.showCenteredToast(context, 'Location permissions are denied');
@@ -1380,7 +1388,39 @@ class _UploadItemScreenState extends State<UploadItemScreen> {
               ),
             ],
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 30),
+            // UGC Policy & Community Guidelines Compliance Banner
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F8F1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFC8E6C9)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.verified_user_outlined,
+                    size: 20,
+                    color: Color(0xFF2E7D32),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'By listing, you confirm that all photos, pricing, and details comply with our Community Guidelines and Terms of Service. Objectionable, fraudulent, or abusive content is strictly prohibited and subject to immediate removal.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Colors.grey[800],
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
             Container(
               width: double.infinity,
               height: 60,

@@ -30,6 +30,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/ui_utils.dart';
 import '../utils/location_helper.dart';
 import '../utils/translated_text.dart';
+import '../widgets/location_disclosure_dialog.dart';
 
 class HomeServiceItem {
   final String title;
@@ -384,6 +385,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (!mounted) return;
+        final bool agreed = await LocationDisclosureDialog.show(context);
+        if (!agreed) {
+          return;
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           UiUtils.showCenteredToast(context, 'Location permissions are denied');

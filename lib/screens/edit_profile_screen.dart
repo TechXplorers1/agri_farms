@@ -13,6 +13,7 @@ import '../config/api_config.dart';
 import '../utils/ui_utils.dart';
 import '../utils/translated_text.dart';
 import 'package:geolocator/geolocator.dart';
+import '../widgets/location_disclosure_dialog.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -63,6 +64,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
+        if (mounted) {
+          final bool agreed = await LocationDisclosureDialog.show(context);
+          if (!agreed) {
+            setState(() => _isFetchingLocation = false);
+            return;
+          }
+        }
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           throw Exception('Location permissions are denied');
