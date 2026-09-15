@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:agriculture/l10n/app_localizations.dart';
@@ -21,6 +22,9 @@ import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/location_filter_model.dart';
+import '../services/geocoding_service.dart';
+import '../utils/location_helper.dart';
 import '../data/vehicle_data.dart';
 
 class ServiceProvidersScreen extends StatefulWidget {
@@ -47,11 +51,42 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   Locale? _lastLocale;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  LocationFilterModel? _targetLocation;
 
   @override
   void initState() {
     super.initState();
-    // Initial fetch will be handled by didChangeDependencies or standard flow
+    _initTargetLocation();
+  }
+
+  Future<void> _initTargetLocation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final village = prefs.getString('user_village');
+      final district = prefs.getString('user_district');
+      final lat = prefs.getDouble('user_latitude');
+      final lng = prefs.getDouble('user_longitude');
+
+      String locName = 'Current Location';
+      if (village != null && village.isNotEmpty) {
+        locName = (district != null && district.isNotEmpty) ? '$village, $district' : village;
+      }
+
+      if (mounted) {
+        setState(() {
+          _targetLocation = LocationFilterModel.currentLocation(
+            name: locName,
+            latitude: lat,
+            longitude: lng,
+            village: village,
+            district: district,
+            mandal: prefs.getString('user_mandal'),
+            state: prefs.getString('user_state'),
+            pincode: prefs.getString('user_pincode'),
+          );
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -290,43 +325,45 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
       }
       
       
-      // Calculate Exact Distances
+      // Calculate Exact Distances relative to _targetLocation (or user GPS fallback)
       try {
-        double? userLat;
-        double? userLng;
+        double? userLat = _targetLocation?.latitude;
+        double? userLng = _targetLocation?.longitude;
 
-        // 1. Try reading instantly from local SharedPreferences!
-        final prefs = await SharedPreferences.getInstance();
-        userLat = prefs.getDouble('user_latitude');
-        userLng = prefs.getDouble('user_longitude');
-
-        // 2. If null, fall back to backend user database coords
         if (userLat == null || userLng == null) {
-          if (currentUserId != null) {
-            try {
-              final userData = await apiService.getUser(currentUserId);
-              if (userData != null && userData is Map) {
-                userLat = (userData['latitude'] as num?)?.toDouble();
-                userLng = (userData['longitude'] as num?)?.toDouble();
+          // 1. Try reading instantly from local SharedPreferences!
+          final prefs = await SharedPreferences.getInstance();
+          userLat = prefs.getDouble('user_latitude');
+          userLng = prefs.getDouble('user_longitude');
+
+          // 2. If null, fall back to backend user database coords
+          if (userLat == null || userLng == null) {
+            if (currentUserId != null) {
+              try {
+                final userData = await apiService.getUser(currentUserId);
+                if (userData != null && userData is Map) {
+                  userLat = (userData['latitude'] as num?)?.toDouble();
+                  userLng = (userData['longitude'] as num?)?.toDouble();
+                }
+              } catch(e) {
+                debugPrint('Failed to get user coords: $e');
               }
-            } catch(e) {
-              debugPrint('Failed to get user coords: $e');
             }
           }
-        }
 
-        // 3. Last fallback: Geolocator GPS lookup
-        if (userLat == null || userLng == null) {
-          bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-          if (serviceEnabled) {
-            LocationPermission permission = await Geolocator.checkPermission();
-            if (permission == LocationPermission.denied) {
-              permission = await Geolocator.requestPermission();
-            }
-            if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
-              Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-              userLat = position.latitude;
-              userLng = position.longitude;
+          // 3. Last fallback: Geolocator GPS lookup
+          if (userLat == null || userLng == null) {
+            bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+            if (serviceEnabled) {
+              LocationPermission permission = await Geolocator.checkPermission();
+              if (permission == LocationPermission.denied) {
+                permission = await Geolocator.requestPermission();
+              }
+              if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+                Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+                userLat = position.latitude;
+                userLng = position.longitude;
+              }
             }
           }
         }
@@ -345,7 +382,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             }
           }
           
-          // Sort by distance
+          // Sort by distance from chosen reference point
           providers.sort((a, b) {
             if (a.latitude == null && b.latitude == null) return 0;
             if (a.latitude == null) return 1;
@@ -562,7 +599,19 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                 if (pDist != null) {
                   matchesDistance = pDist <= maxDist;
                 } else {
-                  matchesDistance = false; // Exclude if distance unknown
+                  // Fallback: If distance is unknown because provider has no GPS coordinates,
+                  // check if provider's location string matches the target location!
+                  if (_targetLocation != null && !_targetLocation!.isCurrentLocation) {
+                    final pLoc = provider.location.toLowerCase();
+                    final v = (_targetLocation!.village ?? '').toLowerCase();
+                    final d = (_targetLocation!.district ?? '').toLowerCase();
+                    final n = _targetLocation!.name.toLowerCase();
+                    matchesDistance = (v.isNotEmpty && pLoc.contains(v)) ||
+                                      (d.isNotEmpty && pLoc.contains(d)) ||
+                                      (n.isNotEmpty && pLoc.contains(n));
+                  } else {
+                    matchesDistance = false; // Exclude if distance unknown
+                  }
                 }
               } else {
                 // Village/Location filtering
@@ -613,7 +662,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
 
           return Column(
             children: [
-               _buildFilterSection(availableMakes),
+               _buildFilterSection(availableMakes, allProviders),
                Expanded(
                  child: filteredProviders.isEmpty
                  ? _buildEmptyState(l10n)
@@ -638,12 +687,16 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
   );
 }
 
-  Widget _buildFilterSection(List<String> makes) {
+  Widget _buildFilterSection(List<String> makes, List<ServiceProvider> allProviders) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE)))),
       child: Column(
         children: [
+          // Target Location Filter Bar
+          _buildLocationSearchBar(context, allProviders),
+          const SizedBox(height: 10),
+
           // Search Input Bar (ONLY for Farm Workers)
           if (widget.serviceKey == 'Farm Workers') ...[
             Container(
@@ -708,7 +761,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
                 child: _buildFilterDropdown(
                   hint: AppTranslations.translate(context, 'selectLocation'),
                   value: _selectedLocation,
-                  items: ['All', ...['5 km', '10 km', '15 km', '20 km', '25 km', '30 km', '35 km', '40 km', '45 km', '50 km', '55 km', '60 km']],
+                  items: ['All', ...['5 km', '10 km', '15 km', '20 km', '25 km', '30 km', '40 km', '50 km', '75 km', '100 km']],
                   onChanged: (v) => setState(() => _selectedLocation = v == 'All' ? null : v),
                   isLocation: true,
                 ),
@@ -716,6 +769,165 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLocationSearchBar(BuildContext context, List<ServiceProvider> allProviders) {
+    final isCustom = _targetLocation != null && !_targetLocation!.isCurrentLocation;
+    final locText = _targetLocation?.displayName ?? 'Current Location';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isCustom ? const Color(0xFFE8F5E9) : const Color(0xFFF4F6F4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isCustom ? const Color(0xFF00AA55) : const Color(0xFFE0E6E0),
+          width: isCustom ? 1.5 : 1.0,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: isCustom ? const Color(0xFF00AA55) : Colors.grey[300],
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isCustom ? Icons.location_on : Icons.my_location,
+              size: 15,
+              color: isCustom ? Colors.white : Colors.grey[700],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: InkWell(
+              onTap: () => _showLocationSelectorSheet(context, allProviders),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          isCustom ? 'SEARCHING NEAR' : 'SEARCH LOCATION',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.4,
+                            color: isCustom ? const Color(0xFF008844) : Colors.grey[600],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isCustom) ...[
+                        const SizedBox(width: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00AA55),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'CUSTOM',
+                            style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    locText,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isCustom ? const Color(0xFF1B5E20) : const Color(0xFF2C3E50),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          // Change Location Button
+          InkWell(
+            onTap: () => _showLocationSelectorSheet(context, allProviders),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: isCustom ? Colors.white : const Color(0xFF00AA55).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isCustom ? const Color(0xFF00AA55) : Colors.transparent,
+                ),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Change',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF00AA55),
+                    ),
+                  ),
+                  SizedBox(width: 1),
+                  Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF00AA55)),
+                ],
+              ),
+            ),
+          ),
+          if (isCustom) ...[
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: () async {
+                await _resetToCurrentLocation();
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Icon(Icons.close_rounded, size: 14, color: Colors.grey[700]),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _resetToCurrentLocation() async {
+    await _initTargetLocation();
+    _handleRefresh();
+  }
+
+  void _showLocationSelectorSheet(BuildContext context, List<ServiceProvider> allProviders) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) => _LocationSelectorModal(
+        currentLocation: _targetLocation,
+        allProviders: allProviders,
+        onLocationSelected: (selectedLocation) {
+          setState(() {
+            _targetLocation = selectedLocation;
+          });
+          _handleRefresh();
+        },
       ),
     );
   }
@@ -1069,6 +1281,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            vehicleNumber: provider.vehicleNumber,
            serviceArea: provider.serviceArea,
            jobsCompleted: provider.jobsCompleted,
+           targetLocation: _targetLocation,
          )));
       } else if (provider is FarmWorkerListing) {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookWorkersScreen(
@@ -1076,6 +1289,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            maxMale: provider.maleCount, maxFemale: provider.femaleCount, priceMale: provider.malePrice, priceFemale: provider.femalePrice,
            priceMaleHourly: provider.malePriceHourly, priceFemaleHourly: provider.femalePriceHourly, roleDistribution: provider.roleDistribution,
            jobsCompleted: provider.jobsCompleted,
+           targetLocation: _targetLocation,
          )));
       } else if (provider is EquipmentListing) {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookEquipmentDetailScreen(
@@ -1092,6 +1306,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            serialNumber: (provider.vehicleNumber != null && provider.vehicleNumber!.trim().isNotEmpty) ? provider.vehicleNumber! : null,
            attachedEquipments: provider.attachedEquipments,
            jobsCompleted: provider.jobsCompleted,
+           targetLocation: _targetLocation,
          )));
       } else {
          Navigator.push(context, MaterialPageRoute(builder: (_) => BookServiceDetailScreen(
@@ -1107,6 +1322,7 @@ class _ServiceProvidersScreenState extends State<ServiceProvidersScreen> {
            operatorIncluded: provider is ServiceListing ? provider.operatorIncluded : true,
            operatorPrice: provider is ServiceListing ? provider.operatorPrice : 0.0,
            jobsCompleted: provider.jobsCompleted,
+           targetLocation: _targetLocation,
          )));
       }
   }
@@ -1694,4 +1910,593 @@ class _FilterDropdownButtonState extends State<_FilterDropdownButton> {
     );
   }
 }
+
+// ── Location Selector Bottom Sheet Modal ──────────────────────────────────────
+
+class _LocationSelectorModal extends StatefulWidget {
+  final LocationFilterModel? currentLocation;
+  final List<ServiceProvider> allProviders;
+  final Function(LocationFilterModel) onLocationSelected;
+
+  const _LocationSelectorModal({
+    required this.currentLocation,
+    required this.allProviders,
+    required this.onLocationSelected,
+  });
+
+  @override
+  State<_LocationSelectorModal> createState() => _LocationSelectorModalState();
+}
+
+class _LocationSelectorModalState extends State<_LocationSelectorModal> {
+  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _manualVillageController = TextEditingController();
+  final TextEditingController _manualDistrictController = TextEditingController();
+
+  Timer? _debounce;
+  bool _isSearching = false;
+  bool _isDetectingGps = false;
+  List<LocationFilterModel> _suggestions = [];
+  bool _showManualEntry = false;
+  String? _searchError;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    _manualVillageController.dispose();
+    _manualDistrictController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    _debounce?.cancel();
+    final trimmed = query.trim();
+    if (trimmed.length < 2) {
+      setState(() {
+        _suggestions = [];
+        _isSearching = false;
+        _searchError = null;
+      });
+      return;
+    }
+
+    _debounce = Timer(const Duration(milliseconds: 380), () async {
+      if (!mounted) return;
+      setState(() {
+        _isSearching = true;
+        _searchError = null;
+      });
+
+      try {
+        final results = await GeocodingService.searchLocations(trimmed);
+        if (!mounted) return;
+        setState(() {
+          _suggestions = results;
+          _isSearching = false;
+          if (_suggestions.isEmpty) {
+            _searchError = 'No matching places found. Try manual entry below.';
+          }
+        });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _isSearching = false;
+          _searchError = 'Search timed out. You can enter village/town manually.';
+        });
+      }
+    });
+  }
+
+  Future<void> _useCurrentGps() async {
+    setState(() => _isDetectingGps = true);
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) UiUtils.showCenteredToast(context, 'Location services are disabled. Please enable GPS.', isError: true);
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) UiUtils.showCenteredToast(context, 'Location permission denied.', isError: true);
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) UiUtils.showCenteredToast(context, 'Location permission permanently denied. Enable in Settings.', isError: true);
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final addressData = await LocationHelper.getAddressFromCoordinates(pos.latitude, pos.longitude);
+
+      final village = addressData['village'];
+      final district = addressData['district'];
+      final mandal = addressData['mandal'];
+      final state = addressData['state'];
+      final pincode = addressData['pincode'];
+
+      String locName = 'Current Location';
+      if (village != null && village.isNotEmpty) {
+        locName = (district != null && district.isNotEmpty) ? '$village, $district' : village;
+      }
+
+      final loc = LocationFilterModel.currentLocation(
+        name: locName,
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        village: village,
+        district: district,
+        mandal: mandal,
+        state: state,
+        pincode: pincode,
+      );
+
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onLocationSelected(loc);
+      }
+    } catch (e) {
+      if (mounted) UiUtils.showCenteredToast(context, 'Could not fetch GPS: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isDetectingGps = false);
+    }
+  }
+
+  Future<void> _applyManualEntry() async {
+    final village = _manualVillageController.text.trim();
+    final district = _manualDistrictController.text.trim();
+    if (village.isEmpty) {
+      UiUtils.showCenteredToast(context, 'Please enter village or town name', isError: true);
+      return;
+    }
+
+    setState(() => _isSearching = true);
+    String query = district.isNotEmpty ? '$village, $district, India' : '$village, India';
+    Map<String, double>? coords;
+    try {
+      coords = await GeocodingService.getCoordinatesFromAddress(query);
+    } catch (_) {}
+
+    final loc = LocationFilterModel.custom(
+      name: district.isNotEmpty ? '$village, $district' : village,
+      latitude: coords?['latitude'],
+      longitude: coords?['longitude'],
+      village: village,
+      district: district.isNotEmpty ? district : null,
+    );
+
+    if (mounted) {
+      setState(() => _isSearching = false);
+      Navigator.pop(context);
+      widget.onLocationSelected(loc);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Collect unique provider areas
+    final Map<String, int> areaCounts = {};
+    final Map<String, ServiceProvider> areaSample = {};
+    for (var p in widget.allProviders) {
+      final loc = p.location.trim();
+      if (loc.isNotEmpty) {
+        areaCounts[loc] = (areaCounts[loc] ?? 0) + 1;
+        areaSample[loc] = p;
+      }
+    }
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Handle Bar
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Header Row
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00AA55).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.location_on_rounded, color: Color(0xFF00AA55), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Select Search Location',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF2C3E50)),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Find providers near your father's farm or another village",
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(height: 1),
+
+            // Scrollable Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Option 1: GPS Button
+                    InkWell(
+                      onTap: _isDetectingGps ? null : _useCurrentGps,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F8F1),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFC8E6C9)),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF00AA55),
+                                shape: BoxShape.circle,
+                              ),
+                              child: _isDetectingGps
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.my_location_rounded, color: Colors.white, size: 16),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Use My Current GPS Location',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1B5E20)),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Detect live device GPS and nearby providers',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded, color: Color(0xFF00AA55)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Divider label
+                    Row(
+                      children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            'OR SEARCH VILLAGE / TOWN',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.grey[500],
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                        const Expanded(child: Divider()),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Search input
+                    Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF6F8F6),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFD8E2D8)),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: _onSearchChanged,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF2C3E50)),
+                        decoration: InputDecoration(
+                          hintText: 'Search village, mandal, or district...',
+                          hintStyle: TextStyle(fontSize: 13, color: Colors.grey[500], fontWeight: FontWeight.w400),
+                          prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF00AA55), size: 20),
+                          suffixIcon: _searchController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear_rounded, color: Colors.grey, size: 18),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    _onSearchChanged('');
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+
+                    if (_isSearching) ...[
+                      const SizedBox(height: 16),
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(12.0),
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF00AA55)),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    if (_searchError != null && !_isSearching) ...[
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Text(
+                          _searchError!,
+                          style: TextStyle(fontSize: 12, color: Colors.orange[800], fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+
+                    // Suggestions List
+                    if (_suggestions.isNotEmpty && !_isSearching) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE8ECE8)),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
+                          ],
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _suggestions.length > 6 ? 6 : _suggestions.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (ctx, idx) {
+                            final item = _suggestions[idx];
+                            return ListTile(
+                              leading: const CircleAvatar(
+                                radius: 16,
+                                backgroundColor: Color(0xFFE8F5E9),
+                                child: Icon(Icons.place_rounded, size: 18, color: Color(0xFF00AA55)),
+                              ),
+                              title: Text(
+                                item.name,
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF2C3E50)),
+                              ),
+                              subtitle: Text(
+                                item.displayName,
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                widget.onLocationSelected(item);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+
+                    // Option 3: Quick Select from Provider Locations
+                    if (areaCounts.isNotEmpty && _suggestions.isEmpty && !_isSearching) ...[
+                      const SizedBox(height: 22),
+                      Row(
+                        children: [
+                          const Icon(Icons.flash_on_rounded, size: 16, color: Color(0xFF00AA55)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'AREAS WITH ACTIVE PROVIDERS',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.grey[600],
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: areaCounts.entries.map((entry) {
+                          final loc = entry.key;
+                          final count = entry.value;
+                          final p = areaSample[loc]!;
+                          final isSelected = widget.currentLocation?.name.toLowerCase() == loc.toLowerCase();
+
+                          return ActionChip(
+                            avatar: Icon(
+                              Icons.location_on_outlined,
+                              size: 14,
+                              color: isSelected ? Colors.white : const Color(0xFF00AA55),
+                            ),
+                            label: Text(
+                              '$loc ($count)',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: isSelected ? Colors.white : const Color(0xFF2C3E50),
+                              ),
+                            ),
+                            backgroundColor: isSelected ? const Color(0xFF00AA55) : const Color(0xFFF4F6F4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              side: BorderSide(
+                                color: isSelected ? const Color(0xFF00AA55) : const Color(0xFFE0E6E0),
+                              ),
+                            ),
+                            onPressed: () {
+                              final selectedLoc = LocationFilterModel.custom(
+                                name: loc,
+                                latitude: p.latitude,
+                                longitude: p.longitude,
+                                village: loc,
+                              );
+                              Navigator.pop(context);
+                              widget.onLocationSelected(selectedLoc);
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ],
+
+                    // Option 4: Manual Entry Form
+                    if (_suggestions.isEmpty && !_isSearching) ...[
+                      const SizedBox(height: 22),
+                      InkWell(
+                        onTap: () => setState(() => _showManualEntry = !_showManualEntry),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _showManualEntry ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                                color: const Color(0xFF00AA55),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                "Can't find your village? Enter manually",
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF00AA55),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      if (_showManualEntry) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FBF9),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2EBE2)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              TextField(
+                                controller: _manualVillageController,
+                                decoration: InputDecoration(
+                                  labelText: 'Village / Town Name *',
+                                  labelStyle: const TextStyle(fontSize: 13),
+                                  hintText: 'e.g. Nidubrolu, Inkollu...',
+                                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                                  isDense: true,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: _manualDistrictController,
+                                decoration: InputDecoration(
+                                  labelText: 'District (Optional)',
+                                  labelStyle: const TextStyle(fontSize: 13),
+                                  hintText: 'e.g. Bapatla, Guntur...',
+                                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                                  isDense: true,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              ElevatedButton(
+                                onPressed: _applyManualEntry,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF00AA55),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                child: const Text(
+                                  'Set As Search Location',
+                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 

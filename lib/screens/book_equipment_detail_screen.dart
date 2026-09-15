@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import '../models/booking_dto.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
+import '../models/location_filter_model.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../utils/location_helper.dart';
@@ -32,6 +33,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
   final String? serialNumber;
   final List<String>? attachedEquipments;
   final int? jobsCompleted;
+  final LocationFilterModel? targetLocation;
 
   const BookEquipmentDetailScreen({
     super.key,
@@ -48,6 +50,7 @@ class BookEquipmentDetailScreen extends StatefulWidget {
     this.serialNumber,
     this.attachedEquipments,
     this.jobsCompleted,
+    this.targetLocation,
   });
 
   @override
@@ -218,6 +221,23 @@ class _BookEquipmentDetailScreenState extends State<BookEquipmentDetailScreen> {
 
   Future<void> _loadAddress() async {
     final prefs = await SharedPreferences.getInstance();
+    if (widget.targetLocation != null && !widget.targetLocation!.isCurrentLocation) {
+      final loc = widget.targetLocation!;
+      setState(() {
+        _houseNoController.text = '';
+        _streetController.text = '';
+        _villageController.text = loc.village ?? loc.name;
+        _mandalController.text = loc.mandal ?? '';
+        _districtController.text = loc.district ?? '';
+        _stateController.text = loc.state ?? (prefs.getString('user_state') ?? '');
+        _countryController.text = prefs.getString('user_country') ?? 'India';
+        _pincodeController.text = loc.pincode ?? '';
+        _detectedLat = loc.latitude;
+        _detectedLng = loc.longitude;
+      });
+      return;
+    }
+
     setState(() {
       _houseNoController.text = prefs.getString('user_houseNo') ?? '';
       _streetController.text = prefs.getString('user_street') ?? '';

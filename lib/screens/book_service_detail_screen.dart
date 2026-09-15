@@ -15,6 +15,7 @@ import 'package:geocoding/geocoding.dart' as geo;
 import '../utils/location_helper.dart';
 import '../utils/translated_text.dart';
 import '../services/geocoding_service.dart';
+import '../models/location_filter_model.dart';
 import '../data/ploughing_data.dart';
 import '../data/harvesting_data.dart';
 import 'package:flutter/foundation.dart'
@@ -34,6 +35,7 @@ class BookServiceDetailScreen extends StatefulWidget {
   final bool? operatorIncluded;
   final double? operatorPrice;
   final int? jobsCompleted;
+  final LocationFilterModel? targetLocation;
 
   const BookServiceDetailScreen({
     super.key,
@@ -49,6 +51,7 @@ class BookServiceDetailScreen extends StatefulWidget {
     this.operatorIncluded,
     this.operatorPrice,
     this.jobsCompleted,
+    this.targetLocation,
   });
 
   @override
@@ -524,6 +527,25 @@ class _BookServiceDetailScreenState extends State<BookServiceDetailScreen> {
 
   Future<void> _loadAddress() async {
     final prefs = await SharedPreferences.getInstance();
+    if (widget.targetLocation != null && !widget.targetLocation!.isCurrentLocation) {
+      final loc = widget.targetLocation!;
+      setState(() {
+        _houseNoController.text = '';
+        _streetController.text = '';
+        _villageController.text = loc.village ?? loc.name;
+        _mandalController.text = loc.mandal ?? '';
+        _districtController.text = loc.district ?? '';
+        _stateController.text = loc.state ?? (prefs.getString('user_state') ?? '');
+        _countryController.text = prefs.getString('user_country') ?? 'India';
+        _pincodeController.text = loc.pincode ?? '';
+        _detectedLat = loc.latitude;
+        _detectedLng = loc.longitude;
+        _addressController.text = loc.displayName;
+        _clearAddressErrors();
+      });
+      return;
+    }
+
     setState(() {
       _houseNoController.text = prefs.getString('user_houseNo') ?? '';
       _streetController.text = prefs.getString('user_street') ?? '';

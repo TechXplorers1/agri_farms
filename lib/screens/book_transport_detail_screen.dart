@@ -9,6 +9,7 @@ import 'dart:convert';
 import '../models/booking_dto.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
+import '../models/location_filter_model.dart';
 import 'package:geolocator/geolocator.dart';
 import '../utils/location_helper.dart';
 import '../utils/translated_text.dart';
@@ -28,6 +29,7 @@ class BookTransportDetailScreen extends StatefulWidget {
   final String? vehicleNumber;
   final String? serviceArea;
   final int? jobsCompleted;
+  final LocationFilterModel? targetLocation;
 
   const BookTransportDetailScreen({
     super.key,
@@ -45,6 +47,7 @@ class BookTransportDetailScreen extends StatefulWidget {
     this.vehicleNumber,
     this.serviceArea,
     this.jobsCompleted,
+    this.targetLocation,
   });
 
   @override
@@ -437,6 +440,22 @@ class _BookTransportDetailScreenState extends State<BookTransportDetailScreen> {
 
   Future<void> _useProfileAddress() async {
     final prefs = await SharedPreferences.getInstance();
+    if (widget.targetLocation != null && !widget.targetLocation!.isCurrentLocation) {
+      final loc = widget.targetLocation!;
+      setState(() {
+        _houseNoController.text = '';
+        _streetController.text = '';
+        _villageController.text = loc.village ?? loc.name;
+        _mandalController.text = loc.mandal ?? '';
+        _districtController.text = loc.district ?? '';
+        _stateController.text = loc.state ?? (prefs.getString('user_state') ?? '');
+        _countryController.text = prefs.getString('user_country') ?? 'India';
+        _pincodeController.text = loc.pincode ?? '';
+        _clearAddressErrors();
+      });
+      return;
+    }
+
     final houseNo = prefs.getString('user_houseNo') ?? '';
     final street = prefs.getString('user_street') ?? '';
     final village = prefs.getString('user_village') ?? '';
