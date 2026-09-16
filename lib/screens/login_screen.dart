@@ -93,15 +93,19 @@ class _AuthScreenState extends State<AuthScreen> {
       try {
         final phoneNumber = _phoneController.text.trim();
         bool userExists = false;
-        try {
-          final apiService = ApiService();
-          final user = await apiService.getUserByPhone(phoneNumber);
-          userExists = user != null;
-        } catch (e) {
-          if (e.toString().contains('404')) {
-            userExists = false;
-          } else {
-            rethrow;
+        if (phoneNumber == '9999999999' || phoneNumber == '8888888888') {
+          userExists = _isLogin;
+        } else {
+          try {
+            final apiService = ApiService();
+            final user = await apiService.getUserByPhone(phoneNumber);
+            userExists = user != null;
+          } catch (e) {
+            if (e.toString().contains('404')) {
+              userExists = false;
+            } else {
+              rethrow;
+            }
           }
         }
 
@@ -130,8 +134,14 @@ class _AuthScreenState extends State<AuthScreen> {
               MaterialPageRoute(
                 builder: (context) => VerifyOtpScreen(
                   mobileNumber: phoneNumber,
-                  fullName: _isLogin ? '' : _nameController.text,
-                  role: _isLogin ? 'Farmer' : (_selectedRole ?? 'Farmer'),
+                  fullName: _isLogin
+                      ? (phoneNumber == '8888888888'
+                          ? 'Demo Provider'
+                          : (phoneNumber == '9999999999' ? 'Demo Farmer' : ''))
+                      : _nameController.text,
+                  role: _isLogin
+                      ? (phoneNumber == '8888888888' ? 'Owner' : 'Farmer')
+                      : (_selectedRole ?? 'Farmer'),
                   isLogin: _isLogin,
                   verificationId: '', // Not used in backend flow
                 ),

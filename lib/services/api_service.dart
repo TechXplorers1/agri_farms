@@ -180,10 +180,42 @@ class ApiService {
   }
 
   Future<dynamic> getUser(String userId) async {
+    if (userId.startsWith('demo_')) {
+      final isOwner = userId.contains('provider') ||
+          userId.contains('owner') ||
+          userId.contains('8888888888');
+      return {
+        'id': userId,
+        'userId': userId,
+        'fullName': isOwner ? 'Demo Provider' : 'Demo Farmer',
+        'phoneNumber': isOwner ? '8888888888' : '9999999999',
+        'role': isOwner ? 'Owner' : 'Farmer',
+        'email': isOwner ? 'provider@agrifarms.in' : 'farmer@agrifarms.in',
+        'village': 'Demo Village',
+        'district': 'Demo District',
+        'state': 'Demo State',
+        'country': 'India',
+        'pincode': '500001',
+      };
+    }
     return await get('${ApiConfig.users}/$userId');
   }
 
   Future<dynamic> getUserByPhone(String phoneNumber) async {
+    if (phoneNumber == '9999999999' || phoneNumber == '8888888888') {
+      final isOwner = phoneNumber == '8888888888';
+      return {
+        'id': isOwner ? 'demo_provider_id' : 'demo_farmer_id',
+        'userId': isOwner ? 'demo_provider_id' : 'demo_farmer_id',
+        'phoneNumber': phoneNumber,
+        'fullName': isOwner ? 'Demo Provider' : 'Demo Farmer',
+        'role': isOwner ? 'Owner' : 'Farmer',
+        'email': isOwner ? 'provider@agrifarms.in' : 'farmer@agrifarms.in',
+        'village': 'Demo Village',
+        'district': 'Demo District',
+        'state': 'Demo State',
+      };
+    }
     return await get('${ApiConfig.users}/phone/$phoneNumber');
   }
 
@@ -195,14 +227,23 @@ class ApiService {
     String userId,
     Map<String, dynamic> userData,
   ) async {
+    if (userId.startsWith('demo_')) {
+      return userData;
+    }
     return await put('${ApiConfig.users}/$userId', userData);
   }
 
   Future<dynamic> deleteUser(String userId) async {
+    if (userId.startsWith('demo_')) {
+      return {'message': 'Demo account deleted successfully'};
+    }
     return await delete('${ApiConfig.users}/$userId');
   }
 
   Future<dynamic> getUserStats(String userId) async {
+    if (userId.startsWith('demo_')) {
+      return {'ordersCount': 0, 'rentalsCount': 0, 'servicesCount': 0};
+    }
     return await get('${ApiConfig.users}/$userId/stats');
   }
 
@@ -264,6 +305,10 @@ class ApiService {
 
   /// Sends OTP to the given phone number via MSG91 backend proxy.
   Future<void> sendMsg91Otp({required String phoneNumber}) async {
+    if (phoneNumber == '9999999999' || phoneNumber == '8888888888') {
+      // Demo reviewer bypass: no SMS needed
+      return;
+    }
     final url = Uri.parse('$baseUrl/api/auth/msg91/send-otp');
     final response = await http.post(
       url,
@@ -285,6 +330,46 @@ class ApiService {
     required String fullName,
     required bool isLogin,
   }) async {
+    if (phoneNumber == '9999999999' || phoneNumber == '8888888888') {
+      if (otp != '123456') {
+        throw Exception('Invalid OTP. Please enter 123456 for demo access.');
+      }
+      final isOwner = phoneNumber == '8888888888';
+      final effectiveRole = isOwner ? 'Owner' : 'Farmer';
+      final effectiveName = fullName.isNotEmpty
+          ? fullName
+          : (isOwner ? 'Demo Provider' : 'Demo Farmer');
+      final demoUserId = isOwner ? 'demo_provider_id' : 'demo_farmer_id';
+
+      await _secureWrite('access_token', 'demo_access_token_$phoneNumber');
+      await _secureWrite(
+        'access_token_expiry',
+        DateTime.now().add(const Duration(days: 365)).toIso8601String(),
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', demoUserId);
+      await prefs.setString('user_role', effectiveRole);
+      await prefs.setString('user_name', effectiveName);
+      await prefs.setString('user_phone', phoneNumber);
+      await prefs.setString(
+        'user_email',
+        isOwner ? 'provider@agrifarms.in' : 'farmer@agrifarms.in',
+      );
+      await prefs.setString('user_village', 'Demo Village');
+      await prefs.setString('user_district', 'Demo District');
+      await prefs.setString('user_state', 'Demo State');
+
+      return {
+        'userId': demoUserId,
+        'role': effectiveRole,
+        'fullName': effectiveName,
+        'phoneNumber': phoneNumber,
+        'email': isOwner ? 'provider@agrifarms.in' : 'farmer@agrifarms.in',
+        'access_token': 'demo_access_token_$phoneNumber',
+      };
+    }
+
     final url = Uri.parse('$baseUrl/api/auth/msg91/verify-otp');
     final response = await http.post(
       url,
@@ -339,10 +424,12 @@ class ApiService {
   }
 
   Future<dynamic> getFarmerBookings(String farmerId) async {
+    if (farmerId.startsWith('demo_')) return [];
     return await get('${ApiConfig.bookings}/farmer/$farmerId');
   }
 
   Future<dynamic> getProviderBookings(String providerId) async {
+    if (providerId.startsWith('demo_')) return [];
     return await get('${ApiConfig.bookings}/provider/$providerId');
   }
 
@@ -510,6 +597,7 @@ class ApiService {
 
   // Notifications
   Future<dynamic> getUserNotifications(String userId) async {
+    if (userId.startsWith('demo_')) return [];
     return await get('${ApiConfig.notifications}/user/$userId');
   }
 
