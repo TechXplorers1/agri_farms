@@ -157,7 +157,6 @@ class NotificationService {
     // Step 6: Foreground message handler
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       print('Foreground FCM message received: ${message.messageId}');
-      print('Title: ${message.notification?.title}, Body: ${message.notification?.body}');
 
       if (message.notification != null) {
         _showLocalNotification(message);
@@ -183,7 +182,6 @@ class NotificationService {
 
     // Step 7: Handle token refresh
     _firebaseMessaging.onTokenRefresh.listen((newToken) {
-      print('FCM Token refreshed: $newToken');
       _saveTokenToBackend(newToken);
     });
 
@@ -278,7 +276,6 @@ class NotificationService {
   Future<String?> getToken() async {
     try {
       String? token = await _firebaseMessaging.getToken();
-      print('FCM Token: $token');
       return token;
     } catch (e) {
       print('Error getting FCM token: $e');

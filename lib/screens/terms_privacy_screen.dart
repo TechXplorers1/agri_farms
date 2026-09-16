@@ -163,7 +163,7 @@ class _TermsOfServiceTab extends StatelessWidget {
             '7. Content and Listings\n'
             'You retain ownership of content you upload. By uploading, you grant Agri Farms a license to display it within the app. We may remove content that violates these terms.\n\n'
             '8. Account Deletion\n'
-            'You can permanently delete your account from Profile > Danger Zone > Delete Account. Your data will be erased from our servers within 30 days. You may also request deletion at: https://agrifarms.in/account-deletion\n\n'
+            'You can permanently delete your account from Profile > Danger Zone > Delete Account. Your data will be erased from our servers within 30 days. You may also request deletion at: https://agrifarms.in/delete-account\n\n'
             '9. Disclaimer\n'
             'Agri Farms is a marketplace platform. We are not directly responsible for the quality, safety, or legality of services provided by third-party vendors.\n\n'
             '10. Termination\n'
@@ -229,6 +229,8 @@ class _PrivacyPolicyTab extends StatelessWidget {
             '  Privacy policy: https://firebase.google.com/support/privacy\n\n'
             '• Amazon Web Services (AWS S3) — stores your uploaded images in a secure cloud bucket.\n'
             '  Privacy policy: https://aws.amazon.com/privacy\n\n'
+            '• OpenStreetMap Nominatim — receives location coordinates or address searches to look up places.\n\n'
+            '• Google Translate — receives text for translation when you use a non-English language, including listing and notification text.\n\n'
             'We do NOT sell your personal data. We do NOT share data with advertisers.\n\n'
 
             '4. Data Retention\n'
@@ -243,11 +245,11 @@ class _PrivacyPolicyTab extends StatelessWidget {
             '• Request correction of inaccurate data\n'
             '• Request permanent deletion of your account\n\n'
             'To delete your account: open the app → Profile → Danger Zone → Delete Account.\n'
-            'Or submit a request at: https://agrifarms.in/account-deletion\n\n'
+            'Or submit a request at: https://agrifarms.in/delete-account\n\n'
 
             '6. Security\n'
             '• All API communication uses HTTPS (TLS)\n'
-            '• Authentication tokens are stored in encrypted device storage\n'
+            '• On Android and iOS, authentication tokens are stored in encrypted device storage\n'
             '• Our backend is hosted on AWS with strict access controls\n\n'
 
             '7. Children\'s Privacy\n'

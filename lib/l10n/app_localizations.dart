@@ -943,13 +943,13 @@ abstract class AppLocalizations {
   /// No description provided for @priceMale.
   ///
   /// In en, this message translates to:
-  /// **'Price/Male (â‚¹)'**
+  /// **'Price/Male (₹)'**
   String get priceMale;
 
   /// No description provided for @priceFemale.
   ///
   /// In en, this message translates to:
-  /// **'Price/Female (â‚¹)'**
+  /// **'Price/Female (₹)'**
   String get priceFemale;
 
   /// No description provided for @dailyWage.

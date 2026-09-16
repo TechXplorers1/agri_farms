@@ -23,4 +23,4 @@
 storePassword=REPLACE_WITH_YOUR_STORE_PASSWORD
 keyPassword=REPLACE_WITH_YOUR_KEY_PASSWORD
 keyAlias=agrifarms-key
-storeFile=agrifarms-upload-key.jks
+storeFile=../agrifarms-upload-key.jks

@@ -644,9 +644,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 try {
                   final prefs = await SharedPreferences.getInstance();
                   final userId = prefs.getString('user_id');
-                  if (userId != null && userId.isNotEmpty) {
-                    await ApiService().deleteUser(userId);
+                  if (userId == null || userId.isEmpty) {
+                    throw StateError('Sign in again to delete your account.');
                   }
+                  await ApiService().deleteUser(userId).timeout(const Duration(seconds: 30));
 
                   await NotificationService().clearFCMToken();
                   await ApiService().clearTokens();

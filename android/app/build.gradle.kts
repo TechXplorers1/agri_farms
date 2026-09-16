@@ -22,7 +22,7 @@ if (keyPropertiesFile.exists()) {
 android {
     namespace = "com.agrifarms.app"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -47,10 +47,6 @@ android {
                 keyPassword = keyProperties["keyPassword"] as String
                 storeFile = file(keyProperties["storeFile"] as String)
                 storePassword = keyProperties["storePassword"] as String
-            } else {
-                // Fallback to debug for local development when key.properties is absent.
-                // WARNING: Release builds uploaded to Play Store MUST have key.properties.
-                println("⚠️  WARNING: key.properties not found — using debug keys (not suitable for Play Store)")
             }
         }
     }
@@ -60,7 +56,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName 
         multiDexEnabled = true
@@ -70,11 +66,7 @@ android {
     buildTypes {
         release {
             // Use release signing config (reads from key.properties)
-            signingConfig = if (keyPropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug") // local dev fallback only
-            }
+            signingConfig = signingConfigs.getByName("release")
             // Enable R8 code shrinking + obfuscation (Play Store best practice)
             // Reduces APK size and makes code harder to reverse-engineer
             isMinifyEnabled = true
@@ -98,11 +90,30 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
-    implementation("com.google.firebase:firebase-analytics")
 }
 
 configurations.all {
     resolutionStrategy {
         force("com.android.tools:desugar_jdk_libs:2.1.4")
     }
+}
+
+// Never create a release artifact with a debug key or missing credentials.
+val validateReleaseCredentials = tasks.register("validateReleaseCredentials") {
+    doLast {
+        check(keyPropertiesFile.exists()) {
+            "Release signing requires android/key.properties. See android/key.properties.template."
+        }
+        listOf("keyAlias", "keyPassword", "storeFile", "storePassword").forEach { key ->
+            check(!keyProperties.getProperty(key).isNullOrBlank()) {
+                "Missing release signing property: $key"
+            }
+        }
+        check(file(keyProperties.getProperty("storeFile")).isFile) {
+            "Release keystore not found. storeFile is relative to android/app, or an absolute path."
+        }
+    }
+}
+tasks.configureEach {
+    if (name == "preReleaseBuild") dependsOn(validateReleaseCredentials)
 }

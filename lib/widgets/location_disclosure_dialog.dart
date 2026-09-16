@@ -80,7 +80,7 @@ class LocationDisclosureDialog {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Location data is accessed only while using the app to find and book farm services. It is never sold or shared without your explicit consent.',
+                        'Location is accessed only while using the app. Coordinates may be sent to OpenStreetMap Nominatim to find your address and to Agri Farms to find and book services. We do not sell your location.',
                         style: TextStyle(
                           fontSize: 11.5,
                           color: Colors.grey[800],

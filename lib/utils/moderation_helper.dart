@@ -4,23 +4,26 @@ import '../services/api_service.dart';
 import 'ui_utils.dart';
 
 /// ModerationHelper: Implements in-app User-Generated Content (UGC) reporting
-/// and blocking, fully compliant with Google Play UGC Policy.
+/// and local listing hiding after successful report delivery.
 class ModerationHelper {
   static const String _prefBlockedProviders = 'ugc_blocked_providers';
   static const String _prefReportedItems = 'ugc_reported_items';
 
   static Set<String> _cachedBlockedProviders = {};
   static Set<String> _cachedReportedItems = {};
-  static bool _isLoaded = false;
+  static String? _loadedUserId;
 
   /// Loads cached blocked and reported IDs from SharedPreferences.
   static Future<void> init() async {
-    if (_isLoaded) return;
     try {
       final prefs = await SharedPreferences.getInstance();
-      _cachedBlockedProviders = (prefs.getStringList(_prefBlockedProviders) ?? []).toSet();
-      _cachedReportedItems = (prefs.getStringList(_prefReportedItems) ?? []).toSet();
-      _isLoaded = true;
+      final userId = prefs.getString('user_id');
+      if (_loadedUserId == userId && userId != null) return;
+      _cachedBlockedProviders =
+          (prefs.getStringList(_prefBlockedProviders) ?? []).toSet();
+      _cachedReportedItems =
+          (prefs.getStringList(_prefReportedItems) ?? []).toSet();
+      _loadedUserId = userId;
     } catch (_) {}
   }
 
@@ -43,34 +46,39 @@ class ModerationHelper {
     required String reason,
     String? additionalNotes,
     bool blockProvider = true,
+    ApiService? apiService,
   }) async {
     final prefs = await SharedPreferences.getInstance();
 
-    // 1. Locally save to reported items
+    final currentUserId = prefs.getString('user_id');
+    if (currentUserId == null || currentUserId.isEmpty) {
+      throw StateError('Sign in to report a listing.');
+    }
+    // Only acknowledge a report after the server has accepted it.
+    await (apiService ?? ApiService())
+        .post('/api/reports', {
+          'reporterUserId': currentUserId,
+          'reportedItemId': itemId,
+          'reportedItemName': itemName,
+          'reportedProviderId': providerId,
+          'reason': reason,
+          'details': additionalNotes ?? '',
+          'blocked': blockProvider,
+          'timestamp': DateTime.now().toIso8601String(),
+        })
+        .timeout(const Duration(seconds: 20));
+    await init();
     _cachedReportedItems.add(itemId);
-    await prefs.setStringList(_prefReportedItems, _cachedReportedItems.toList());
-
-    // 2. Locally save to blocked providers if requested
+    await prefs.setStringList(
+      _prefReportedItems,
+      _cachedReportedItems.toList(),
+    );
     if (blockProvider && providerId.isNotEmpty) {
       _cachedBlockedProviders.add(providerId);
-      await prefs.setStringList(_prefBlockedProviders, _cachedBlockedProviders.toList());
-    }
-
-    // 3. Silently notify backend if endpoint is supported
-    try {
-      final currentUserId = prefs.getString('user_id') ?? 'anonymous';
-      await ApiService().post('/api/reports', {
-        'reporterUserId': currentUserId,
-        'reportedItemId': itemId,
-        'reportedItemName': itemName,
-        'reportedProviderId': providerId,
-        'reason': reason,
-        'details': additionalNotes ?? '',
-        'blocked': blockProvider,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-    } catch (_) {
-      // Graceful fallback — local blocking and reporting is still 100% active
+      await prefs.setStringList(
+        _prefBlockedProviders,
+        _cachedBlockedProviders.toList(),
+      );
     }
   }
 
@@ -147,21 +155,30 @@ class _ReportDialogContentState extends State<_ReportDialogContent> {
     if (_selectedReason == null) return;
     setState(() => _isSubmitting = true);
 
-    await ModerationHelper.submitReport(
-      itemId: widget.itemId,
-      itemName: widget.itemName,
-      providerId: widget.providerId,
-      reason: _selectedReason!,
-      additionalNotes: _notesController.text.trim(),
-      blockProvider: _blockProvider,
-    );
-
+    try {
+      await ModerationHelper.submitReport(
+        itemId: widget.itemId,
+        itemName: widget.itemName,
+        providerId: widget.providerId,
+        reason: _selectedReason!,
+        additionalNotes: _notesController.text.trim(),
+        blockProvider: _blockProvider,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      UiUtils.showCenteredToast(
+        context,
+        'Report could not be sent. Please try again.',
+      );
+      return;
+    }
     if (!mounted) return;
     Navigator.pop(context);
 
     UiUtils.showCenteredToast(
       context,
-      'Listing reported. Thank you for keeping our community safe. Our team reviews all reports within 24 hours.',
+      'Report received. This listing has been hidden from your results.',
     );
 
     widget.onReported?.call();
@@ -203,7 +220,11 @@ class _ReportDialogContentState extends State<_ReportDialogContent> {
           children: [
             Text(
               'Help us understand what is wrong with "${widget.itemName}" by ${widget.providerName}:',
-              style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.35),
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[700],
+                height: 1.35,
+              ),
             ),
             const SizedBox(height: 12),
             ..._reasons.map((reason) {
@@ -219,7 +240,8 @@ class _ReportDialogContentState extends State<_ReportDialogContent> {
                         value: reason,
                         groupValue: _selectedReason,
                         activeColor: const Color(0xFF00AA55),
-                        onChanged: (val) => setState(() => _selectedReason = val),
+                        onChanged:
+                            (val) => setState(() => _selectedReason = val),
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       const SizedBox(width: 6),
@@ -228,8 +250,12 @@ class _ReportDialogContentState extends State<_ReportDialogContent> {
                           reason,
                           style: TextStyle(
                             fontSize: 12.5,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            color: isSelected ? const Color(0xFF1B5E20) : Colors.grey[800],
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color:
+                                isSelected
+                                    ? const Color(0xFF1B5E20)
+                                    : Colors.grey[800],
                           ),
                         ),
                       ),
@@ -272,9 +298,12 @@ class _ReportDialogContentState extends State<_ReportDialogContent> {
                   Checkbox(
                     value: _blockProvider,
                     activeColor: Colors.red[700],
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    onChanged: (val) => setState(() => _blockProvider = val ?? true),
+                    onChanged:
+                        (val) => setState(() => _blockProvider = val ?? true),
                   ),
                   const SizedBox(width: 6),
                   Expanded(
@@ -299,7 +328,10 @@ class _ReportDialogContentState extends State<_ReportDialogContent> {
           onPressed: () => Navigator.pop(context),
           child: Text(
             'Cancel',
-            style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         ElevatedButton(
@@ -307,17 +339,26 @@ class _ReportDialogContentState extends State<_ReportDialogContent> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.red[600],
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
           ),
-          child: _isSubmitting
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                )
-              : const Text('Submit Report', style: TextStyle(fontWeight: FontWeight.bold)),
+          child:
+              _isSubmitting
+                  ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                  : const Text(
+                    'Submit Report',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
         ),
       ],
     );

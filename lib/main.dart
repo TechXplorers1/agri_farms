@@ -9,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
 import 'services/notification_service.dart';
+import 'services/api_service.dart';
 import 'dart:async';
 
 
@@ -20,6 +21,7 @@ void main() {
     
     // Initialize Firebase and Notifications
     try {
+      await ApiService().migrateLegacyTokens();
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );

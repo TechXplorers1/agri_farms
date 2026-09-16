@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -13,28 +14,44 @@ class ApiService {
 
   ApiService({String? baseUrl}) : baseUrl = baseUrl ?? ApiConfig.baseUrl;
 
-  /// Reads a value from secure storage, with a SharedPreferences fallback for Flutter Web.
-  /// FlutterSecureStorage silently returns null on Web (Chrome), breaking auth headers.
+  /// Migrates legacy native token copies into encrypted storage on first use.
   Future<String?> _secureRead(String key) async {
-    // Try SecureStorage first (works on Android/iOS)
-    String? val = await _secureStorage.read(key: key);
-    if (val != null && val.isNotEmpty) return val;
-    // Fallback to SharedPreferences (works on Web)
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('secure_$key');
+    if (kIsWeb) return prefs.getString('secure_$key');
+    final stored = await _secureStorage.read(key: key);
+    final legacy = prefs.getString('secure_$key');
+    if ((stored == null || stored.isEmpty) && legacy != null) {
+      await _secureStorage.write(key: key, value: legacy);
+    }
+    await prefs.remove('secure_$key');
+    return (stored == null || stored.isEmpty) ? legacy : stored;
   }
 
   Future<void> _secureWrite(String key, String value) async {
-    await _secureStorage.write(key: key, value: value);
-    // Also persist to SharedPreferences as Web fallback
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('secure_$key', value);
+    if (kIsWeb) {
+      await prefs.setString('secure_$key', value);
+    } else {
+      await _secureStorage.write(key: key, value: value);
+      await prefs.remove('secure_$key');
+    }
   }
 
   Future<void> _secureDelete(String key) async {
-    await _secureStorage.delete(key: key);
+    if (!kIsWeb) await _secureStorage.delete(key: key);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('secure_$key');
+  }
+
+  Future<void> migrateLegacyTokens() async {
+    if (kIsWeb) return;
+    for (final key in [
+      'access_token',
+      'refresh_token',
+      'access_token_expiry',
+    ]) {
+      await _secureRead(key);
+    }
   }
 
   Future<String?> _getValidAccessToken() async {
@@ -87,7 +104,9 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception('Failed to load data: ${response.statusCode} - body: ${response.body}');
+        throw Exception(
+          'Failed to load data: ${response.statusCode} - body: ${response.body}',
+        );
       }
     } catch (e) {
       throw Exception('Error fetching data: $e');
@@ -124,7 +143,9 @@ class ApiService {
         headers: headers,
         body: json.encode(data),
       );
-      if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 204) {
         // Handle empty response body mapping
         return response.body.isNotEmpty ? json.decode(response.body) : {};
       } else {
@@ -170,7 +191,10 @@ class ApiService {
     return await get('${ApiConfig.users}/email/$email');
   }
 
-  Future<dynamic> updateUser(String userId, Map<String, dynamic> userData) async {
+  Future<dynamic> updateUser(
+    String userId,
+    Map<String, dynamic> userData,
+  ) async {
     return await put('${ApiConfig.users}/$userId', userData);
   }
 
@@ -204,7 +228,7 @@ class ApiService {
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
       final responseData = json.decode(response.body) as Map<String, dynamic>;
-      
+
       if (responseData['access_token'] != null) {
         await _secureWrite('access_token', responseData['access_token']);
         if (responseData['refresh_token'] != null) {
@@ -218,15 +242,23 @@ class ApiService {
       }
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_id', responseData['userId']?.toString() ?? '');
+      await prefs.setString(
+        'user_id',
+        responseData['userId']?.toString() ?? '',
+      );
       await prefs.setString('user_role', responseData['role'] ?? role);
       await prefs.setString('user_name', responseData['fullName'] ?? fullName);
-      await prefs.setString('user_phone', responseData['phoneNumber']?.toString() ?? mobileNumber);
+      await prefs.setString(
+        'user_phone',
+        responseData['phoneNumber']?.toString() ?? mobileNumber,
+      );
       await prefs.setString('user_email', responseData['email'] ?? '');
 
       return responseData;
     } else {
-      throw Exception('staticLogin failed: ${response.statusCode} ${response.body}');
+      throw Exception(
+        'staticLogin failed: ${response.statusCode} ${response.body}',
+      );
     }
   }
 
@@ -239,7 +271,8 @@ class ApiService {
       body: json.encode({'phoneNumber': phoneNumber}),
     );
     if (response.statusCode != 200 && response.statusCode != 201) {
-      final errorMsg = json.decode(response.body)['message'] ?? 'Failed to send OTP';
+      final errorMsg =
+          json.decode(response.body)['message'] ?? 'Failed to send OTP';
       throw Exception(errorMsg);
     }
   }
@@ -266,7 +299,7 @@ class ApiService {
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
       final responseData = json.decode(response.body) as Map<String, dynamic>;
-      
+
       if (responseData['access_token'] != null) {
         await _secureWrite('access_token', responseData['access_token']);
         if (responseData['refresh_token'] != null) {
@@ -280,19 +313,25 @@ class ApiService {
       }
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_id', responseData['userId']?.toString() ?? '');
+      await prefs.setString(
+        'user_id',
+        responseData['userId']?.toString() ?? '',
+      );
       await prefs.setString('user_role', responseData['role'] ?? role);
       await prefs.setString('user_name', responseData['fullName'] ?? fullName);
-      await prefs.setString('user_phone', responseData['phoneNumber']?.toString() ?? phoneNumber);
+      await prefs.setString(
+        'user_phone',
+        responseData['phoneNumber']?.toString() ?? phoneNumber,
+      );
       await prefs.setString('user_email', responseData['email'] ?? '');
 
       return responseData;
     } else {
-      final errorMsg = json.decode(response.body)['message'] ?? 'OTP verification failed';
+      final errorMsg =
+          json.decode(response.body)['message'] ?? 'OTP verification failed';
       throw Exception(errorMsg);
     }
   }
-
 
   // Bookings
   Future<dynamic> createBooking(Map<String, dynamic> bookingData) async {
@@ -316,7 +355,9 @@ class ApiService {
     try {
       final headers = await _getHeaders();
       final response = await http.put(url, headers: headers);
-      if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 204) {
         return response.body.isNotEmpty ? json.decode(response.body) : {};
       } else {
         throw Exception('Failed to update data: ${response.statusCode}');
@@ -326,13 +367,19 @@ class ApiService {
     }
   }
 
-  Future<dynamic> updateBookingStatus(String bookingId, String status, {String? cancelledBy, String? cancellationReason}) async {
+  Future<dynamic> updateBookingStatus(
+    String bookingId,
+    String status, {
+    String? cancelledBy,
+    String? cancellationReason,
+  }) async {
     String endpoint = '${ApiConfig.bookings}/$bookingId/status?status=$status';
     if (cancelledBy != null && cancelledBy.isNotEmpty) {
       endpoint += '&cancelledBy=${Uri.encodeComponent(cancelledBy)}';
     }
     if (cancellationReason != null && cancellationReason.isNotEmpty) {
-      endpoint += '&cancellationReason=${Uri.encodeComponent(cancellationReason)}';
+      endpoint +=
+          '&cancellationReason=${Uri.encodeComponent(cancellationReason)}';
     }
     return await putStatus(endpoint);
   }
@@ -357,7 +404,10 @@ class ApiService {
     return await post(ApiConfig.inventoryEquipment, equipmentData);
   }
 
-  Future<dynamic> updateEquipment(String id, Map<String, dynamic> equipmentData) async {
+  Future<dynamic> updateEquipment(
+    String id,
+    Map<String, dynamic> equipmentData,
+  ) async {
     return await put('${ApiConfig.inventoryEquipment}/$id', equipmentData);
   }
 
@@ -385,7 +435,10 @@ class ApiService {
     return await post(ApiConfig.inventoryVehicles, vehicleData);
   }
 
-  Future<dynamic> updateVehicle(String id, Map<String, dynamic> vehicleData) async {
+  Future<dynamic> updateVehicle(
+    String id,
+    Map<String, dynamic> vehicleData,
+  ) async {
     return await put('${ApiConfig.inventoryVehicles}/$id', vehicleData);
   }
 
@@ -413,7 +466,10 @@ class ApiService {
     return await post(ApiConfig.inventoryServices, serviceData);
   }
 
-  Future<dynamic> updateService(String id, Map<String, dynamic> serviceData) async {
+  Future<dynamic> updateService(
+    String id,
+    Map<String, dynamic> serviceData,
+  ) async {
     return await put('${ApiConfig.inventoryServices}/$id', serviceData);
   }
 
@@ -441,7 +497,10 @@ class ApiService {
     return await post(ApiConfig.inventoryWorkerGroups, workerGroupData);
   }
 
-  Future<dynamic> updateWorkerGroup(String id, Map<String, dynamic> workerGroupData) async {
+  Future<dynamic> updateWorkerGroup(
+    String id,
+    Map<String, dynamic> workerGroupData,
+  ) async {
     return await put('${ApiConfig.inventoryWorkerGroups}/$id', workerGroupData);
   }
 
@@ -502,15 +561,13 @@ class ApiService {
       final headers = await _getHeaders();
       request.headers.addAll(headers);
       final bytes = await imageFile.readAsBytes();
-      request.files.add(http.MultipartFile.fromBytes(
-        'file',
-        bytes,
-        filename: imageFile.name,
-      ));
-      
+      request.files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: imageFile.name),
+      );
+
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
-      
+
       if (response.statusCode == 200) {
         return Map<String, String>.from(json.decode(response.body));
       } else {
@@ -532,13 +589,13 @@ class ApiService {
       'role': role,
       'fullName': fullName ?? '',
     });
-    
+
     if (response != null && response['access_token'] != null) {
       await _secureWrite('access_token', response['access_token']);
       if (response['refresh_token'] != null) {
         await _secureWrite('refresh_token', response['refresh_token']);
       }
-      
+
       final expiresIn = response['expires_in'] ?? 300;
       final expiry = DateTime.now().add(Duration(seconds: expiresIn));
       await _secureWrite('access_token_expiry', expiry.toIso8601String());
