@@ -7,6 +7,7 @@ import '../services/translation_service.dart';
 import '../utils/language_provider.dart';
 import 'package:provider/provider.dart';
 import '../utils/ui_utils.dart';
+import '../utils/moderation_helper.dart';
 
 String _formatBookingDate(String raw) {
   try {
@@ -227,6 +228,7 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ignore: unused_local_variable
     final isFarmer = _userRole.toLowerCase() == 'farmer';
     return DefaultTabController(
       length: 2,
@@ -764,7 +766,36 @@ class _GenericHistoryScreenState extends State<GenericHistoryScreen> {
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 10, letterSpacing: 0.5)
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 4),
+              // Report flag button — visible on both Active and History cards
+              Tooltip(
+                message: 'Report this booking',
+                child: InkWell(
+                  onTap: () {
+                    ModerationHelper.showReportDialog(
+                      context,
+                      itemId: booking.id,
+                      itemName: booking.title,
+                      providerId: booking.providerId ?? '',
+                      providerName: (booking.details['Provider']?.toString() ??
+                          booking.details['Booked By']?.toString()) ?? 'Provider',
+                      onReported: () {
+                        if (mounted) setState(() {});
+                      },
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.flag_outlined,
+                      size: 18,
+                      color: Colors.red[300],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
               Icon(
                 isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                 color: const Color(0xFF1B5E20),
